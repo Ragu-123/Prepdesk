@@ -1373,6 +1373,7 @@ class _HomePageState extends State<HomePage> {
                       );
                     },
                   ),
+                  const Divider(height: 1, thickness: 1, color: googleHairline),
                   // 6. Notifications (no subtitle)
                   ListTile(
                     leading: const Icon(Icons.mark_chat_unread_outlined, color: Colors.deepPurple, size: 22),

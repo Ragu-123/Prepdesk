@@ -422,102 +422,109 @@ class _NoteEditorSheetState extends State<NoteEditorSheet> {
               ),
               const SizedBox(height: 12),
 
-              // 2. Actions Bar
+              // 2. Actions Bar (Static Close at left, scrollable action icons in middle, static Save at right)
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   IconButton(
                     icon: const Icon(Icons.close_rounded, color: googleTextSecondary, size: 22),
                     tooltip: 'Close',
                     onPressed: () => Navigator.pop(context),
                   ),
-                  Row(
-                    children: [
-                      // Reminder Button
-                      IconButton(
-                        icon: Icon(
-                          _reminderAt != null ? Icons.alarm_on_rounded : Icons.alarm_add_rounded,
-                          color: _reminderAt != null ? googleBlue : googleTextSecondary,
-                          size: 22,
-                        ),
-                        tooltip: _reminderAt != null ? 'Edit Reminder' : 'Add Reminder',
-                        onPressed: _openReminderPicker,
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Reminder Button
+                          IconButton(
+                            icon: Icon(
+                              _reminderAt != null ? Icons.alarm_on_rounded : Icons.alarm_add_rounded,
+                              color: _reminderAt != null ? googleBlue : googleTextSecondary,
+                              size: 22,
+                            ),
+                            tooltip: _reminderAt != null ? 'Edit Reminder' : 'Add Reminder',
+                            onPressed: _openReminderPicker,
+                          ),
+                          // Protect / Lock Button
+                          IconButton(
+                            icon: Icon(
+                              _isLocked ? Icons.lock_rounded : Icons.lock_outline_rounded,
+                              color: _isLocked ? googleBlue : googleTextSecondary,
+                              size: 22,
+                            ),
+                            tooltip: _isLocked ? 'Protected Note' : 'Protect Note',
+                            onPressed: _toggleLock,
+                          ),
+                          // Checklist Mode Button
+                          IconButton(
+                            icon: Icon(
+                              _isTodoList ? Icons.check_box_rounded : Icons.check_box_outlined,
+                              color: _isTodoList ? googleBlue : googleTextSecondary,
+                              size: 22,
+                            ),
+                            tooltip: 'Checklist Mode',
+                            onPressed: _toggleTodoList,
+                          ),
+                          // Monospace / Code Button
+                          IconButton(
+                            icon: Icon(
+                              _isCode ? Icons.code_rounded : Icons.data_object_rounded,
+                              color: _isCode ? googleBlue : googleTextSecondary,
+                              size: 22,
+                            ),
+                            tooltip: 'Monospace Code Note',
+                            onPressed: () => setState(() => _isCode = !_isCode),
+                          ),
+                          // Pin Button
+                          IconButton(
+                            icon: Icon(
+                              _isPinned ? Icons.push_pin_rounded : Icons.push_pin_outlined,
+                              color: _isPinned ? googleBlue : googleTextSecondary,
+                              size: 22,
+                            ),
+                            tooltip: _isPinned ? 'Unpin' : 'Pin to top',
+                            onPressed: () => setState(() => _isPinned = !_isPinned),
+                          ),
+                          // Archive Button
+                          IconButton(
+                            icon: Icon(
+                              _isArchived ? Icons.unarchive_outlined : Icons.archive_outlined,
+                              color: _isArchived ? googleBlue : googleTextSecondary,
+                              size: 22,
+                            ),
+                            tooltip: _isArchived ? 'Unarchive' : 'Archive',
+                            onPressed: () => setState(() => _isArchived = !_isArchived),
+                          ),
+                          if (widget.note != null)
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline_rounded, color: googleRed, size: 22),
+                              tooltip: 'Delete Note',
+                              onPressed: _handleDelete,
+                            ),
+                        ],
                       ),
-                      // Protect / Lock Button
-                      IconButton(
-                        icon: Icon(
-                          _isLocked ? Icons.lock_rounded : Icons.lock_outline_rounded,
-                          color: _isLocked ? googleBlue : googleTextSecondary,
-                          size: 22,
-                        ),
-                        tooltip: _isLocked ? 'Protected Note' : 'Protect Note',
-                        onPressed: _toggleLock,
-                      ),
-                      // Checklist Mode Button
-                      IconButton(
-                        icon: Icon(
-                          _isTodoList ? Icons.check_box_rounded : Icons.check_box_outlined,
-                          color: _isTodoList ? googleBlue : googleTextSecondary,
-                          size: 22,
-                        ),
-                        tooltip: 'Checklist Mode',
-                        onPressed: _toggleTodoList,
-                      ),
-                      // Monospace / Code Button
-                      IconButton(
-                        icon: Icon(
-                          _isCode ? Icons.code_rounded : Icons.data_object_rounded,
-                          color: _isCode ? googleBlue : googleTextSecondary,
-                          size: 22,
-                        ),
-                        tooltip: 'Monospace Code Note',
-                        onPressed: () => setState(() => _isCode = !_isCode),
-                      ),
-                      // Pin Button
-                      IconButton(
-                        icon: Icon(
-                          _isPinned ? Icons.push_pin_rounded : Icons.push_pin_outlined,
-                          color: _isPinned ? googleBlue : googleTextSecondary,
-                          size: 22,
-                        ),
-                        tooltip: _isPinned ? 'Unpin' : 'Pin to top',
-                        onPressed: () => setState(() => _isPinned = !_isPinned),
-                      ),
-                      // Archive Button
-                      IconButton(
-                        icon: Icon(
-                          _isArchived ? Icons.unarchive_outlined : Icons.archive_outlined,
-                          color: _isArchived ? googleBlue : googleTextSecondary,
-                          size: 22,
-                        ),
-                        tooltip: _isArchived ? 'Unarchive' : 'Archive',
-                        onPressed: () => setState(() => _isArchived = !_isArchived),
-                      ),
-                      if (widget.note != null)
-                        IconButton(
-                          icon: const Icon(Icons.delete_outline_rounded, color: googleRed, size: 22),
-                          tooltip: 'Delete Note',
-                          onPressed: _handleDelete,
-                        ),
-                      const SizedBox(width: 4),
-                      ElevatedButton(
-                        onPressed: _isSaving ? null : _handleSave,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: googleBlue,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-                        ),
-                        child: _isSaving
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                              )
-                            : const Text('Save', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                      ),
-                    ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: _isSaving ? null : _handleSave,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: googleBlue,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                    ),
+                    child: _isSaving
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                          )
+                        : const Text('Save', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                   ),
                 ],
               ),
