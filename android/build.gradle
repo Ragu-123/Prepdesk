@@ -27,12 +27,19 @@ subprojects {
     project.evaluationDependsOn(':app')
 }
 
-subprojects {
-    afterEvaluate { project ->
+subprojects { project ->
+    def configureAndroid = {
         if (project.hasProperty('android')) {
             project.android {
                 compileSdkVersion 34
             }
+        }
+    }
+    if (project.state.executed) {
+        configureAndroid()
+    } else {
+        project.afterEvaluate {
+            configureAndroid()
         }
     }
 }
