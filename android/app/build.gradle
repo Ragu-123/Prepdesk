@@ -33,7 +33,7 @@ def keystoreProperties = new Properties()
 
 android {
     namespace "io.github.thelazyindian.tasks"
-    compileSdkVersion 34
+    compileSdkVersion 35
 
     sourceSets {
         main.java.srcDirs += 'src/main/kotlin'

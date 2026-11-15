@@ -22,6 +22,7 @@ import 'package:tasks/pages/bitchat/bitchat_main_page.dart';
 import 'package:tasks/services/bitchat/bitchat_service.dart';
 import 'package:tasks/pages/keep/keep_page.dart';
 import 'package:tasks/pages/keep/note_editor_sheet.dart';
+import 'package:tasks/data/keep_note_model.dart';
 import 'package:tasks/services/vault_service.dart';
 
 class HomePage extends StatefulWidget {

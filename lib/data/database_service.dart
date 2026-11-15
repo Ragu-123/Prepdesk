@@ -1717,12 +1717,15 @@ class DatabaseService {
 
   // --- Keep Vault PIN & Biometrics Preferences ---
 
+  Future<String?> getConfigValue(String key) => getConfig(key);
+  Future<void> setConfigValue(String key, String value) => setConfig(key, value);
+
   Future<String?> getKeepVaultPinHash() async {
-    return await getConfigValue('keep_vault_pin_hash');
+    return await getConfig('keep_vault_pin_hash');
   }
 
   Future<void> setKeepVaultPinHash(String hash) async {
-    await setConfigValue('keep_vault_pin_hash', hash);
+    await setConfig('keep_vault_pin_hash', hash);
   }
 
   Future<void> removeKeepVaultPinHash() async {
@@ -1731,11 +1734,11 @@ class DatabaseService {
   }
 
   Future<bool> isKeepBiometricsEnabled() async {
-    final val = await getConfigValue('keep_vault_biometrics_enabled');
+    final val = await getConfig('keep_vault_biometrics_enabled');
     return val == '1' || val == 'true';
   }
 
   Future<void> setKeepBiometricsEnabled(bool enabled) async {
-    await setConfigValue('keep_vault_biometrics_enabled', enabled ? '1' : '0');
+    await setConfig('keep_vault_biometrics_enabled', enabled ? '1' : '0');
   }
 }
