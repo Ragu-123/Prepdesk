@@ -3,6 +3,7 @@ import '../../data/database_service.dart';
 import '../../data/keep_note_model.dart';
 import '../../services/vault_service.dart';
 import '../../utils/theme.dart';
+import '../../widgets/top_banner_notification.dart';
 import '../settings/settings_page.dart';
 import 'note_editor_sheet.dart';
 import 'widgets/keep_empty_state.dart';
