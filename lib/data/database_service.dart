@@ -110,6 +110,8 @@ class DatabaseService {
         text VARCHAR NOT NULL, 
         remind_at DATETIME NOT NULL, 
         repeat_days TEXT,
+        alert_type TEXT DEFAULT 'notification',
+        checkpoints_json TEXT DEFAULT '[]',
         status VARCHAR, 
         created_at DATETIME, 
         anchor_id INTEGER, 
@@ -314,6 +316,9 @@ class DatabaseService {
         todo_items_json TEXT NOT NULL DEFAULT '[]',
         tags_json TEXT NOT NULL DEFAULT '[]',
         is_code INTEGER NOT NULL DEFAULT 0,
+        is_locked INTEGER NOT NULL DEFAULT 0,
+        reminder_at INTEGER,
+        reminder_repeat TEXT,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
       )
@@ -330,6 +335,10 @@ class DatabaseService {
       CREATE INDEX IF NOT EXISTS idx_keep_notes_archived 
       ON keep_notes(is_archived)
     ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_keep_notes_reminder 
+      ON keep_notes(reminder_at)
+    ''');
   }
 
   Future<void> _runMigrations(Database db) async {
@@ -345,12 +354,33 @@ class DatabaseService {
       }
     } catch (_) {}
 
-    // 2. custom_reminders migrations (repeat_days)
+    // 2. custom_reminders migrations (repeat_days, alert_type, checkpoints_json)
     try {
       final rCols = await db.rawQuery('PRAGMA table_info(custom_reminders)');
       final rColNames = rCols.map((c) => c['name']?.toString().toLowerCase()).toSet();
       if (!rColNames.contains('repeat_days')) {
         await db.execute('ALTER TABLE custom_reminders ADD COLUMN repeat_days TEXT');
+      }
+      if (!rColNames.contains('alert_type')) {
+        await db.execute("ALTER TABLE custom_reminders ADD COLUMN alert_type TEXT DEFAULT 'notification'");
+      }
+      if (!rColNames.contains('checkpoints_json')) {
+        await db.execute("ALTER TABLE custom_reminders ADD COLUMN checkpoints_json TEXT DEFAULT '[]'");
+      }
+    } catch (_) {}
+
+    // 2b. keep_notes migrations (is_locked, reminder_at, reminder_repeat)
+    try {
+      final kCols = await db.rawQuery('PRAGMA table_info(keep_notes)');
+      final kColNames = kCols.map((c) => c['name']?.toString().toLowerCase()).toSet();
+      if (!kColNames.contains('is_locked')) {
+        await db.execute('ALTER TABLE keep_notes ADD COLUMN is_locked INTEGER NOT NULL DEFAULT 0');
+      }
+      if (!kColNames.contains('reminder_at')) {
+        await db.execute('ALTER TABLE keep_notes ADD COLUMN reminder_at INTEGER');
+      }
+      if (!kColNames.contains('reminder_repeat')) {
+        await db.execute('ALTER TABLE keep_notes ADD COLUMN reminder_repeat TEXT');
       }
     } catch (_) {}
 
@@ -1239,7 +1269,13 @@ class DatabaseService {
     }
   }
 
-  Future<int> addCustomReminder(String text, DateTime remindAt, {String? repeatDays}) async {
+  Future<int> addCustomReminder(
+    String text,
+    DateTime remindAt, {
+    String? repeatDays,
+    String alertType = 'notification',
+    List<String>? checkpoints,
+  }) async {
     final db = await database;
     try {
       final rCols = await db.rawQuery('PRAGMA table_info(custom_reminders)');
@@ -1247,12 +1283,20 @@ class DatabaseService {
       if (!rColNames.contains('repeat_days')) {
         await db.execute('ALTER TABLE custom_reminders ADD COLUMN repeat_days TEXT');
       }
+      if (!rColNames.contains('alert_type')) {
+        await db.execute("ALTER TABLE custom_reminders ADD COLUMN alert_type TEXT DEFAULT 'notification'");
+      }
+      if (!rColNames.contains('checkpoints_json')) {
+        await db.execute("ALTER TABLE custom_reminders ADD COLUMN checkpoints_json TEXT DEFAULT '[]'");
+      }
     } catch (_) {}
 
     return await db.insert('custom_reminders', {
       'text': text,
       'remind_at': remindAt.toIso8601String(),
       'repeat_days': (repeatDays != null && repeatDays.trim().isNotEmpty) ? repeatDays.trim() : null,
+      'alert_type': alertType,
+      'checkpoints_json': jsonEncode(checkpoints ?? []),
       'status': 'PENDING',
       'created_at': DateTime.now().toIso8601String(),
     });
@@ -1263,6 +1307,8 @@ class DatabaseService {
     required String text,
     required DateTime remindAt,
     String? repeatDays,
+    String alertType = 'notification',
+    List<String>? checkpoints,
   }) async {
     final db = await database;
     try {
@@ -1270,6 +1316,12 @@ class DatabaseService {
       final rColNames = rCols.map((c) => c['name']?.toString().toLowerCase()).toSet();
       if (!rColNames.contains('repeat_days')) {
         await db.execute('ALTER TABLE custom_reminders ADD COLUMN repeat_days TEXT');
+      }
+      if (!rColNames.contains('alert_type')) {
+        await db.execute("ALTER TABLE custom_reminders ADD COLUMN alert_type TEXT DEFAULT 'notification'");
+      }
+      if (!rColNames.contains('checkpoints_json')) {
+        await db.execute("ALTER TABLE custom_reminders ADD COLUMN checkpoints_json TEXT DEFAULT '[]'");
       }
     } catch (_) {}
 
@@ -1279,6 +1331,8 @@ class DatabaseService {
         'text': text,
         'remind_at': remindAt.toIso8601String(),
         'repeat_days': (repeatDays != null && repeatDays.trim().isNotEmpty) ? repeatDays.trim() : null,
+        'alert_type': alertType,
+        'checkpoints_json': jsonEncode(checkpoints ?? []),
       },
       where: 'id = ?',
       whereArgs: [id],
@@ -1617,5 +1671,71 @@ class DatabaseService {
     } catch (_) {
       return [];
     }
+  }
+
+  Future<List<KeepNote>> getKeepNotesWithReminders() async {
+    final db = await database;
+    try {
+      final rows = await db.query(
+        'keep_notes',
+        where: 'reminder_at IS NOT NULL AND is_archived = 0',
+        orderBy: 'reminder_at ASC',
+      );
+      return rows.map((r) => KeepNote.fromMap(r)).toList();
+    } catch (e) {
+      debugPrint('getKeepNotesWithReminders error: $e');
+      return [];
+    }
+  }
+
+  Future<void> toggleLockKeepNote(String id, bool isLocked) async {
+    final db = await database;
+    await db.update(
+      'keep_notes',
+      {
+        'is_locked': isLocked ? 1 : 0,
+        'updated_at': DateTime.now().millisecondsSinceEpoch,
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<void> updateKeepNoteReminder(String id, int? reminderAt, String? reminderRepeat) async {
+    final db = await database;
+    await db.update(
+      'keep_notes',
+      {
+        'reminder_at': reminderAt,
+        'reminder_repeat': reminderRepeat,
+        'updated_at': DateTime.now().millisecondsSinceEpoch,
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  // --- Keep Vault PIN & Biometrics Preferences ---
+
+  Future<String?> getKeepVaultPinHash() async {
+    return await getConfigValue('keep_vault_pin_hash');
+  }
+
+  Future<void> setKeepVaultPinHash(String hash) async {
+    await setConfigValue('keep_vault_pin_hash', hash);
+  }
+
+  Future<void> removeKeepVaultPinHash() async {
+    final db = await database;
+    await db.delete('app_config', where: 'key = ?', whereArgs: ['keep_vault_pin_hash']);
+  }
+
+  Future<bool> isKeepBiometricsEnabled() async {
+    final val = await getConfigValue('keep_vault_biometrics_enabled');
+    return val == '1' || val == 'true';
+  }
+
+  Future<void> setKeepBiometricsEnabled(bool enabled) async {
+    await setConfigValue('keep_vault_biometrics_enabled', enabled ? '1' : '0');
   }
 }

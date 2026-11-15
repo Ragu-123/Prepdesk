@@ -1,8 +1,13 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:tasks/data/database_service.dart';
+import 'package:tasks/data/keep_note_model.dart';
+import 'package:tasks/pages/keep/note_editor_sheet.dart';
 import 'package:tasks/services/notification_service.dart';
+import 'package:tasks/services/vault_service.dart';
 import 'package:tasks/utils/theme.dart';
+import 'package:tasks/widgets/full_screen_alarm_dialog.dart';
 import 'package:tasks/widgets/google_checkbox.dart';
 import 'package:tasks/widgets/top_banner_notification.dart';
 
@@ -22,8 +27,10 @@ class AlertsPage extends StatefulWidget {
 
 class _AlertsPageState extends State<AlertsPage> {
   List<Map<String, dynamic>> _reminders = [];
+  List<KeepNote> _keepReminders = [];
   bool _isLoading = true;
   bool _isCompletedExpanded = false;
+  int _activeTab = 0; // 0: Study Reminders, 1: Keep Note Reminders
 
   @override
   void initState() {
@@ -40,14 +47,18 @@ class _AlertsPageState extends State<AlertsPage> {
       // 2. Load latest custom reminders
       final reminders = await DatabaseService.instance.getCustomReminders();
 
+      // 3. Load Keep Notes with active reminders
+      final keepNotes = await DatabaseService.instance.getKeepNotesWithReminders();
+
       if (mounted) {
         setState(() {
           _reminders = reminders;
+          _keepReminders = keepNotes;
           _isLoading = false;
         });
       }
     } catch (e) {
-      debugPrint('Error loading alerts: $e');
+      debugPrint('Error loading reminders: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -64,8 +75,8 @@ class _AlertsPageState extends State<AlertsPage> {
     if (mounted) {
       TopBanner.show(
         context,
-        title: 'Alarm Deleted',
-        message: 'Scheduled study alert removed.',
+        title: 'Reminder Deleted',
+        message: 'Scheduled reminder removed.',
         icon: Icons.delete_outline_rounded,
         color: googleRed,
       );
@@ -78,6 +89,7 @@ class _AlertsPageState extends State<AlertsPage> {
     String? repeatDays,
     String? remindAtStr,
     String? text,
+    String alertType = 'notification',
   }) async {
     await DatabaseService.instance.toggleReminderStatus(id, completed);
     if (completed) {
@@ -90,6 +102,7 @@ class _AlertsPageState extends State<AlertsPage> {
         body: text,
         scheduledDate: dt,
         repeatDays: repeatDays,
+        alertType: alertType,
       );
     }
     await _loadAlerts();
@@ -97,7 +110,7 @@ class _AlertsPageState extends State<AlertsPage> {
     if (mounted) {
       TopBanner.show(
         context,
-        title: completed ? 'Alarm Completed' : 'Alarm Active',
+        title: completed ? 'Reminder Completed' : 'Reminder Active',
         message: completed ? 'Moved to completed schedule' : 'Restored to active reminders',
         icon: completed ? Icons.task_alt_rounded : Icons.alarm_on_rounded,
         color: completed ? googleGreen : googleBlue,
@@ -105,7 +118,7 @@ class _AlertsPageState extends State<AlertsPage> {
     }
   }
 
-  Future<void> _openNewAlarmEditor() async {
+  Future<void> _openNewReminderEditor() async {
     final now = DateTime.now();
     final initialDate = now.add(const Duration(minutes: 30));
 
@@ -113,16 +126,20 @@ class _AlertsPageState extends State<AlertsPage> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => _AlarmEditorSheet(
+      builder: (ctx) => _ReminderEditorSheet(
         id: null,
-        initialText: 'Study Alarm',
+        initialText: 'Study Reminder',
         initialDateTime: initialDate,
         initialRepeatDays: null,
-        onSave: (newText, newDateTime, newRepeatDays) async {
+        initialAlertType: 'notification',
+        initialCheckpoints: const [],
+        onSave: (newText, newDateTime, newRepeatDays, alertType, checkpoints) async {
           final id = await DatabaseService.instance.addCustomReminder(
             newText,
             newDateTime,
             repeatDays: newRepeatDays,
+            alertType: alertType,
+            checkpoints: checkpoints,
           );
           await NotificationService.instance.scheduleReminder(
             id: id,
@@ -130,16 +147,17 @@ class _AlertsPageState extends State<AlertsPage> {
             body: newText,
             scheduledDate: newDateTime,
             repeatDays: newRepeatDays,
+            alertType: alertType,
+            checkpoints: checkpoints,
           );
           await _loadAlerts();
           widget.onDataChanged();
           if (mounted) {
-            TopBanner.show(
+            TopBanner.showReminder(
               context,
-              title: 'Alarm Created',
+              title: alertType == 'alarm' ? 'Alarm Scheduled' : 'Reminder Scheduled',
               message: '$newText • ${DateFormat('d MMM, hh:mm a').format(newDateTime)}',
-              icon: Icons.alarm_on_rounded,
-              color: googleGreen,
+              onDismiss: () {},
             );
           }
         },
@@ -148,28 +166,43 @@ class _AlertsPageState extends State<AlertsPage> {
     );
   }
 
-  Future<void> _openAlarmEditor(Map<String, dynamic> reminder) async {
+  Future<void> _openReminderEditor(Map<String, dynamic> reminder) async {
     final int id = reminder['id'] as int;
-    final String initialText = reminder['text'] ?? 'Study Alarm';
+    final String initialText = reminder['text'] ?? 'Study Reminder';
     final String remindAtStr = reminder['remind_at'] ?? DateTime.now().toIso8601String();
     final DateTime initialDate = DateTime.tryParse(remindAtStr) ?? DateTime.now();
     final String? repeatDays = reminder['repeat_days'] as String?;
+    final String alertType = reminder['alert_type'] ?? 'notification';
+
+    List<String> checkpoints = [];
+    if (reminder['checkpoints_json'] != null) {
+      try {
+        final decoded = jsonDecode(reminder['checkpoints_json']);
+        if (decoded is List) {
+          checkpoints = decoded.map((e) => e.toString()).toList();
+        }
+      } catch (_) {}
+    }
 
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => _AlarmEditorSheet(
+      builder: (ctx) => _ReminderEditorSheet(
         id: id,
         initialText: initialText,
         initialDateTime: initialDate,
         initialRepeatDays: repeatDays,
-        onSave: (newText, newDateTime, newRepeatDays) async {
+        initialAlertType: alertType,
+        initialCheckpoints: checkpoints,
+        onSave: (newText, newDateTime, newRepeatDays, newAlertType, newCheckpoints) async {
           await DatabaseService.instance.updateCustomReminder(
             id: id,
             text: newText,
             remindAt: newDateTime,
             repeatDays: newRepeatDays,
+            alertType: newAlertType,
+            checkpoints: newCheckpoints,
           );
           await NotificationService.instance.scheduleReminder(
             id: id,
@@ -177,13 +210,15 @@ class _AlertsPageState extends State<AlertsPage> {
             body: newText,
             scheduledDate: newDateTime,
             repeatDays: newRepeatDays,
+            alertType: newAlertType,
+            checkpoints: newCheckpoints,
           );
           await _loadAlerts();
           widget.onDataChanged();
           if (mounted) {
             TopBanner.show(
               context,
-              title: 'Alarm Saved',
+              title: newAlertType == 'alarm' ? 'Alarm Saved' : 'Reminder Saved',
               message: '$newText • ${DateFormat('d MMM, hh:mm a').format(newDateTime)}',
               icon: Icons.alarm_on_rounded,
               color: googleGreen,
@@ -191,6 +226,33 @@ class _AlertsPageState extends State<AlertsPage> {
           }
         },
         onDelete: () => _deleteReminder(id),
+      ),
+    );
+  }
+
+  void _openKeepNoteEditor(KeepNote note) {
+    if (note.isLocked) {
+      VaultService.instance.showAuthDialog(
+        context,
+        title: 'Unlock Protected Note',
+        onAuthenticated: () {
+          _showNoteEditorModal(note);
+        },
+      );
+    } else {
+      _showNoteEditorModal(note);
+    }
+  }
+
+  void _showNoteEditorModal(KeepNote note) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => NoteEditorSheet(
+        note: note,
+        onSave: (_) => _loadAlerts(),
+        onDelete: () => _loadAlerts(),
       ),
     );
   }
@@ -210,7 +272,7 @@ class _AlertsPageState extends State<AlertsPage> {
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          'Alerts & Alarms',
+          'Reminders',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
@@ -221,72 +283,284 @@ class _AlertsPageState extends State<AlertsPage> {
         actions: [
           IconButton(
             icon: const Icon(Icons.add_alarm_rounded, color: googleBlue),
-            tooltip: 'Add Alarm',
-            onPressed: _openNewAlarmEditor,
+            tooltip: 'Add Reminder',
+            onPressed: _openNewReminderEditor,
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: googleBlue))
-          : ListView(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
+      body: Column(
+        children: [
+          // Filter Tabs: Study Reminders | Keep Note Reminders
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
               children: [
-                // 1. Custom Alarms Header
-                _buildCustomAlarmsHeader(pending.length),
-
-                // 2. Custom Alarms List or Empty Indicator
-                if (pending.isNotEmpty) ...[
-                  ...pending.map((r) => _buildAlarmCard(r, isCompleted: false)),
-                ] else if (completed.isNotEmpty) ...[
-                  _buildAllCompletedCard(),
-                ] else ...[
-                  _buildEmptyCustomAlarms(),
-                ],
-
-                // 3. Completed Section Accordion
-                if (completed.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  InkWell(
-                    onTap: () => setState(() => _isCompletedExpanded = !_isCompletedExpanded),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                      child: Row(
-                        children: [
-                          Icon(
-                            _isCompletedExpanded ? Icons.keyboard_arrow_down_rounded : Icons.keyboard_arrow_right_rounded,
-                            size: 20,
-                            color: googleTextSecondary,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Completed (${completed.length})',
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                              color: googleTextSecondary,
-                            ),
-                          ),
-                        ],
+                Expanded(
+                  child: InkWell(
+                    onTap: () => setState(() => _activeTab = 0),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        color: _activeTab == 0 ? googleBlue.withOpacity(0.12) : const Color(0xFFF1F3F4),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        'Study Reminders (${pending.length})',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.bold,
+                          color: _activeTab == 0 ? googleBlue : googleTextSecondary,
+                        ),
                       ),
                     ),
                   ),
-                  if (_isCompletedExpanded)
-                    ...completed.map((r) => _buildAlarmCard(r, isCompleted: true)),
-                ],
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: InkWell(
+                    onTap: () => setState(() => _activeTab = 1),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        color: _activeTab == 1 ? googleBlue.withOpacity(0.12) : const Color(0xFFF1F3F4),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        'Keep Notes (${_keepReminders.length})',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.bold,
+                          color: _activeTab == 1 ? googleBlue : googleTextSecondary,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
+          ),
+          const Divider(height: 1, thickness: 1, color: googleHairline),
+
+          // Main Content
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator(color: googleBlue))
+                : _activeTab == 0
+                    ? _buildStudyRemindersTab(pending, completed)
+                    : _buildKeepRemindersTab(),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: googleBlue,
         foregroundColor: Colors.white,
         elevation: 2,
         icon: const Icon(Icons.add, size: 20),
-        label: const Text('Add Alarm / Reminder', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-        onPressed: _openNewAlarmEditor,
+        label: const Text('Add Reminder', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+        onPressed: _openNewReminderEditor,
       ),
     );
   }
 
-  Widget _buildCustomAlarmsHeader(int count) {
+  Widget _buildStudyRemindersTab(List<Map<String, dynamic>> pending, List<Map<String, dynamic>> completed) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
+      children: [
+        // 1. Reminders Header
+        _buildRemindersHeader(pending.length),
+
+        // 2. Reminders List or Empty Indicator
+        if (pending.isNotEmpty) ...[
+          ...pending.map((r) => _buildReminderCard(r, isCompleted: false)),
+        ] else if (completed.isNotEmpty) ...[
+          _buildAllCompletedCard(),
+        ] else ...[
+          _buildEmptyReminders(),
+        ],
+
+        // 3. Completed Section Accordion
+        if (completed.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          InkWell(
+            onTap: () => setState(() => _isCompletedExpanded = !_isCompletedExpanded),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              child: Row(
+                children: [
+                  Icon(
+                    _isCompletedExpanded ? Icons.keyboard_arrow_down_rounded : Icons.keyboard_arrow_right_rounded,
+                    size: 20,
+                    color: googleTextSecondary,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Completed (${completed.length})',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: googleTextSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (_isCompletedExpanded)
+            ...completed.map((r) => _buildReminderCard(r, isCompleted: true)),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildKeepRemindersTab() {
+    if (_keepReminders.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: googleBlue.withOpacity(0.08),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.lightbulb_outline_rounded, color: googleBlue, size: 36),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'No Keep Note Reminders',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: googleTextPrimary),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Add reminders to your Keep notes to have them appear here automatically with one-tap access.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12.5, color: googleTextSecondary, height: 1.4),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
+      itemCount: _keepReminders.length,
+      itemBuilder: (context, idx) {
+        final note = _keepReminders[idx];
+        final dt = note.reminderAt != null ? DateTime.fromMillisecondsSinceEpoch(note.reminderAt!) : null;
+        final timeFormatted = dt != null ? DateFormat('h:mm a').format(dt).toLowerCase() : '';
+        final dateFormatted = dt != null ? DateFormat('EEE, d MMM').format(dt) : '';
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: googleHairline),
+          ),
+          child: Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(16),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: () => _openKeepNoteEditor(note),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFBBC04).withOpacity(0.18),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.notifications_active_rounded, color: Color(0xFFB06000), size: 20),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  note.isLocked
+                                      ? 'Protected Note'
+                                      : (note.title.isNotEmpty ? note.title : 'Untitled Note'),
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                    color: note.isLocked ? googleTextSecondary : googleTextPrimary,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (note.isLocked)
+                                const Icon(Icons.lock_rounded, size: 16, color: googleBlue),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          if (!note.isLocked && note.content.isNotEmpty)
+                            Text(
+                              note.content,
+                              style: const TextStyle(fontSize: 12.5, color: googleTextSecondary),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: googleBlue.withOpacity(0.08),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.alarm_rounded, size: 13, color: googleBlue),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '$dateFormatted • $timeFormatted',
+                                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: googleBlue),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Spacer(),
+                              const Text(
+                                'Open Note',
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: googleBlue),
+                              ),
+                              const Icon(Icons.chevron_right_rounded, size: 16, color: googleBlue),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildRemindersHeader(int count) {
     return Padding(
       padding: const EdgeInsets.only(left: 4, right: 4, bottom: 10),
       child: Row(
@@ -295,7 +569,7 @@ class _AlertsPageState extends State<AlertsPage> {
           Row(
             children: [
               const Text(
-                'Custom Study Alarms',
+                'Active Study Reminders',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
@@ -324,14 +598,14 @@ class _AlertsPageState extends State<AlertsPage> {
             ],
           ),
           TextButton.icon(
-            onPressed: _openNewAlarmEditor,
+            onPressed: _openNewReminderEditor,
             style: TextButton.styleFrom(
               visualDensity: VisualDensity.compact,
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             ),
             icon: const Icon(Icons.add, size: 16, color: googleBlue),
             label: const Text(
-              'New Alarm',
+              'New Reminder',
               style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: googleBlue),
             ),
           ),
@@ -340,7 +614,7 @@ class _AlertsPageState extends State<AlertsPage> {
     );
   }
 
-  Widget _buildEmptyCustomAlarms() {
+  Widget _buildEmptyReminders() {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
       decoration: BoxDecoration(
@@ -361,20 +635,20 @@ class _AlertsPageState extends State<AlertsPage> {
             ),
             const SizedBox(height: 12),
             const Text(
-              'No Custom Alarms Scheduled',
+              'No Reminders Scheduled',
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: googleTextPrimary),
             ),
             const SizedBox(height: 4),
             const Text(
-              'Add custom alarms for specific revision topics, mock tests, or study blocks.',
+              'Add custom reminders or alarms for revision topics, mock tests, or study blocks.',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 12, color: googleTextSecondary, height: 1.4),
             ),
             const SizedBox(height: 16),
             OutlinedButton.icon(
-              onPressed: _openNewAlarmEditor,
+              onPressed: _openNewReminderEditor,
               icon: const Icon(Icons.add_alarm_rounded, size: 16, color: googleBlue),
-              label: const Text('Add Alarm / Reminder', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: googleBlue)),
+              label: const Text('Add Reminder', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: googleBlue)),
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: googleBorder),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -409,12 +683,12 @@ class _AlertsPageState extends State<AlertsPage> {
             ),
             const SizedBox(height: 10),
             const Text(
-              'All Alarms Completed',
+              'All Reminders Completed',
               style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: googleTextPrimary),
             ),
             const SizedBox(height: 4),
             const Text(
-              'All active alarms have been cleared or expired into completed.',
+              'All active reminders have been cleared or expired into completed.',
               style: TextStyle(fontSize: 12, color: googleTextSecondary),
             ),
           ],
@@ -423,11 +697,22 @@ class _AlertsPageState extends State<AlertsPage> {
     );
   }
 
-  Widget _buildAlarmCard(Map<String, dynamic> reminder, {required bool isCompleted}) {
+  Widget _buildReminderCard(Map<String, dynamic> reminder, {required bool isCompleted}) {
     final id = reminder['id'] as int;
-    final text = reminder['text'] ?? 'Study Alarm';
+    final text = reminder['text'] ?? 'Study Reminder';
     final remindAtStr = reminder['remind_at'] ?? '';
     final String? repeatDays = reminder['repeat_days'] as String?;
+    final String alertType = reminder['alert_type'] ?? 'notification';
+
+    List<String> checkpoints = [];
+    if (reminder['checkpoints_json'] != null) {
+      try {
+        final decoded = jsonDecode(reminder['checkpoints_json']);
+        if (decoded is List) {
+          checkpoints = decoded.map((e) => e.toString()).toList();
+        }
+      } catch (_) {}
+    }
 
     DateTime remindAt = DateTime.now();
     try {
@@ -438,7 +723,7 @@ class _AlertsPageState extends State<AlertsPage> {
     final dateFormatted = DateFormat('EEE, d MMM').format(remindAt);
 
     // Compute recurring routine label if days are configured
-    String? routineBadgeText;
+    String routineBadgeText = 'Once';
     if (repeatDays != null && repeatDays.trim().isNotEmpty) {
       final days = repeatDays
           .split(',')
@@ -449,7 +734,7 @@ class _AlertsPageState extends State<AlertsPage> {
       if (days.length == 7) {
         routineBadgeText = 'Daily';
       } else if (days.length == 5 && {1, 2, 3, 4, 5}.every(days.contains)) {
-        routineBadgeText = 'Mon–Fri';
+        routineBadgeText = 'Mon-Fri';
       } else if (days.length == 2 && {0, 6}.every(days.contains)) {
         routineBadgeText = 'Weekends';
       } else if (days.isNotEmpty) {
@@ -458,6 +743,8 @@ class _AlertsPageState extends State<AlertsPage> {
         routineBadgeText = sorted.map((d) => shortNames[d]).join(', ');
       }
     }
+
+    final isAlarm = alertType == 'alarm';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -478,30 +765,34 @@ class _AlertsPageState extends State<AlertsPage> {
         borderRadius: BorderRadius.circular(16),
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: () => _openAlarmEditor(reminder),
+          onTap: () => _openReminderEditor(reminder),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(14, 14, 10, 14),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Completed Checkbox
-                GoogleCheckbox(
-                  value: isCompleted,
-                  onChanged: (val) => _toggleReminder(
-                    id,
-                    val,
-                    repeatDays: repeatDays,
-                    remindAtStr: remindAtStr,
-                    text: text,
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: GoogleCheckbox(
+                    value: isCompleted,
+                    onChanged: (val) => _toggleReminder(
+                      id,
+                      val,
+                      repeatDays: repeatDays,
+                      remindAtStr: remindAtStr,
+                      text: text,
+                      alertType: alertType,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
 
-                // Note (Title) & Time/Date Subtitle
+                // Note (Title) & Details
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Prominent Note / Title
                       Text(
                         text,
                         style: TextStyle(
@@ -514,74 +805,110 @@ class _AlertsPageState extends State<AlertsPage> {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 4),
-                      // Formatted time, routine badge, or date below as subtitle
-                      Row(
+                      const SizedBox(height: 6),
+
+                      // Time, Repeat badge, Alert Type badge
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          Icon(
-                            routineBadgeText != null ? Icons.repeat_rounded : Icons.access_time_rounded,
-                            size: 14,
-                            color: isCompleted ? googleBorder : googleBlue,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            timeFormatted,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: isCompleted ? googleTextSecondary : googleBlue,
-                              decoration: isCompleted ? TextDecoration.lineThrough : null,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            '•',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: isCompleted ? googleBorder : googleTextSecondary,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          if (routineBadgeText != null) ...[
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: isCompleted
-                                    ? const Color(0xFFF1F3F4)
-                                    : googleBlue.withOpacity(0.08),
-                                borderRadius: BorderRadius.circular(4),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                isAlarm ? Icons.alarm_rounded : Icons.access_time_rounded,
+                                size: 14,
+                                color: isCompleted ? googleBorder : (isAlarm ? googleRed : googleBlue),
                               ),
-                              child: Text(
-                                routineBadgeText,
+                              const SizedBox(width: 4),
+                              Text(
+                                timeFormatted,
                                 style: TextStyle(
-                                  fontSize: 11,
+                                  fontSize: 13,
                                   fontWeight: FontWeight.w600,
-                                  color: isCompleted ? googleBorder : googleBlue,
+                                  color: isCompleted ? googleTextSecondary : (isAlarm ? googleRed : googleBlue),
+                                  decoration: isCompleted ? TextDecoration.lineThrough : null,
                                 ),
                               ),
+                            ],
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: isCompleted
+                                  ? const Color(0xFFF1F3F4)
+                                  : googleBlue.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(4),
                             ),
-                          ] else ...[
+                            child: Text(
+                              routineBadgeText,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: isCompleted ? googleBorder : googleBlue,
+                              ),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: isAlarm ? const Color(0xFFFEE2E2) : const Color(0xFFE0F2FE),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              isAlarm ? 'Full Alarm' : 'Notification',
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.bold,
+                                color: isAlarm ? googleRed : googleBlue,
+                              ),
+                            ),
+                          ),
+                          if (routineBadgeText == 'Once')
                             Text(
                               dateFormatted,
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w500,
                                 color: isCompleted ? googleBorder : googleTextSecondary,
-                                decoration: isCompleted ? TextDecoration.lineThrough : null,
                               ),
                             ),
-                          ],
                         ],
                       ),
+
+                      // Checkpoints chip row if configured
+                      if (checkpoints.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Wrap(
+                          spacing: 4,
+                          runSpacing: 4,
+                          children: checkpoints.map((cp) {
+                            final cpDt = DateTime.tryParse(cp);
+                            final cpTime = cpDt != null ? DateFormat('h:mm a').format(cpDt).toLowerCase() : cp;
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF1F3F4),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                '+ $cpTime',
+                                style: const TextStyle(fontSize: 10.5, color: googleTextSecondary),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ],
                     ],
                   ),
                 ),
 
-                // Three dots / Edit button
+                // Options button
                 IconButton(
                   icon: const Icon(Icons.more_vert_rounded, color: googleTextSecondary, size: 20),
-                  tooltip: 'Alarm Options',
-                  onPressed: () => _openAlarmEditor(reminder),
+                  tooltip: 'Options',
+                  onPressed: () => _openReminderEditor(reminder),
                 ),
               ],
             ),
@@ -592,35 +919,48 @@ class _AlertsPageState extends State<AlertsPage> {
   }
 }
 
-/// Google Clock / Android Alarm Style Bottom Sheet Editor
-class _AlarmEditorSheet extends StatefulWidget {
+/// Google Clock / Material Style Bottom Sheet Reminder Editor
+class _ReminderEditorSheet extends StatefulWidget {
   final int? id;
   final String initialText;
   final DateTime initialDateTime;
   final String? initialRepeatDays;
-  final Future<void> Function(String newText, DateTime newDateTime, String? newRepeatDays) onSave;
+  final String initialAlertType;
+  final List<String> initialCheckpoints;
+  final Future<void> Function(
+    String newText,
+    DateTime newDateTime,
+    String? newRepeatDays,
+    String alertType,
+    List<String> checkpoints,
+  ) onSave;
   final VoidCallback? onDelete;
 
-  const _AlarmEditorSheet({
+  const _ReminderEditorSheet({
     Key? key,
     this.id,
     required this.initialText,
     required this.initialDateTime,
     this.initialRepeatDays,
+    this.initialAlertType = 'notification',
+    this.initialCheckpoints = const [],
     required this.onSave,
     this.onDelete,
   }) : super(key: key);
 
   @override
-  __AlarmEditorSheetState createState() => __AlarmEditorSheetState();
+  __ReminderEditorSheetState createState() => __ReminderEditorSheetState();
 }
 
-class __AlarmEditorSheetState extends State<_AlarmEditorSheet> {
+class __ReminderEditorSheetState extends State<_ReminderEditorSheet> {
   late TextEditingController _nameController;
   late TimeOfDay _selectedTime;
   late DateTime _selectedDate;
+  late String _alertType; // 'notification' or 'alarm'
+  late List<String> _checkpoints;
   bool _vibrate = true;
   bool _isSaving = false;
+  bool _isOnce = true;
 
   final Set<int> _selectedDays = {};
   final List<String> _dayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -631,6 +971,8 @@ class __AlarmEditorSheetState extends State<_AlarmEditorSheet> {
     _nameController = TextEditingController(text: widget.initialText);
     _selectedTime = TimeOfDay.fromDateTime(widget.initialDateTime);
     _selectedDate = widget.initialDateTime;
+    _alertType = widget.initialAlertType;
+    _checkpoints = List<String>.from(widget.initialCheckpoints);
 
     if (widget.initialRepeatDays != null && widget.initialRepeatDays!.trim().isNotEmpty) {
       final days = widget.initialRepeatDays!
@@ -639,8 +981,9 @@ class __AlarmEditorSheetState extends State<_AlarmEditorSheet> {
           .whereType<int>()
           .where((d) => d >= 0 && d <= 6);
       _selectedDays.addAll(days);
+      _isOnce = _selectedDays.isEmpty;
     } else {
-      _selectedDays.add(widget.initialDateTime.weekday % 7);
+      _isOnce = true;
     }
   }
 
@@ -704,8 +1047,25 @@ class __AlarmEditorSheetState extends State<_AlarmEditorSheet> {
     if (picked != null) {
       setState(() {
         _selectedDate = picked;
-        _selectedDays.clear();
-        _selectedDays.add(picked.weekday % 7);
+      });
+    }
+  }
+
+  Future<void> _addCheckpoint() async {
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+    );
+    if (pickedTime != null) {
+      final dt = DateTime(
+        _selectedDate.year,
+        _selectedDate.month,
+        _selectedDate.day,
+        pickedTime.hour,
+        pickedTime.minute,
+      );
+      setState(() {
+        _checkpoints.add(dt.toIso8601String());
       });
     }
   }
@@ -720,15 +1080,14 @@ class __AlarmEditorSheetState extends State<_AlarmEditorSheet> {
       _selectedTime.minute,
     );
 
-    // If day routine pills are selected, show recurring schedule
-    if (_selectedDays.isNotEmpty) {
+    if (!_isOnce && _selectedDays.isNotEmpty) {
       if (_selectedDays.length == 7) {
         return 'Repeats daily at ${_formatTimeDisplay()}';
       }
       final weekdays = {1, 2, 3, 4, 5};
       final weekends = {0, 6};
       if (_selectedDays.length == 5 && weekdays.every(_selectedDays.contains)) {
-        return 'Repeats weekdays (Mon–Fri) at ${_formatTimeDisplay()}';
+        return 'Repeats weekdays (Mon-Fri) at ${_formatTimeDisplay()}';
       }
       if (_selectedDays.length == 2 && weekends.every(_selectedDays.contains)) {
         return 'Repeats weekends at ${_formatTimeDisplay()}';
@@ -740,7 +1099,7 @@ class __AlarmEditorSheetState extends State<_AlarmEditorSheet> {
     }
 
     if (target.isBefore(now)) {
-      return 'Past alarm · Set a future time';
+      return 'Past time. Set a future time';
     }
 
     final diff = target.difference(now);
@@ -765,7 +1124,7 @@ class __AlarmEditorSheetState extends State<_AlarmEditorSheet> {
   }
 
   Future<void> _handleSave() async {
-    final newText = _nameController.text.trim().isEmpty ? 'Study Alarm' : _nameController.text.trim();
+    final newText = _nameController.text.trim().isEmpty ? 'Study Reminder' : _nameController.text.trim();
     final newDateTime = DateTime(
       _selectedDate.year,
       _selectedDate.month,
@@ -774,29 +1133,63 @@ class __AlarmEditorSheetState extends State<_AlarmEditorSheet> {
       _selectedTime.minute,
     );
 
-    // Collect selected routine day pills (0=Sun, 1=Mon, ..., 6=Sat)
     final sortedDays = _selectedDays.toList()..sort();
-    final String? newRepeatDays = sortedDays.isNotEmpty ? sortedDays.join(',') : null;
+    final String? newRepeatDays = (!_isOnce && sortedDays.isNotEmpty) ? sortedDays.join(',') : null;
 
     setState(() => _isSaving = true);
     try {
-      await widget.onSave(newText, newDateTime, newRepeatDays);
+      await widget.onSave(newText, newDateTime, newRepeatDays, _alertType, _checkpoints);
       if (mounted) {
         Navigator.pop(context);
       }
     } catch (e) {
-      debugPrint('Error saving alarm: $e');
+      debugPrint('Error saving reminder: $e');
       if (mounted) {
         setState(() => _isSaving = false);
         TopBanner.show(
           context,
-          title: 'Error Saving Alarm',
+          title: 'Error Saving Reminder',
           message: e.toString(),
           icon: Icons.error_outline_rounded,
           color: googleRed,
         );
       }
     }
+  }
+
+  void _previewAlarm() {
+    FullScreenAlarmDialog.show(
+      context,
+      title: _nameController.text.trim().isEmpty ? 'Study Reminder' : _nameController.text.trim(),
+      timeText: _formatTimeDisplay(),
+      onSnooze5: () {
+        TopBanner.show(
+          context,
+          title: 'Alarm Snoozed',
+          message: 'Snoozed for 5 minutes.',
+          icon: Icons.snooze_rounded,
+          color: googleBlue,
+        );
+      },
+      onSnooze10: () {
+        TopBanner.show(
+          context,
+          title: 'Alarm Snoozed',
+          message: 'Snoozed for 10 minutes.',
+          icon: Icons.snooze_rounded,
+          color: googleAmber,
+        );
+      },
+      onDismiss: () {
+        TopBanner.show(
+          context,
+          title: 'Alarm Dismissed',
+          message: 'Alarm stopped successfully.',
+          icon: Icons.done_all_rounded,
+          color: googleGreen,
+        );
+      },
+    );
   }
 
   @override
@@ -831,9 +1224,9 @@ class __AlarmEditorSheetState extends State<_AlarmEditorSheet> {
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
-              // 1. Time Display with "Edit" Button (Google Clock style)
+              // 1. Time Display with Edit Button
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.center,
@@ -843,66 +1236,195 @@ class __AlarmEditorSheetState extends State<_AlarmEditorSheet> {
                     child: Text(
                       timeStr,
                       style: const TextStyle(
-                        fontSize: 48,
+                        fontSize: 44,
                         fontWeight: FontWeight.w400,
                         color: googleTextPrimary,
                         letterSpacing: -1.5,
                       ),
                     ),
                   ),
-                  OutlinedButton(
-                    onPressed: _pickTime,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: googleBlue,
-                      side: const BorderSide(color: googleBorder),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    ),
-                    child: const Text('Edit', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  Row(
+                    children: [
+                      OutlinedButton(
+                        onPressed: _pickTime,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: googleBlue,
+                          side: const BorderSide(color: googleBorder),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                        ),
+                        child: const Text('Edit', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: const Icon(Icons.play_circle_outline_rounded, color: googleBlue, size: 26),
+                        tooltip: 'Preview Alarm Screen',
+                        onPressed: _previewAlarm,
+                      ),
+                    ],
                   ),
                 ],
               ),
               const SizedBox(height: 16),
 
-              // 2. Day Selector Pills (S M T W T F S)
+              // 2. Alert Type Selector: Notification Banner vs Full-Screen Alarm
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F3F4),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(() => _alertType = 'notification'),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                            color: _alertType == 'notification' ? Colors.white : Colors.transparent,
+                            borderRadius: BorderRadius.circular(10),
+                            boxShadow: _alertType == 'notification'
+                                ? [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 4)]
+                                : null,
+                          ),
+                          alignment: Alignment.center,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.notifications_none_rounded,
+                                size: 16,
+                                color: _alertType == 'notification' ? googleBlue : googleTextSecondary,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Notification Banner',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: _alertType == 'notification' ? googleBlue : googleTextSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(() => _alertType = 'alarm'),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                            color: _alertType == 'alarm' ? Colors.white : Colors.transparent,
+                            borderRadius: BorderRadius.circular(10),
+                            boxShadow: _alertType == 'alarm'
+                                ? [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 4)]
+                                : null,
+                          ),
+                          alignment: Alignment.center,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.alarm_rounded,
+                                size: 16,
+                                color: _alertType == 'alarm' ? googleRed : googleTextSecondary,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Full-screen Alarm',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: _alertType == 'alarm' ? googleRed : googleTextSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // 3. Repeat Mode: [ Once ] pill + Day Selector Pills (S M T W T F S)
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: List.generate(7, (index) {
-                  final isSelected = _selectedDays.contains(index);
-                  return GestureDetector(
+                children: [
+                  GestureDetector(
                     onTap: () {
                       setState(() {
-                        if (isSelected) {
-                          _selectedDays.remove(index);
-                        } else {
-                          _selectedDays.add(index);
-                        }
+                        _isOnce = true;
+                        _selectedDays.clear();
                       });
                     },
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 180),
-                      width: 40,
-                      height: 40,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                       decoration: BoxDecoration(
-                        color: isSelected ? googleBlue : const Color(0xFFF1F3F4),
-                        shape: BoxShape.circle,
+                        color: _isOnce ? googleBlue : const Color(0xFFF1F3F4),
+                        borderRadius: BorderRadius.circular(20),
                       ),
-                      alignment: Alignment.center,
                       child: Text(
-                        _dayLabels[index],
+                        'Once',
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: 13,
                           fontWeight: FontWeight.bold,
-                          color: isSelected ? Colors.white : googleTextSecondary,
+                          color: _isOnce ? Colors.white : googleTextSecondary,
                         ),
                       ),
                     ),
-                  );
-                }),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: List.generate(7, (index) {
+                        final isSelected = !_isOnce && _selectedDays.contains(index);
+                        return GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _isOnce = false;
+                              if (_selectedDays.contains(index)) {
+                                _selectedDays.remove(index);
+                                if (_selectedDays.isEmpty) {
+                                  _isOnce = true;
+                                }
+                              } else {
+                                _selectedDays.add(index);
+                              }
+                            });
+                          },
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 180),
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: isSelected ? googleBlue : const Color(0xFFF1F3F4),
+                              shape: BoxShape.circle,
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              _dayLabels[index],
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: isSelected ? Colors.white : googleTextSecondary,
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
 
-              // 3. Upcoming Alarm Info & Calendar Pick
+              // 4. Upcoming Alarm Info & Calendar Pick
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -910,7 +1432,7 @@ class __AlarmEditorSheetState extends State<_AlarmEditorSheet> {
                     child: Row(
                       children: [
                         Icon(
-                          _selectedDays.isNotEmpty ? Icons.repeat_rounded : Icons.access_time_rounded,
+                          !_isOnce ? Icons.repeat_rounded : Icons.access_time_rounded,
                           size: 16,
                           color: googleTextSecondary,
                         ),
@@ -933,9 +1455,76 @@ class __AlarmEditorSheetState extends State<_AlarmEditorSheet> {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
 
-              // 4. Detail Options Card (Alarm Name, Sound, Vibrate)
+              // 5. Multiple Checkpoints / Reminders for Single Task
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFD),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: googleHairline),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(Icons.more_time_rounded, size: 18, color: googleBlue),
+                            SizedBox(width: 8),
+                            Text(
+                              'Multiple Reminders for this Task',
+                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: googleTextPrimary),
+                            ),
+                          ],
+                        ),
+                        InkWell(
+                          onTap: _addCheckpoint,
+                          borderRadius: BorderRadius.circular(8),
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            child: Text(
+                              '+ Add Time',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: googleBlue),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (_checkpoints.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        children: _checkpoints.asMap().entries.map((entry) {
+                          final idx = entry.key;
+                          final cpStr = entry.value;
+                          final cpDt = DateTime.tryParse(cpStr);
+                          final label = cpDt != null ? DateFormat('h:mm a').format(cpDt).toLowerCase() : cpStr;
+                          return Chip(
+                            backgroundColor: Colors.white,
+                            side: const BorderSide(color: googleBorder),
+                            padding: const EdgeInsets.symmetric(horizontal: 6),
+                            label: Text(label, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600)),
+                            deleteIcon: const Icon(Icons.close, size: 14),
+                            onDeleted: () {
+                              setState(() {
+                                _checkpoints.removeAt(idx);
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // 6. Reminder Name & Vibrate
               Container(
                 decoration: BoxDecoration(
                   color: const Color(0xFFF8FAFD),
@@ -944,7 +1533,6 @@ class __AlarmEditorSheetState extends State<_AlarmEditorSheet> {
                 ),
                 child: Column(
                   children: [
-                    // Alarm Name Field
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                       child: Row(
@@ -956,7 +1544,7 @@ class __AlarmEditorSheetState extends State<_AlarmEditorSheet> {
                               controller: _nameController,
                               style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: googleTextPrimary),
                               decoration: const InputDecoration(
-                                hintText: 'Alarm name (e.g. GATE CS Revision)',
+                                hintText: 'Reminder name (e.g. GATE Revision)',
                                 border: InputBorder.none,
                                 hintStyle: TextStyle(fontSize: 13, color: googleBorder),
                               ),
@@ -966,23 +1554,6 @@ class __AlarmEditorSheetState extends State<_AlarmEditorSheet> {
                       ),
                     ),
                     const Divider(height: 1, thickness: 1, color: googleHairline),
-
-                    // Sound Info
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                      child: Row(
-                        children: [
-                          Icon(Icons.notifications_none_rounded, size: 20, color: googleTextSecondary),
-                          SizedBox(width: 14),
-                          Text('Sound', style: TextStyle(fontSize: 14, color: googleTextPrimary)),
-                          Spacer(),
-                          Text('Default (study chime)', style: TextStyle(fontSize: 12, color: googleTextSecondary)),
-                        ],
-                      ),
-                    ),
-                    const Divider(height: 1, thickness: 1, color: googleHairline),
-
-                    // Vibrate Switch
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                       child: Row(
@@ -1002,14 +1573,13 @@ class __AlarmEditorSheetState extends State<_AlarmEditorSheet> {
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
 
-              // 5. Bottom Actions: Delete or Cancel (Left) and Save (Right)
+              // 7. Actions: Delete / Cancel (Left) and Save (Right)
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  if (widget.onDelete != null) ...[
-                    // Subtle Delete Button on Bottom Left (Google Clock style)
+                  if (widget.onDelete != null)
                     TextButton.icon(
                       onPressed: () {
                         Navigator.pop(context);
@@ -1023,9 +1593,8 @@ class __AlarmEditorSheetState extends State<_AlarmEditorSheet> {
                       ),
                       icon: const Icon(Icons.delete_outline_rounded, size: 18, color: googleRed),
                       label: const Text('Delete', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                    ),
-                  ] else ...[
-                    // Cancel Button for New Alarm
+                    )
+                  else
                     TextButton(
                       onPressed: () => Navigator.pop(context),
                       style: TextButton.styleFrom(
@@ -1035,9 +1604,6 @@ class __AlarmEditorSheetState extends State<_AlarmEditorSheet> {
                       ),
                       child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                     ),
-                  ],
-
-                  // Solid Save Button on Bottom Right
                   ElevatedButton(
                     onPressed: _isSaving ? null : _handleSave,
                     style: ElevatedButton.styleFrom(

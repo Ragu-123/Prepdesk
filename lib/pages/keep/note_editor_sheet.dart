@@ -1,7 +1,10 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../../data/database_service.dart';
 import '../../data/keep_note_model.dart';
+import '../../services/notification_service.dart';
+import '../../services/vault_service.dart';
 import '../../utils/theme.dart';
 import '../../widgets/top_banner_notification.dart';
 import 'widgets/note_checklist_editor.dart';
@@ -34,6 +37,10 @@ class _NoteEditorSheetState extends State<NoteEditorSheet> {
   late bool _isArchived;
   late bool _isTodoList;
   late bool _isCode;
+  late bool _isLocked;
+  int? _reminderAt;
+  String? _reminderRepeat;
+
   late List<ChecklistItem> _todoItems;
   late List<String> _tags;
   bool _isSaving = false;
@@ -51,6 +58,10 @@ class _NoteEditorSheetState extends State<NoteEditorSheet> {
     _isArchived = n?.isArchived ?? false;
     _isTodoList = n?.isTodoList ?? false;
     _isCode = n?.isCode ?? false;
+    _isLocked = n?.isLocked ?? false;
+    _reminderAt = n?.reminderAt;
+    _reminderRepeat = n?.reminderRepeat;
+
     _todoItems = n?.todoItems != null ? List<ChecklistItem>.from(n!.todoItems) : [];
     _tags = n?.tags != null ? List<String>.from(n!.tags) : [];
   }
@@ -82,6 +93,178 @@ class _NoteEditorSheetState extends State<NoteEditorSheet> {
     });
   }
 
+  Future<void> _toggleLock() async {
+    if (!_isLocked) {
+      final hasPin = await VaultService.instance.hasVaultPin();
+      if (!hasPin) {
+        if (!mounted) return;
+        final setSuccess = await VaultService.instance.showSetPinDialog(
+          context,
+          title: 'Set Vault PIN First',
+          subtitle: 'Create a PIN to protect this note.',
+        );
+        if (setSuccess != true) return;
+      }
+      setState(() => _isLocked = true);
+      if (mounted) {
+        TopBanner.show(
+          context,
+          title: 'Note Protected',
+          message: 'Note will require PIN or biometrics to open.',
+          icon: Icons.lock_rounded,
+          color: googleBlue,
+        );
+      }
+    } else {
+      setState(() => _isLocked = false);
+      if (mounted) {
+        TopBanner.show(
+          context,
+          title: 'Protection Removed',
+          message: 'Note is now accessible without PIN.',
+          icon: Icons.lock_open_rounded,
+          color: googleAmber,
+        );
+      }
+    }
+  }
+
+  Future<void> _openReminderPicker() async {
+    final now = DateTime.now();
+
+    await showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE0E2EC),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 8),
+                child: Text(
+                  'Set Reminder',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: googleTextPrimary),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // Preset 1: Later Today (6:00 PM)
+              ListTile(
+                leading: const Icon(Icons.access_time_rounded, color: googleBlue),
+                title: const Text('Later today', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                trailing: const Text('6:00 PM', style: TextStyle(color: googleTextSecondary, fontSize: 13)),
+                onTap: () {
+                  final target = DateTime(now.year, now.month, now.day, 18, 0);
+                  final effective = target.isAfter(now) ? target : now.add(const Duration(hours: 3));
+                  setState(() {
+                    _reminderAt = effective.millisecondsSinceEpoch;
+                    _reminderRepeat = null;
+                  });
+                  Navigator.pop(ctx);
+                },
+              ),
+
+              // Preset 2: Tomorrow Morning (8:00 AM)
+              ListTile(
+                leading: const Icon(Icons.wb_sunny_outlined, color: Color(0xFFFBBC04)),
+                title: const Text('Tomorrow morning', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                trailing: const Text('8:00 AM', style: TextStyle(color: googleTextSecondary, fontSize: 13)),
+                onTap: () {
+                  final tomorrow = now.add(const Duration(days: 1));
+                  final target = DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 8, 0);
+                  setState(() {
+                    _reminderAt = target.millisecondsSinceEpoch;
+                    _reminderRepeat = null;
+                  });
+                  Navigator.pop(ctx);
+                },
+              ),
+
+              // Preset 3: Tomorrow Evening (6:00 PM)
+              ListTile(
+                leading: const Icon(Icons.nights_stay_outlined, color: Colors.indigo),
+                title: const Text('Tomorrow evening', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                trailing: const Text('6:00 PM', style: TextStyle(color: googleTextSecondary, fontSize: 13)),
+                onTap: () {
+                  final tomorrow = now.add(const Duration(days: 1));
+                  final target = DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 18, 0);
+                  setState(() {
+                    _reminderAt = target.millisecondsSinceEpoch;
+                    _reminderRepeat = null;
+                  });
+                  Navigator.pop(ctx);
+                },
+              ),
+
+              // Option 4: Pick a date & time
+              ListTile(
+                leading: const Icon(Icons.edit_calendar_rounded, color: googleGreen),
+                title: const Text('Pick a date & time', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final pickedDate = await showDatePicker(
+                    context: context,
+                    initialDate: now,
+                    firstDate: now,
+                    lastDate: now.add(const Duration(days: 365)),
+                  );
+                  if (pickedDate == null || !mounted) return;
+
+                  final pickedTime = await showTimePicker(
+                    context: context,
+                    initialTime: const TimeOfDay(hour: 9, minute: 0),
+                  );
+                  if (pickedTime == null || !mounted) return;
+
+                  final dt = DateTime(
+                    pickedDate.year,
+                    pickedDate.month,
+                    pickedDate.day,
+                    pickedTime.hour,
+                    pickedTime.minute,
+                  );
+                  setState(() {
+                    _reminderAt = dt.millisecondsSinceEpoch;
+                    _reminderRepeat = null;
+                  });
+                },
+              ),
+
+              if (_reminderAt != null)
+                ListTile(
+                  leading: const Icon(Icons.alarm_off_rounded, color: googleRed),
+                  title: const Text('Remove Reminder', style: TextStyle(color: googleRed, fontWeight: FontWeight.bold, fontSize: 14)),
+                  onTap: () {
+                    setState(() {
+                      _reminderAt = null;
+                      _reminderRepeat = null;
+                    });
+                    Navigator.pop(ctx);
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _handleSave() async {
     final title = _titleController.text.trim();
     final content = _contentController.text.trim();
@@ -105,11 +288,29 @@ class _NoteEditorSheetState extends State<NoteEditorSheet> {
         todoItems: _todoItems,
         tags: _tags,
         isCode: _isCode,
+        isLocked: _isLocked,
+        reminderAt: _reminderAt,
+        reminderRepeat: _reminderRepeat,
         createdAt: widget.note?.createdAt ?? now,
         updatedAt: now,
       );
 
       await DatabaseService.instance.saveKeepNote(savedNote);
+
+      // Schedule or cancel system notification for Keep Note Reminder
+      if (_reminderAt != null) {
+        final scheduledDt = DateTime.fromMillisecondsSinceEpoch(_reminderAt!);
+        await NotificationService.instance.scheduleKeepNoteReminder(
+          noteId: _noteId,
+          title: title.isNotEmpty ? title : 'Note Reminder',
+          body: content.isNotEmpty ? content : (_todoItems.isNotEmpty ? '${_todoItems.length} checklist items' : 'Keep Note Reminder'),
+          scheduledDate: scheduledDt,
+          repeat: _reminderRepeat,
+        );
+      } else {
+        await NotificationService.instance.cancelKeepNoteReminder(_noteId);
+      }
+
       widget.onSave?.call(savedNote);
 
       if (mounted) {
@@ -168,6 +369,7 @@ class _NoteEditorSheetState extends State<NoteEditorSheet> {
 
     if (confirm == true) {
       await DatabaseService.instance.deleteKeepNote(_noteId);
+      await NotificationService.instance.cancelKeepNoteReminder(_noteId);
       widget.onDelete?.call();
       if (mounted) {
         Navigator.pop(context);
@@ -231,6 +433,27 @@ class _NoteEditorSheetState extends State<NoteEditorSheet> {
                   ),
                   Row(
                     children: [
+                      // Reminder Button
+                      IconButton(
+                        icon: Icon(
+                          _reminderAt != null ? Icons.alarm_on_rounded : Icons.alarm_add_rounded,
+                          color: _reminderAt != null ? googleBlue : googleTextSecondary,
+                          size: 22,
+                        ),
+                        tooltip: _reminderAt != null ? 'Edit Reminder' : 'Add Reminder',
+                        onPressed: _openReminderPicker,
+                      ),
+                      // Protect / Lock Button
+                      IconButton(
+                        icon: Icon(
+                          _isLocked ? Icons.lock_rounded : Icons.lock_outline_rounded,
+                          color: _isLocked ? googleBlue : googleTextSecondary,
+                          size: 22,
+                        ),
+                        tooltip: _isLocked ? 'Protected Note' : 'Protect Note',
+                        onPressed: _toggleLock,
+                      ),
+                      // Checklist Mode Button
                       IconButton(
                         icon: Icon(
                           _isTodoList ? Icons.check_box_rounded : Icons.check_box_outlined,
@@ -240,6 +463,7 @@ class _NoteEditorSheetState extends State<NoteEditorSheet> {
                         tooltip: 'Checklist Mode',
                         onPressed: _toggleTodoList,
                       ),
+                      // Monospace / Code Button
                       IconButton(
                         icon: Icon(
                           _isCode ? Icons.code_rounded : Icons.data_object_rounded,
@@ -249,6 +473,7 @@ class _NoteEditorSheetState extends State<NoteEditorSheet> {
                         tooltip: 'Monospace Code Note',
                         onPressed: () => setState(() => _isCode = !_isCode),
                       ),
+                      // Pin Button
                       IconButton(
                         icon: Icon(
                           _isPinned ? Icons.push_pin_rounded : Icons.push_pin_outlined,
@@ -258,6 +483,7 @@ class _NoteEditorSheetState extends State<NoteEditorSheet> {
                         tooltip: _isPinned ? 'Unpin' : 'Pin to top',
                         onPressed: () => setState(() => _isPinned = !_isPinned),
                       ),
+                      // Archive Button
                       IconButton(
                         icon: Icon(
                           _isArchived ? Icons.unarchive_outlined : Icons.archive_outlined,
@@ -296,6 +522,70 @@ class _NoteEditorSheetState extends State<NoteEditorSheet> {
                 ],
               ),
               const SizedBox(height: 8),
+
+              // Badges row: Active reminder & Protected note
+              if (_reminderAt != null || _isLocked) ...[
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  children: [
+                    if (_reminderAt != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: googleBlue.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: googleBlue.withOpacity(0.3)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.alarm_rounded, size: 14, color: googleBlue),
+                            const SizedBox(width: 6),
+                            Text(
+                              DateFormat('EEE, d MMM • h:mm a').format(DateTime.fromMillisecondsSinceEpoch(_reminderAt!)),
+                              style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: googleBlue),
+                            ),
+                            const SizedBox(width: 6),
+                            InkWell(
+                              onTap: () => setState(() {
+                                _reminderAt = null;
+                                _reminderRepeat = null;
+                              }),
+                              child: const Icon(Icons.close_rounded, size: 14, color: googleBlue),
+                            ),
+                          ],
+                        ),
+                      ),
+                    if (_isLocked)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEF3C7),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.4)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.lock_rounded, size: 13, color: Color(0xFFB45309)),
+                            const SizedBox(width: 6),
+                            const Text(
+                              'Protected Note',
+                              style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFFB45309)),
+                            ),
+                            const SizedBox(width: 6),
+                            InkWell(
+                              onTap: () => setState(() => _isLocked = false),
+                              child: const Icon(Icons.close_rounded, size: 14, color: Color(0xFFB45309)),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+              ],
 
               // 3. Title Field
               TextField(

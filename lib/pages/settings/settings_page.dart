@@ -7,6 +7,7 @@ import 'package:tasks/services/app_update_service.dart';
 import 'package:tasks/services/cloud_sync_service.dart';
 import 'package:tasks/services/desktop_log_server_service.dart';
 import 'package:tasks/services/notification_service.dart';
+import 'package:tasks/services/vault_service.dart';
 import 'package:tasks/utils/theme.dart';
 import 'package:tasks/utils/url_helper.dart';
 import 'package:tasks/widgets/top_banner_notification.dart';
@@ -49,6 +50,13 @@ class _SettingsPageState extends State<SettingsPage> {
   int _revisitCount = 0;
   int _quizCount = 0;
   int _mistakeCount = 0;
+
+  // Keep Notes & Vault
+  bool _hasVaultPin = false;
+  bool _biometricsEnabled = false;
+  int _keepTotalNotes = 0;
+  int _keepLockedNotes = 0;
+  int _keepRemindersCount = 0;
 
   StateSetter? _subPageSetState;
 
@@ -119,12 +127,29 @@ class _SettingsPageState extends State<SettingsPage> {
     final qzs = (await db.rawQuery('SELECT COUNT(*) as cnt FROM quiz_items')).first['cnt'] as int? ?? 0;
     final msts = (await db.rawQuery('SELECT COUNT(*) as cnt FROM mistake_records')).first['cnt'] as int? ?? 0;
 
+    // Keep Notes & Vault stats
+    final hasPin = await VaultService.instance.hasVaultPin();
+    final bioEnabled = await VaultService.instance.isBiometricsEnabled();
+    int kTotal = 0;
+    int kLocked = 0;
+    int kRem = 0;
+    try {
+      kTotal = (await db.rawQuery('SELECT COUNT(*) as cnt FROM keep_notes')).first['cnt'] as int? ?? 0;
+      kLocked = (await db.rawQuery('SELECT COUNT(*) as cnt FROM keep_notes WHERE is_locked = 1')).first['cnt'] as int? ?? 0;
+      kRem = (await db.rawQuery('SELECT COUNT(*) as cnt FROM keep_notes WHERE reminder_at IS NOT NULL')).first['cnt'] as int? ?? 0;
+    } catch (_) {}
+
     if (mounted) {
       setState(() {
         _lectureCount = lecs;
         _revisitCount = revs;
         _quizCount = qzs;
         _mistakeCount = msts;
+        _hasVaultPin = hasPin;
+        _biometricsEnabled = bioEnabled;
+        _keepTotalNotes = kTotal;
+        _keepLockedNotes = kLocked;
+        _keepRemindersCount = kRem;
       });
     }
   }
@@ -143,6 +168,13 @@ class _SettingsPageState extends State<SettingsPage> {
           title: 'Laptop Mistake Log Server',
           icon: Icons.laptop_chromebook_rounded,
           builder: (ctx) => _buildLogServerDetail(),
+        );
+        break;
+      case 'keep':
+        _openSubPage(
+          title: 'Keep Vault & Notes Security',
+          icon: Icons.lock_outline_rounded,
+          builder: (ctx) => _buildKeepSettingsDetail(),
         );
         break;
       case 'updates':
@@ -720,6 +752,22 @@ class _SettingsPageState extends State<SettingsPage> {
             onTap: () => _navigateToSection('server'),
           ),
 
+          // 2b. Keep Vault & Security Tile
+          _buildCategoryTile(
+            icon: Icons.lock_outline_rounded,
+            iconColor: const Color(0xFFF29900),
+            title: 'Keep Vault & Note Security',
+            subtitle: _hasVaultPin ? 'PIN configured • Biometrics & privacy' : 'Set Master PIN & biometric protection',
+            badgeWidget: _hasVaultPin
+                ? Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(color: const Color(0xFFFEF3C7), borderRadius: BorderRadius.circular(6)),
+                    child: const Text('SECURED', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFFB45309))),
+                  )
+                : null,
+            onTap: () => _navigateToSection('keep'),
+          ),
+
           // 3. In-App Updates Tile
           _buildCategoryTile(
             icon: Icons.system_update_rounded,
@@ -729,11 +777,11 @@ class _SettingsPageState extends State<SettingsPage> {
             onTap: () => _navigateToSection('updates'),
           ),
 
-          // 4. Notifications & Routine Alerts Tile
+          // 4. Reminders & Routine Alerts Tile
           _buildCategoryTile(
             icon: Icons.notifications_none_rounded,
             iconColor: googleAmber,
-            title: 'Notifications & Routine Alerts',
+            title: 'Reminders & Routine Alerts',
             subtitle: 'Morning Brief ($_morningBriefTime), Spaced Recall, Backlog Shield',
             onTap: () => _navigateToSection('alerts'),
           ),
@@ -1104,6 +1152,205 @@ class _SettingsPageState extends State<SettingsPage> {
                     await DatabaseService.instance.setAutoStartServer(val);
                   },
                 ),
+              ],
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // --- Detail 2b: Keep Vault & Notes Security ---
+  Widget _buildKeepSettingsDetail() {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        // 1. Master Vault PIN Card
+        _buildCardContainer(
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFBBC04).withOpacity(0.18),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.security_rounded, color: Color(0xFFB06000), size: 22),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Master Vault PIN',
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: googleTextPrimary),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _hasVaultPin
+                            ? 'Vault PIN is active and protecting your notes'
+                            : 'No Master PIN configured',
+                        style: const TextStyle(fontSize: 12, color: googleTextSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    final res = await VaultService.instance.showSetPinDialog(
+                      context,
+                      title: _hasVaultPin ? 'Change Vault PIN' : 'Set Vault PIN',
+                      subtitle: 'Enter a 4 to 6 digit PIN to protect sensitive notes.',
+                    );
+                    if (res == true) {
+                      await _loadAllSettings();
+                      TopBanner.show(
+                        context,
+                        title: 'PIN Updated',
+                        message: 'Master Vault PIN has been saved.',
+                        icon: Icons.check_circle_outline_rounded,
+                        color: googleGreen,
+                      );
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: googleBlue,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  ),
+                  icon: Icon(_hasVaultPin ? Icons.password_rounded : Icons.add_moderator_rounded, size: 16),
+                  label: Text(_hasVaultPin ? 'Change PIN' : 'Set PIN', style: const TextStyle(fontWeight: FontWeight.bold)),
+                ),
+                if (_hasVaultPin) ...[
+                  const SizedBox(width: 10),
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                          title: const Text('Remove Vault PIN?', style: TextStyle(fontWeight: FontWeight.bold)),
+                          content: const Text('Removing your PIN will unlock protected notes. Continue?'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx, false),
+                              child: const Text('Cancel', style: TextStyle(color: googleTextSecondary)),
+                            ),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: googleRed,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              onPressed: () => Navigator.pop(ctx, true),
+                              child: const Text('Remove PIN', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirm == true) {
+                        await VaultService.instance.removeVaultPin();
+                        await _loadAllSettings();
+                        if (mounted) {
+                          TopBanner.show(
+                            context,
+                            title: 'Vault PIN Removed',
+                            message: 'Notes protection disabled.',
+                            icon: Icons.lock_open_rounded,
+                            color: googleAmber,
+                          );
+                        }
+                      }
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: googleRed,
+                      side: const BorderSide(color: googleBorder),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    ),
+                    icon: const Icon(Icons.delete_outline_rounded, size: 16, color: googleRed),
+                    label: const Text('Remove', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        // 2. Biometrics Toggle Card
+        _buildCardContainer(
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: googleBlue.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.fingerprint_rounded, color: googleBlue, size: 22),
+                ),
+                const SizedBox(width: 14),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Device Biometric Unlock',
+                        style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold, color: googleTextPrimary),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'Use fingerprint or face recognition for fast unlock',
+                        style: TextStyle(fontSize: 12, color: googleTextSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+                Switch(
+                  value: _biometricsEnabled,
+                  activeColor: googleBlue,
+                  onChanged: (val) async {
+                    setState(() => _biometricsEnabled = val);
+                    await VaultService.instance.setBiometricsEnabled(val);
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        // 3. Keep Notes Privacy Stats Card
+        _buildCardContainer(
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.privacy_tip_outlined, size: 18, color: googleTextSecondary),
+                SizedBox(width: 8),
+                Text(
+                  'Keep Notes Overview',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: googleTextPrimary),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildStatChip('Notes', _keepTotalNotes),
+                _buildStatChip('Protected', _keepLockedNotes),
+                _buildStatChip('Reminders', _keepRemindersCount),
               ],
             ),
           ],

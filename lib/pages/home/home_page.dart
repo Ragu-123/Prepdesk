@@ -22,6 +22,7 @@ import 'package:tasks/pages/bitchat/bitchat_main_page.dart';
 import 'package:tasks/services/bitchat/bitchat_service.dart';
 import 'package:tasks/pages/keep/keep_page.dart';
 import 'package:tasks/pages/keep/note_editor_sheet.dart';
+import 'package:tasks/services/vault_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -46,6 +47,7 @@ class _HomePageState extends State<HomePage> {
   Map<String, int> _badgeCounts = {'due_revisits': 0, 'pending_quizzes': 0};
 
   StreamSubscription? _serverSubscription;
+  StreamSubscription? _notificationPayloadSub;
 
   bool get _isCurrentDateToday {
     final now = DateTime.now();
@@ -63,6 +65,20 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _initBackgroundServices() async {
+    // Listen for notification taps from outside Android shade
+    _notificationPayloadSub = NotificationService.instance.onNotificationPayloadTapped.listen((payload) {
+      _handleNotificationPayload(payload);
+    });
+
+    // Check if app was launched directly from notification click
+    final pending = NotificationService.instance.pendingLaunchPayload;
+    if (pending != null && pending.isNotEmpty) {
+      NotificationService.instance.clearPendingLaunchPayload();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _handleNotificationPayload(pending);
+      });
+    }
+
     // Listen for incoming mistake logs from laptop over LAN
     _serverSubscription = DesktopLogServerService.instance.onMistakeReceived.listen((data) {
       final subject = data['subject'] ?? 'General';
@@ -110,9 +126,48 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  Future<void> _handleNotificationPayload(String payload) async {
+    if (!mounted) return;
+    if (payload == 'route:today') {
+      setState(() => _currentNavIndex = 0);
+    } else if (payload == 'route:reminders') {
+      _showAlertsSheet();
+    } else if (payload.startsWith('route:keep_note:')) {
+      final noteId = payload.substring('route:keep_note:'.length);
+      final note = await DatabaseService.instance.getKeepNoteById(noteId);
+      if (note != null && mounted) {
+        if (note.isLocked) {
+          VaultService.instance.showAuthDialog(
+            context,
+            title: 'Unlock Protected Note',
+            onAuthenticated: () {
+              _openKeepNoteModal(note);
+            },
+          );
+        } else {
+          _openKeepNoteModal(note);
+        }
+      }
+    }
+  }
+
+  void _openKeepNoteModal(KeepNote note) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => NoteEditorSheet(
+        note: note,
+        onSave: (_) => _loadGlobalData(),
+        onDelete: () => _loadGlobalData(),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _serverSubscription?.cancel();
+    _notificationPayloadSub?.cancel();
     _todayScrollController.removeListener(_onTodayScroll);
     _todayScrollController.dispose();
     super.dispose();
@@ -1057,7 +1112,12 @@ class _HomePageState extends State<HomePage> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => const NotificationsHistorySheet(),
+      builder: (context) => NotificationsHistorySheet(
+        onOpenToday: () {
+          setState(() => _currentNavIndex = 0);
+        },
+        onRefresh: _loadGlobalData,
+      ),
     );
   }
 
@@ -1174,46 +1234,7 @@ class _HomePageState extends State<HomePage> {
               child: ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 children: [
-                  ListTile(
-                    leading: const Icon(Icons.cloud_sync_outlined, color: googleBlue, size: 22),
-                    title: const Text('Cloud Sync', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: googleTextPrimary)),
-                    subtitle: const Text('Backup & restore DB to Hugging Face', style: TextStyle(fontSize: 11, color: googleTextSecondary)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    onTap: () {
-                      Navigator.pop(context);
-                      _openCloudSyncPage();
-                    },
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.notifications_none_rounded, color: googleAmber, size: 22),
-                    title: const Text('Alerts & Routines', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: googleTextPrimary)),
-                    subtitle: const Text('Morning brief, recall shield, and timers', style: TextStyle(fontSize: 11, color: googleTextSecondary)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    onTap: () {
-                      Navigator.pop(context);
-                      _showAlertsSheet();
-                    },
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.event_outlined, color: googleBlue, size: 22),
-                    title: const Text('Jump to Date', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: googleTextPrimary)),
-                    subtitle: const Text('Quick calendar date navigation', style: TextStyle(fontSize: 11, color: googleTextSecondary)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    onTap: () {
-                      Navigator.pop(context);
-                      _pickDate();
-                    },
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.mark_chat_unread_outlined, color: Colors.deepPurple, size: 22),
-                    title: const Text('Notifications', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: googleTextPrimary)),
-                    subtitle: const Text('Test blunder logs & study alerts history', style: TextStyle(fontSize: 11, color: googleTextSecondary)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    onTap: () {
-                      Navigator.pop(context);
-                      _showNotificationsHistorySheet();
-                    },
-                  ),
+                  // 1. Keep
                   ListTile(
                     leading: const Icon(Icons.lightbulb_outline_rounded, color: Color(0xFFF29900), size: 22),
                     title: const Text('Keep', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: googleTextPrimary)),
@@ -1224,6 +1245,40 @@ class _HomePageState extends State<HomePage> {
                       _openKeepPage();
                     },
                   ),
+                  // 2. Cloud Sync
+                  ListTile(
+                    leading: const Icon(Icons.cloud_sync_outlined, color: googleBlue, size: 22),
+                    title: const Text('Cloud Sync', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: googleTextPrimary)),
+                    subtitle: const Text('Backup & restore DB to Hugging Face', style: TextStyle(fontSize: 11, color: googleTextSecondary)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _openCloudSyncPage();
+                    },
+                  ),
+                  // 3. Reminders
+                  ListTile(
+                    leading: const Icon(Icons.notifications_none_rounded, color: googleAmber, size: 22),
+                    title: const Text('Reminders', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: googleTextPrimary)),
+                    subtitle: const Text('Study timers, custom alerts & routine', style: TextStyle(fontSize: 11, color: googleTextSecondary)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _showAlertsSheet();
+                    },
+                  ),
+                  // 4. Jump to Date
+                  ListTile(
+                    leading: const Icon(Icons.event_outlined, color: googleBlue, size: 22),
+                    title: const Text('Jump to Date', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: googleTextPrimary)),
+                    subtitle: const Text('Quick calendar date navigation', style: TextStyle(fontSize: 11, color: googleTextSecondary)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _pickDate();
+                    },
+                  ),
+                  // 5. BitChat P2P Mesh
                   ValueListenableBuilder<bool>(
                     valueListenable: BitchatService.instance.isMasterPowerOnNotifier,
                     builder: (context, isOnline, _) {
@@ -1259,18 +1314,26 @@ class _HomePageState extends State<HomePage> {
                       );
                     },
                   ),
+                  // 6. Notifications (no subtitle)
+                  ListTile(
+                    leading: const Icon(Icons.mark_chat_unread_outlined, color: Colors.deepPurple, size: 22),
+                    title: const Text('Notifications', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: googleTextPrimary)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _showNotificationsHistorySheet();
+                    },
+                  ),
                 ],
               ),
             ),
 
-            // Bottom Settings Section
-            const Divider(height: 1, thickness: 1, color: googleHairline),
+            // Bottom Settings Section (no divider, no subtitle)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               child: ListTile(
                 leading: const Icon(Icons.settings_outlined, color: googleTextPrimary, size: 22),
                 title: const Text('Settings', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: googleTextPrimary)),
-                subtitle: const Text('Cloud tokens, log server, updates & schema', style: TextStyle(fontSize: 11, color: googleTextSecondary)),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 onTap: () {
                   Navigator.pop(context);

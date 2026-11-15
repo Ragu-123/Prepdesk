@@ -280,6 +280,7 @@ class _CloudSyncPageState extends State<CloudSyncPage> {
         message: 'Study ticks and mistake records safely backed up.',
         icon: Icons.cloud_done_outlined,
         color: googleGreen,
+        type: 'cloud_sync',
       );
 
       await _loadConfig();
@@ -291,6 +292,7 @@ class _CloudSyncPageState extends State<CloudSyncPage> {
         message: e.toString().replaceAll('Exception: ', ''),
         icon: Icons.cloud_off_outlined,
         color: googleRed,
+        type: 'cloud_sync',
       );
     } finally {
       if (mounted) {
@@ -354,6 +356,7 @@ class _CloudSyncPageState extends State<CloudSyncPage> {
         message: 'Database progress restored successfully.',
         icon: Icons.check_circle_outline_rounded,
         color: googleGreen,
+        type: 'cloud_sync',
       );
 
       await _loadConfig();
@@ -365,6 +368,7 @@ class _CloudSyncPageState extends State<CloudSyncPage> {
         message: e.toString().replaceAll('Exception: ', ''),
         icon: Icons.error_outline_rounded,
         color: googleRed,
+        type: 'cloud_sync',
       );
     } finally {
       if (mounted) {

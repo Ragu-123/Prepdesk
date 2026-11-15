@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../data/database_service.dart';
 import '../../data/keep_note_model.dart';
+import '../../services/vault_service.dart';
 import '../../utils/theme.dart';
+import '../settings/settings_page.dart';
 import 'note_editor_sheet.dart';
 import 'widgets/keep_empty_state.dart';
 import 'widgets/keep_search_bar.dart';
@@ -65,6 +67,20 @@ class _KeepPageState extends State<KeepPage> {
   }
 
   void _openNoteEditor([KeepNote? note]) {
+    if (note != null && note.isLocked) {
+      VaultService.instance.showAuthDialog(
+        context,
+        title: 'Unlock Protected Note',
+        onAuthenticated: () {
+          _showEditorSheet(note);
+        },
+      );
+    } else {
+      _showEditorSheet(note);
+    }
+  }
+
+  void _showEditorSheet([KeepNote? note]) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -152,6 +168,16 @@ class _KeepPageState extends State<KeepPage> {
             onPressed: () {
               setState(() => _showArchived = !_showArchived);
               _loadNotes();
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings_outlined, color: googleTextSecondary),
+            tooltip: 'Keep Settings',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SettingsPage(initialSection: 'keep')),
+              );
             },
           ),
           IconButton(

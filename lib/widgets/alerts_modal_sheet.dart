@@ -129,7 +129,7 @@ class _AlertsModalSheetState extends State<AlertsModalSheet> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
-                  'Alerts & Routine',
+                  'Reminders & Routine',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,

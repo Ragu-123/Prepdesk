@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../../../data/keep_note_model.dart';
 import '../../../utils/theme.dart';
 
@@ -55,116 +56,191 @@ class NoteCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Header: Title & Pin Action
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: note.title.isNotEmpty
-                          ? Text(
-                              note.title,
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                                color: googleTextPrimary,
-                                letterSpacing: -0.2,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            )
-                          : const SizedBox.shrink(),
-                    ),
-                    GestureDetector(
-                      onTap: onTogglePin,
-                      child: Padding(
-                        padding: const EdgeInsets.only(left: 4),
-                        child: Icon(
-                          note.isPinned ? Icons.push_pin_rounded : Icons.push_pin_outlined,
-                          size: 18,
-                          color: note.isPinned ? googleBlue : googleTextSecondary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-
-                if (note.title.isNotEmpty && (note.content.isNotEmpty || note.todoItems.isNotEmpty))
-                  const SizedBox(height: 6),
-
-                // Body: Checklist or Text Preview
-                if (note.isTodoList && note.todoItems.isNotEmpty) ...[
-                  ...note.todoItems.take(5).map((item) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 2),
-                      child: Row(
-                        children: [
-                          Icon(
-                            item.checked ? Icons.check_box_rounded : Icons.check_box_outline_blank_rounded,
-                            size: 15,
-                            color: item.checked ? googleBlue : googleTextSecondary,
-                          ),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              item.text,
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: item.checked ? googleTextSecondary : googleTextPrimary,
-                                decoration: item.checked ? TextDecoration.lineThrough : null,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }),
-                  if (note.todoItems.length > 5)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 2),
-                      child: Text(
-                        '+ ${note.todoItems.length - 5} more items',
-                        style: const TextStyle(fontSize: 11, color: googleTextSecondary, fontWeight: FontWeight.w500),
-                      ),
-                    ),
-                ] else if (note.content.isNotEmpty) ...[
-                  Text(
-                    note.content,
-                    style: TextStyle(
-                      fontSize: 13.5,
-                      color: googleTextPrimary,
-                      fontFamily: note.isCode ? 'monospace' : null,
-                      height: 1.35,
-                    ),
-                    maxLines: 6,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-
-                // Tags Preview
-                if (note.tags.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 4,
-                    runSpacing: 2,
-                    children: note.tags.take(3).map((t) {
-                      return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                if (note.isLocked) ...[
+                  // Locked Note Masked Card
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.05),
-                          borderRadius: BorderRadius.circular(8),
+                          color: googleBlue.withOpacity(0.12),
+                          shape: BoxShape.circle,
                         ),
+                        child: const Icon(Icons.lock_rounded, size: 16, color: googleBlue),
+                      ),
+                      const SizedBox(width: 8),
+                      const Expanded(
                         child: Text(
-                          '#$t',
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: googleTextSecondary,
+                          'Protected Note',
+                          style: TextStyle(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.bold,
+                            color: googleTextPrimary,
+                            letterSpacing: -0.2,
                           ),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: onTogglePin,
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 4),
+                          child: Icon(
+                            note.isPinned ? Icons.push_pin_rounded : Icons.push_pin_outlined,
+                            size: 18,
+                            color: note.isPinned ? googleBlue : googleTextSecondary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Tap to authenticate and view',
+                    style: TextStyle(fontSize: 12, color: googleTextSecondary),
+                  ),
+                ] else ...[
+                  // Unlocked / Normal Note Card
+                  // Header: Title & Pin Action
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: note.title.isNotEmpty
+                            ? Text(
+                                note.title,
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                  color: googleTextPrimary,
+                                  letterSpacing: -0.2,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              )
+                            : const SizedBox.shrink(),
+                      ),
+                      GestureDetector(
+                        onTap: onTogglePin,
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 4),
+                          child: Icon(
+                            note.isPinned ? Icons.push_pin_rounded : Icons.push_pin_outlined,
+                            size: 18,
+                            color: note.isPinned ? googleBlue : googleTextSecondary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  if (note.title.isNotEmpty && (note.content.isNotEmpty || note.todoItems.isNotEmpty))
+                    const SizedBox(height: 6),
+
+                  // Body: Checklist or Text Preview
+                  if (note.isTodoList && note.todoItems.isNotEmpty) ...[
+                    ...note.todoItems.take(5).map((item) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        child: Row(
+                          children: [
+                            Icon(
+                              item.checked ? Icons.check_box_rounded : Icons.check_box_outline_blank_rounded,
+                              size: 15,
+                              color: item.checked ? googleBlue : googleTextSecondary,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                item.text,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: item.checked ? googleTextSecondary : googleTextPrimary,
+                                  decoration: item.checked ? TextDecoration.lineThrough : null,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
                         ),
                       );
-                    }).toList(),
+                    }),
+                    if (note.todoItems.length > 5)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          '+ ${note.todoItems.length - 5} more items',
+                          style: const TextStyle(fontSize: 11, color: googleTextSecondary, fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                  ] else if (note.content.isNotEmpty) ...[
+                    Text(
+                      note.content,
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        color: googleTextPrimary,
+                        fontFamily: note.isCode ? 'monospace' : null,
+                        height: 1.35,
+                      ),
+                      maxLines: 6,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+
+                  // Tags Preview
+                  if (note.tags.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 4,
+                      runSpacing: 2,
+                      children: note.tags.take(3).map((t) {
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.05),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            '#$t',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: googleTextSecondary,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ],
+
+                // Reminder Pill Chip if active
+                if (note.reminderAt != null) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: googleBlue.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.alarm_rounded, size: 12, color: googleBlue),
+                        const SizedBox(width: 4),
+                        Text(
+                          DateFormat('EEE, d MMM • h:mm a').format(
+                            DateTime.fromMillisecondsSinceEpoch(note.reminderAt!),
+                          ),
+                          style: const TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w600,
+                            color: googleBlue,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ],

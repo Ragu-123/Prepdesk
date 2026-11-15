@@ -153,6 +153,9 @@ class KeepNote {
   final List<ChecklistItem> todoItems;
   final List<String> tags;
   final bool isCode;
+  final bool isLocked;
+  final int? reminderAt;
+  final String? reminderRepeat;
   final int createdAt;
   final int updatedAt;
 
@@ -167,6 +170,9 @@ class KeepNote {
     List<ChecklistItem>? todoItems,
     List<String>? tags,
     this.isCode = false,
+    this.isLocked = false,
+    this.reminderAt,
+    this.reminderRepeat,
     int? createdAt,
     int? updatedAt,
   })  : todoItems = todoItems ?? const [],
@@ -185,6 +191,10 @@ class KeepNote {
     List<ChecklistItem>? todoItems,
     List<String>? tags,
     bool? isCode,
+    bool? isLocked,
+    int? reminderAt,
+    bool clearReminder = false,
+    String? reminderRepeat,
     int? createdAt,
     int? updatedAt,
   }) {
@@ -199,6 +209,9 @@ class KeepNote {
       todoItems: todoItems ?? this.todoItems,
       tags: tags ?? this.tags,
       isCode: isCode ?? this.isCode,
+      isLocked: isLocked ?? this.isLocked,
+      reminderAt: clearReminder ? null : (reminderAt ?? this.reminderAt),
+      reminderRepeat: clearReminder ? null : (reminderRepeat ?? this.reminderRepeat),
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -216,6 +229,9 @@ class KeepNote {
       'todo_items_json': jsonEncode(todoItems.map((e) => e.toMap()).toList()),
       'tags_json': jsonEncode(tags),
       'is_code': isCode ? 1 : 0,
+      'is_locked': isLocked ? 1 : 0,
+      'reminder_at': reminderAt,
+      'reminder_repeat': reminderRepeat,
       'created_at': createdAt,
       'updated_at': updatedAt,
     };
@@ -253,6 +269,11 @@ class KeepNote {
       todoItems: items,
       tags: tagsList,
       isCode: map['is_code'] == 1 || map['is_code'] == true,
+      isLocked: map['is_locked'] == 1 || map['is_locked'] == true,
+      reminderAt: (map['reminder_at'] is int)
+          ? map['reminder_at'] as int
+          : int.tryParse(map['reminder_at']?.toString() ?? ''),
+      reminderRepeat: map['reminder_repeat']?.toString(),
       createdAt: (map['created_at'] is int)
           ? map['created_at'] as int
           : int.tryParse(map['created_at']?.toString() ?? '') ?? DateTime.now().millisecondsSinceEpoch,

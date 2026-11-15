@@ -1,10 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:tasks/data/database_service.dart';
+import 'package:tasks/pages/alerts/alerts_page.dart';
+import 'package:tasks/pages/cloud_sync/cloud_sync_page.dart';
+import 'package:tasks/pages/keep/keep_page.dart';
 import 'package:tasks/utils/theme.dart';
 
 class NotificationsHistorySheet extends StatefulWidget {
-  const NotificationsHistorySheet({Key? key}) : super(key: key);
+  final VoidCallback? onOpenToday;
+  final VoidCallback? onRefresh;
+
+  const NotificationsHistorySheet({
+    Key? key,
+    this.onOpenToday,
+    this.onRefresh,
+  }) : super(key: key);
 
   @override
   _NotificationsHistorySheetState createState() => _NotificationsHistorySheetState();
@@ -33,6 +43,35 @@ class _NotificationsHistorySheetState extends State<NotificationsHistorySheet> {
   Future<void> _clearAll() async {
     await DatabaseService.instance.clearInAppNotifications();
     _loadNotifications();
+  }
+
+  void _handleNotificationTap(Map<String, dynamic> item) {
+    final type = (item['type'] as String? ?? '').toLowerCase();
+    Navigator.pop(context);
+
+    if (type.contains('reminder') || type.contains('alarm')) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => AlertsPage(
+            onDataChanged: () => widget.onRefresh?.call(),
+            onOpenAddReminder: () {},
+          ),
+        ),
+      );
+    } else if (type.contains('keep')) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const KeepPage()),
+      );
+    } else if (type.contains('cloud')) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const CloudSyncPage()),
+      );
+    } else if (type.contains('schedule') || type.contains('routine')) {
+      widget.onOpenToday?.call();
+    }
   }
 
   @override
@@ -104,7 +143,7 @@ class _NotificationsHistorySheetState extends State<NotificationsHistorySheet> {
                             ),
                             const SizedBox(height: 4),
                             const Text(
-                              'Test blunder logs, sync events, and study alerts will appear here.',
+                              'Reminders, routines, sync logs, and study alerts will appear here.',
                               style: TextStyle(fontSize: 12, color: googleTextSecondary),
                               textAlign: TextAlign.center,
                             ),
@@ -119,7 +158,7 @@ class _NotificationsHistorySheetState extends State<NotificationsHistorySheet> {
                           final item = _notifications[index];
                           final title = item['title'] as String? ?? 'Notification';
                           final message = item['message'] as String? ?? '';
-                          final type = item['type'] as String? ?? 'INFO';
+                          final type = (item['type'] as String? ?? 'INFO').toLowerCase();
                           final createdAtStr = item['created_at'] as String?;
 
                           DateTime? dt;
@@ -131,59 +170,81 @@ class _NotificationsHistorySheetState extends State<NotificationsHistorySheet> {
                           IconData icon = Icons.info_outline_rounded;
                           Color color = googleBlue;
 
-                          if (type == 'MISTAKE_LOG') {
+                          if (type.contains('mistake')) {
                             icon = Icons.laptop_chromebook_rounded;
                             color = googleAmber;
-                          } else if (type == 'CLOUD_SYNC') {
+                          } else if (type.contains('cloud')) {
                             icon = Icons.cloud_done_outlined;
                             color = googleGreen;
-                          } else if (type == 'ALERT') {
+                          } else if (type.contains('alarm')) {
                             icon = Icons.alarm_rounded;
+                            color = googleRed;
+                          } else if (type.contains('reminder')) {
+                            icon = Icons.alarm_on_rounded;
                             color = googleBlue;
+                          } else if (type.contains('keep')) {
+                            icon = Icons.lightbulb_outline_rounded;
+                            color = const Color(0xFFFBBC04);
+                          } else if (type.contains('schedule') || type.contains('routine')) {
+                            icon = Icons.calendar_today_rounded;
+                            color = googleAmber;
+                          } else if (type.contains('quiz')) {
+                            icon = Icons.quiz_outlined;
+                            color = Colors.deepPurple;
                           }
 
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 10),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Container(
-                                  width: 36,
-                                  height: 36,
-                                  decoration: BoxDecoration(
-                                    color: color.withOpacity(0.12),
-                                    shape: BoxShape.circle,
+                          return InkWell(
+                            onTap: () => _handleNotificationTap(item),
+                            borderRadius: BorderRadius.circular(12),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    width: 36,
+                                    height: 36,
+                                    decoration: BoxDecoration(
+                                      color: color.withOpacity(0.12),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(icon, color: color, size: 18),
                                   ),
-                                  child: Icon(icon, color: color, size: 18),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Text(
-                                            title,
-                                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: googleTextPrimary),
-                                          ),
-                                          if (timeDisplay.isNotEmpty)
-                                            Text(
-                                              timeDisplay,
-                                              style: const TextStyle(fontSize: 11, color: googleTextSecondary),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                title,
+                                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: googleTextPrimary),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
                                             ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 3),
-                                      Text(
-                                        message,
-                                        style: const TextStyle(fontSize: 12, color: googleTextSecondary, height: 1.3),
-                                      ),
-                                    ],
+                                            if (timeDisplay.isNotEmpty) ...[
+                                              const SizedBox(width: 8),
+                                              Text(
+                                                timeDisplay,
+                                                style: const TextStyle(fontSize: 11, color: googleTextSecondary),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                        const SizedBox(height: 3),
+                                        Text(
+                                          message,
+                                          style: const TextStyle(fontSize: 12, color: googleTextSecondary, height: 1.3),
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           );
                         },

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz_data;
@@ -14,6 +15,15 @@ class NotificationService {
   static const String studyChannelName = 'NYRO Study Notifications';
   static const String dailyChannelId = 'nyro_daily_channel';
   static const String dailyChannelName = 'Daily Study Routine';
+  static const String alarmChannelId = 'nyro_alarm_channel';
+  static const String alarmChannelName = 'Full-Screen Study Alarms';
+
+  final StreamController<String> _payloadController = StreamController<String>.broadcast();
+  Stream<String> get onNotificationPayloadTapped => _payloadController.stream;
+
+  String? _pendingLaunchPayload;
+  String? get pendingLaunchPayload => _pendingLaunchPayload;
+  void clearPendingLaunchPayload() => _pendingLaunchPayload = null;
 
   Future<void> init() async {
     _configureLocalTimeZone();
@@ -28,9 +38,19 @@ class NotificationService {
     await flutterLocalNotificationsPlugin.initialize(
       initializationSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) {
-        // Handle notification tapped
+        final payload = response.payload;
+        if (payload != null && payload.isNotEmpty) {
+          _payloadController.add(payload);
+        }
       },
     );
+
+    try {
+      final launchDetails = await flutterLocalNotificationsPlugin.getNotificationAppLaunchDetails();
+      if (launchDetails != null && launchDetails.didNotificationLaunchApp) {
+        _pendingLaunchPayload = launchDetails.notificationResponse?.payload;
+      }
+    } catch (_) {}
 
     // Create Notification Channels explicitly on Android 8.0+
     final android = flutterLocalNotificationsPlugin
@@ -51,6 +71,16 @@ class NotificationService {
           dailyChannelId,
           dailyChannelName,
           description: 'Scheduled reminders for Morning, Afternoon, and Evening study blocks',
+          importance: Importance.max,
+          playSound: true,
+          enableVibration: true,
+        ),
+      );
+      await android.createNotificationChannel(
+        const AndroidNotificationChannel(
+          alarmChannelId,
+          alarmChannelName,
+          description: 'Critical ringing study alarms with full-screen wake screen',
           importance: Importance.max,
           playSound: true,
           enableVibration: true,
@@ -105,6 +135,8 @@ class NotificationService {
   Future<void> showInstantNotification({
     required String title,
     required String body,
+    String? payload,
+    String type = 'reminder',
   }) async {
     const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
       studyChannelId,
@@ -119,12 +151,22 @@ class NotificationService {
 
     const NotificationDetails platformDetails = NotificationDetails(android: androidDetails);
 
+    final id = DateTime.now().millisecondsSinceEpoch % 100000;
     await flutterLocalNotificationsPlugin.show(
-      DateTime.now().millisecondsSinceEpoch % 100000,
+      id,
       title,
       body,
       platformDetails,
+      payload: payload ?? 'route:reminders',
     );
+
+    try {
+      await DatabaseService.instance.addInAppNotification(
+        title: title,
+        message: body,
+        type: type,
+      );
+    } catch (_) {}
   }
 
   Future<void> scheduleReminder({
@@ -133,22 +175,36 @@ class NotificationService {
     required String body,
     required DateTime scheduledDate,
     String? repeatDays,
+    String alertType = 'notification',
+    List<String>? checkpoints,
   }) async {
     // Clear any previous notification triggers for this reminder ID
     await cancelReminder(id);
 
-    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      studyChannelId,
-      studyChannelName,
-      channelDescription: 'Alerts and reminders for GATE study tasks',
+    final isAlarm = alertType.toLowerCase() == 'alarm';
+    final targetChannel = isAlarm ? alarmChannelId : studyChannelId;
+    final targetChannelName = isAlarm ? alarmChannelName : studyChannelName;
+
+    final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+      targetChannel,
+      targetChannelName,
+      channelDescription: isAlarm
+          ? 'Full-screen study alarm ringing overlay'
+          : 'Alerts and reminders for GATE study tasks',
       importance: Importance.max,
       priority: Priority.high,
+      fullScreenIntent: isAlarm,
       showWhen: true,
       enableVibration: true,
       playSound: true,
+      actions: const [
+        AndroidNotificationAction('snooze_5', 'Snooze 5m'),
+        AndroidNotificationAction('snooze_10', 'Snooze 10m'),
+        AndroidNotificationAction('dismiss', 'Dismiss'),
+      ],
     );
 
-    const NotificationDetails platformDetails = NotificationDetails(
+    final NotificationDetails platformDetails = NotificationDetails(
       android: androidDetails,
     );
 
@@ -162,6 +218,8 @@ class NotificationService {
             .where((d) => d >= 0 && d <= 6)
             .toSet()
         : <int>{};
+
+    const notifPayload = 'route:reminders';
 
     if (parsedDays.isEmpty) {
       // One-time reminder
@@ -184,6 +242,7 @@ class NotificationService {
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
           uiLocalNotificationDateInterpretation:
               UILocalNotificationDateInterpretation.absoluteTime,
+          payload: notifPayload,
         );
       } catch (_) {
         await flutterLocalNotificationsPlugin.zonedSchedule(
@@ -195,6 +254,7 @@ class NotificationService {
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
           uiLocalNotificationDateInterpretation:
               UILocalNotificationDateInterpretation.absoluteTime,
+          payload: notifPayload,
         );
       }
     } else if (parsedDays.length == 7) {
@@ -222,6 +282,7 @@ class NotificationService {
           uiLocalNotificationDateInterpretation:
               UILocalNotificationDateInterpretation.absoluteTime,
           matchDateTimeComponents: DateTimeComponents.time,
+          payload: notifPayload,
         );
       } catch (_) {
         await flutterLocalNotificationsPlugin.zonedSchedule(
@@ -234,12 +295,12 @@ class NotificationService {
           uiLocalNotificationDateInterpretation:
               UILocalNotificationDateInterpretation.absoluteTime,
           matchDateTimeComponents: DateTimeComponents.time,
+          payload: notifPayload,
         );
       }
     } else {
       // Specific days of week routine (e.g. Mon, Wed, Fri)
       for (final dayIndex in parsedDays) {
-        // dayIndex: 0=Sun -> 7 in DateTime.weekday; 1=Mon -> 1, ..., 6=Sat -> 6
         final targetWeekday = (dayIndex == 0) ? 7 : dayIndex;
         var targetDate = tz.TZDateTime(
           tz.local,
@@ -265,6 +326,7 @@ class NotificationService {
             uiLocalNotificationDateInterpretation:
                 UILocalNotificationDateInterpretation.absoluteTime,
             matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
+            payload: notifPayload,
           );
         } catch (_) {
           await flutterLocalNotificationsPlugin.zonedSchedule(
@@ -277,10 +339,129 @@ class NotificationService {
             uiLocalNotificationDateInterpretation:
                 UILocalNotificationDateInterpretation.absoluteTime,
             matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
+            payload: notifPayload,
           );
         }
       }
     }
+
+    // Schedule any extra checkpoints for this reminder
+    if (checkpoints != null && checkpoints.isNotEmpty) {
+      for (int i = 0; i < checkpoints.length; i++) {
+        final cpStr = checkpoints[i];
+        final cpDt = DateTime.tryParse(cpStr);
+        if (cpDt == null) continue;
+        var tzCp = tz.TZDateTime.from(cpDt, tz.local);
+        if (tzCp.isBefore(now)) continue;
+
+        final cpId = id * 100 + (i + 1);
+        try {
+          await flutterLocalNotificationsPlugin.zonedSchedule(
+            cpId,
+            '$title (Checkpoint ${i + 1})',
+            body,
+            tzCp,
+            platformDetails,
+            androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+            uiLocalNotificationDateInterpretation:
+                UILocalNotificationDateInterpretation.absoluteTime,
+            payload: notifPayload,
+          );
+        } catch (_) {}
+      }
+    }
+
+    // Log scheduled reminder
+    try {
+      await DatabaseService.instance.addInAppNotification(
+        title: 'Reminder: $title',
+        message: body,
+        type: isAlarm ? 'alarm' : 'reminder',
+      );
+    } catch (_) {}
+  }
+
+  // Google Keep Note Reminder Scheduling
+  Future<void> scheduleKeepNoteReminder({
+    required String noteId,
+    required String title,
+    required String body,
+    required DateTime scheduledDate,
+    String? repeat,
+  }) async {
+    final int notifId = (noteId.hashCode.abs() % 50000) + 20000;
+    await cancelKeepNoteReminder(noteId);
+
+    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+      studyChannelId,
+      studyChannelName,
+      channelDescription: 'Google Keep Note Reminders',
+      importance: Importance.max,
+      priority: Priority.high,
+      showWhen: true,
+      enableVibration: true,
+      playSound: true,
+      actions: [
+        AndroidNotificationAction('snooze_10', 'Snooze 10m'),
+        AndroidNotificationAction('dismiss', 'Dismiss'),
+      ],
+    );
+
+    const NotificationDetails platformDetails = NotificationDetails(android: androidDetails);
+    final now = tz.TZDateTime.now(tz.local);
+    var tzScheduled = tz.TZDateTime.from(scheduledDate, tz.local);
+
+    if (tzScheduled.isBefore(now)) {
+      if (now.difference(tzScheduled).inMinutes <= 5) {
+        tzScheduled = now.add(const Duration(seconds: 5));
+      } else {
+        return;
+      }
+    }
+
+    final payload = 'route:keep_note:$noteId';
+    final isDaily = repeat?.toUpperCase() == 'DAILY';
+
+    try {
+      await flutterLocalNotificationsPlugin.zonedSchedule(
+        notifId,
+        title.isNotEmpty ? title : 'Note Reminder',
+        body.isNotEmpty ? body : 'Keep Note Reminder',
+        tzScheduled,
+        platformDetails,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        matchDateTimeComponents: isDaily ? DateTimeComponents.time : null,
+        payload: payload,
+      );
+    } catch (_) {
+      await flutterLocalNotificationsPlugin.zonedSchedule(
+        notifId,
+        title.isNotEmpty ? title : 'Note Reminder',
+        body.isNotEmpty ? body : 'Keep Note Reminder',
+        tzScheduled,
+        platformDetails,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        matchDateTimeComponents: isDaily ? DateTimeComponents.time : null,
+        payload: payload,
+      );
+    }
+
+    try {
+      await DatabaseService.instance.addInAppNotification(
+        title: 'Keep Reminder: ${title.isNotEmpty ? title : "Note"}',
+        message: body.isNotEmpty ? body : 'Note reminder scheduled',
+        type: 'keep_note',
+      );
+    } catch (_) {}
+  }
+
+  Future<void> cancelKeepNoteReminder(String noteId) async {
+    final int notifId = (noteId.hashCode.abs() % 50000) + 20000;
+    await flutterLocalNotificationsPlugin.cancel(notifId);
   }
 
   Future<void> scheduleDailySessionAlerts({
@@ -300,6 +481,7 @@ class NotificationService {
     const platformDetails = NotificationDetails(android: androidDetails);
 
     final now = tz.TZDateTime.now(tz.local);
+    const payload = 'route:today';
 
     // 1. Morning Block at 5:00 AM (ID: 9001)
     if (morning) {
@@ -311,23 +493,25 @@ class NotificationService {
         await flutterLocalNotificationsPlugin.zonedSchedule(
           9001,
           'Morning Study Brief (05:00 AM)',
-          'Rise and conquer: Review your target lectures and Ebbinghaus recall items for today!',
+          'Rise and conquer: Review your target lectures and recall items for today!',
           morningTime,
           platformDetails,
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
           uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
           matchDateTimeComponents: DateTimeComponents.time,
+          payload: payload,
         );
       } catch (_) {
         await flutterLocalNotificationsPlugin.zonedSchedule(
           9001,
           'Morning Study Brief (05:00 AM)',
-          'Rise and conquer: Review your target lectures and Ebbinghaus recall items for today!',
+          'Rise and conquer: Review your target lectures and recall items for today!',
           morningTime,
           platformDetails,
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
           uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
           matchDateTimeComponents: DateTimeComponents.time,
+          payload: payload,
         );
       }
     } else {
@@ -350,6 +534,7 @@ class NotificationService {
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
           uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
           matchDateTimeComponents: DateTimeComponents.time,
+          payload: payload,
         );
       } catch (_) {
         await flutterLocalNotificationsPlugin.zonedSchedule(
@@ -361,6 +546,7 @@ class NotificationService {
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
           uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
           matchDateTimeComponents: DateTimeComponents.time,
+          payload: payload,
         );
       }
     } else {
@@ -377,23 +563,25 @@ class NotificationService {
         await flutterLocalNotificationsPlugin.zonedSchedule(
           9003,
           'Evening Review & Recall (07:00 PM)',
-          'Wrap up today’s lectures, log tricky quiz mistakes, and clear Day 1/4/7 recall checkpoints.',
+          'Wrap up today lectures, log tricky quiz mistakes, and clear Day 1/4/7 recall checkpoints.',
           eveningTime,
           platformDetails,
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
           uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
           matchDateTimeComponents: DateTimeComponents.time,
+          payload: payload,
         );
       } catch (_) {
         await flutterLocalNotificationsPlugin.zonedSchedule(
           9003,
           'Evening Review & Recall (07:00 PM)',
-          'Wrap up today’s lectures, log tricky quiz mistakes, and clear Day 1/4/7 recall checkpoints.',
+          'Wrap up today lectures, log tricky quiz mistakes, and clear Day 1/4/7 recall checkpoints.',
           eveningTime,
           platformDetails,
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
           uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
           matchDateTimeComponents: DateTimeComponents.time,
+          payload: payload,
         );
       }
     } else {
@@ -406,6 +594,11 @@ class NotificationService {
     for (int d = 0; d < 7; d++) {
       try {
         await flutterLocalNotificationsPlugin.cancel(id * 10 + d);
+      } catch (_) {}
+    }
+    for (int i = 0; i < 20; i++) {
+      try {
+        await flutterLocalNotificationsPlugin.cancel(id * 100 + i);
       } catch (_) {}
     }
   }
