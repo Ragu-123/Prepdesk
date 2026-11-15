@@ -37,9 +37,29 @@ class NotificationService {
 
     await flutterLocalNotificationsPlugin.initialize(
       initializationSettings,
-      onDidReceiveNotificationResponse: (NotificationResponse response) {
+      onDidReceiveNotificationResponse: (NotificationResponse response) async {
         final payload = response.payload;
-        if (payload != null && payload.isNotEmpty) {
+        final actionId = response.actionId;
+
+        if (actionId == 'snooze_5' || actionId == 'snooze_10') {
+          final minutes = (actionId == 'snooze_5') ? 5 : 10;
+          final snoozeDt = DateTime.now().add(Duration(minutes: minutes));
+          final reminderId = (response.id != null && response.id! > 0)
+              ? response.id!
+              : (DateTime.now().millisecondsSinceEpoch % 100000);
+          final isAlarm = payload != null && payload.startsWith('route:alarm:');
+          await NotificationService.instance.scheduleReminder(
+            id: reminderId,
+            title: 'Snoozed Reminder',
+            body: 'Snoozed for $minutes minutes',
+            scheduledDate: snoozeDt,
+            alertType: isAlarm ? 'alarm' : 'notification',
+          );
+        } else if (actionId == 'dismiss') {
+          if (response.id != null) {
+            await NotificationService.instance.cancelReminder(response.id!);
+          }
+        } else if (payload != null && payload.isNotEmpty) {
           _payloadController.add(payload);
         }
       },
@@ -219,7 +239,7 @@ class NotificationService {
             .toSet()
         : <int>{};
 
-    const notifPayload = 'route:reminders';
+    final notifPayload = isAlarm ? 'route:alarm:$id:$title' : 'route:reminders';
 
     if (parsedDays.isEmpty) {
       // One-time reminder
@@ -586,6 +606,16 @@ class NotificationService {
       }
     } else {
       await cancelNotification(9003);
+    }
+
+    if (morning || afternoon || evening) {
+      try {
+        await DatabaseService.instance.addInAppNotification(
+          title: 'Daily Study Routine Active',
+          message: 'Daily study checkpoints configured (Morning brief, recall shield, evening review).',
+          type: 'routine',
+        );
+      } catch (_) {}
     }
   }
 

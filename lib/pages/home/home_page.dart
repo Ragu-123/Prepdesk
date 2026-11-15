@@ -24,6 +24,7 @@ import 'package:tasks/pages/keep/keep_page.dart';
 import 'package:tasks/pages/keep/note_editor_sheet.dart';
 import 'package:tasks/data/keep_note_model.dart';
 import 'package:tasks/services/vault_service.dart';
+import 'package:tasks/widgets/full_screen_alarm_dialog.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -133,6 +134,63 @@ class _HomePageState extends State<HomePage> {
       setState(() => _currentNavIndex = 0);
     } else if (payload == 'route:reminders') {
       _showAlertsSheet();
+    } else if (payload.startsWith('route:alarm:')) {
+      final parts = payload.split(':');
+      final title = parts.length > 3 ? parts.sublist(3).join(':') : (parts.length > 2 ? parts[2] : 'Study Alarm');
+      final now = DateTime.now();
+      final timeStr = DateFormat('h:mm a').format(now).toLowerCase();
+      FullScreenAlarmDialog.show(
+        context,
+        title: title.isNotEmpty ? title : 'Study Alarm',
+        timeText: timeStr,
+        onSnooze5: () async {
+          final snoozeTime = DateTime.now().add(const Duration(minutes: 5));
+          await NotificationService.instance.scheduleReminder(
+            id: DateTime.now().millisecondsSinceEpoch % 100000,
+            title: title,
+            body: 'Snoozed alarm ringing',
+            scheduledDate: snoozeTime,
+            alertType: 'alarm',
+          );
+          if (mounted) {
+            TopBanner.show(
+              context,
+              title: 'Alarm Snoozed',
+              message: 'Alarm will ring in 5 minutes.',
+              icon: Icons.snooze_rounded,
+              color: googleBlue,
+            );
+          }
+        },
+        onSnooze10: () async {
+          final snoozeTime = DateTime.now().add(const Duration(minutes: 10));
+          await NotificationService.instance.scheduleReminder(
+            id: DateTime.now().millisecondsSinceEpoch % 100000,
+            title: title,
+            body: 'Snoozed alarm ringing',
+            scheduledDate: snoozeTime,
+            alertType: 'alarm',
+          );
+          if (mounted) {
+            TopBanner.show(
+              context,
+              title: 'Alarm Snoozed',
+              message: 'Alarm will ring in 10 minutes.',
+              icon: Icons.snooze_rounded,
+              color: googleAmber,
+            );
+          }
+        },
+        onDismiss: () {
+          TopBanner.show(
+            context,
+            title: 'Alarm Dismissed',
+            message: 'Alarm stopped.',
+            icon: Icons.done_all_rounded,
+            color: googleGreen,
+          );
+        },
+      );
     } else if (payload.startsWith('route:keep_note:')) {
       final noteId = payload.substring('route:keep_note:'.length);
       final note = await DatabaseService.instance.getKeepNoteById(noteId);

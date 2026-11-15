@@ -69,7 +69,7 @@ class _NotificationsHistorySheetState extends State<NotificationsHistorySheet> {
         context,
         MaterialPageRoute(builder: (context) => const CloudSyncPage()),
       );
-    } else if (type.contains('schedule') || type.contains('routine')) {
+    } else if (type.contains('schedule') || type.contains('routine') || type.contains('mistake')) {
       widget.onOpenToday?.call();
     }
   }

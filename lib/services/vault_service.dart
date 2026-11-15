@@ -21,6 +21,11 @@ class VaultService {
     return hash != null && hash.trim().isNotEmpty;
   }
 
+  Future<int> getVaultPinLength() async {
+    final lenStr = await DatabaseService.instance.getConfigValue('keep_vault_pin_length');
+    return int.tryParse(lenStr ?? '') ?? 4;
+  }
+
   Future<bool> verifyPin(String pin) async {
     final hash = await DatabaseService.instance.getKeepVaultPinHash();
     if (hash == null || hash.trim().isEmpty) return false;
@@ -30,10 +35,12 @@ class VaultService {
   Future<void> setVaultPin(String pin) async {
     final hash = _hashPin(pin.trim());
     await DatabaseService.instance.setKeepVaultPinHash(hash);
+    await DatabaseService.instance.setConfigValue('keep_vault_pin_length', pin.trim().length.toString());
   }
 
   Future<void> removeVaultPin() async {
     await DatabaseService.instance.removeKeepVaultPinHash();
+    await DatabaseService.instance.setConfigValue('keep_vault_pin_length', '4');
   }
 
   Future<bool> isBiometricsEnabled() async {
@@ -84,7 +91,7 @@ class VaultService {
       await showSetPinDialog(
         context,
         title: 'Set Master Vault PIN',
-        subtitle: 'Create a 4-digit PIN to protect private notes.',
+        subtitle: 'Create a 4 or 6 digit PIN to protect private notes.',
         onPinSet: onAuthenticated,
       );
       return;
@@ -106,7 +113,7 @@ class VaultService {
   Future<bool?> showSetPinDialog(
     BuildContext context, {
     String title = 'Set Master Vault PIN',
-    String subtitle = 'Enter a 4-digit PIN to secure protected notes.',
+    String subtitle = 'Enter a 4 or 6 digit PIN to secure protected notes.',
     VoidCallback? onPinSet,
   }) async {
     return await showModalBottomSheet<bool>(
@@ -140,11 +147,20 @@ class _VaultPinAuthSheetState extends State<_VaultPinAuthSheet> {
   String _enteredPin = '';
   String? _errorMessage;
   bool _canBio = false;
+  int _targetPinLength = 4;
 
   @override
   void initState() {
     super.initState();
+    _loadPinLength();
     _checkAndPromptBiometrics();
+  }
+
+  Future<void> _loadPinLength() async {
+    final len = await VaultService.instance.getVaultPinLength();
+    if (mounted) {
+      setState(() => _targetPinLength = (len == 6) ? 6 : 4);
+    }
   }
 
   Future<void> _checkAndPromptBiometrics() async {
@@ -165,42 +181,30 @@ class _VaultPinAuthSheetState extends State<_VaultPinAuthSheet> {
   }
 
   void _onDigitPressed(String digit) async {
-    if (_enteredPin.length >= 6) return;
+    if (_enteredPin.length >= _targetPinLength) return;
     HapticFeedback.lightImpact();
+    final newPin = _enteredPin + digit;
     setState(() {
       _errorMessage = null;
-      _enteredPin += digit;
+      _enteredPin = newPin;
     });
 
-    if (_enteredPin.length >= 4) {
-      final valid = await VaultService.instance.verifyPin(_enteredPin);
+    if (newPin.length == _targetPinLength) {
+      final valid = await VaultService.instance.verifyPin(newPin);
       if (valid) {
         HapticFeedback.mediumImpact();
         if (mounted) {
           Navigator.pop(context);
           widget.onAuthenticated();
         }
-      } else if (_enteredPin.length == 4) {
-        // Wait briefly in case user is entering a 6-digit PIN
-        Future.delayed(const Duration(milliseconds: 300), () async {
-          if (!mounted) return;
-          if (_enteredPin.length == 4) {
-            final checkAgain = await VaultService.instance.verifyPin(_enteredPin);
-            if (!checkAgain && mounted) {
-              setState(() {
-                _errorMessage = 'Incorrect PIN. Try again.';
-                _enteredPin = '';
-              });
-              HapticFeedback.heavyImpact();
-            }
-          }
-        });
-      } else if (_enteredPin.length == 6) {
-        setState(() {
-          _errorMessage = 'Incorrect PIN. Try again.';
-          _enteredPin = '';
-        });
+      } else {
         HapticFeedback.heavyImpact();
+        if (mounted) {
+          setState(() {
+            _errorMessage = 'Incorrect PIN. Try again.';
+            _enteredPin = '';
+          });
+        }
       }
     }
   }
@@ -273,7 +277,7 @@ class _VaultPinAuthSheetState extends State<_VaultPinAuthSheet> {
               // PIN dots indicator
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(4, (index) {
+                children: List.generate(_targetPinLength, (index) {
                   final filled = index < _enteredPin.length;
                   return AnimatedContainer(
                     duration: const Duration(milliseconds: 160),
@@ -433,8 +437,8 @@ class _VaultSetPinSheetState extends State<_VaultSetPinSheet> {
     final pin = _pinController.text.trim();
     final confirm = _confirmController.text.trim();
 
-    if (pin.length < 4) {
-      setState(() => _errorMessage = 'PIN must be at least 4 digits');
+    if (pin.length != 4 && pin.length != 6) {
+      setState(() => _errorMessage = 'PIN must be 4 or 6 digits');
       return;
     }
     if (pin != confirm) {

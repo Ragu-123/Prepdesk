@@ -157,6 +157,40 @@ class _AlertsPageState extends State<AlertsPage> {
               context,
               title: alertType == 'alarm' ? 'Alarm Scheduled' : 'Reminder Scheduled',
               message: '$newText • ${DateFormat('d MMM, hh:mm a').format(newDateTime)}',
+              onSnooze5: () async {
+                final snoozeTime = DateTime.now().add(const Duration(minutes: 5));
+                await NotificationService.instance.scheduleReminder(
+                  id: DateTime.now().millisecondsSinceEpoch % 100000,
+                  title: newText,
+                  body: 'Snoozed: $newText',
+                  scheduledDate: snoozeTime,
+                  alertType: alertType,
+                );
+                TopBanner.show(
+                  context,
+                  title: 'Reminder Snoozed',
+                  message: 'Will alert again in 5 minutes.',
+                  icon: Icons.snooze_rounded,
+                  color: googleBlue,
+                );
+              },
+              onSnooze10: () async {
+                final snoozeTime = DateTime.now().add(const Duration(minutes: 10));
+                await NotificationService.instance.scheduleReminder(
+                  id: DateTime.now().millisecondsSinceEpoch % 100000,
+                  title: newText,
+                  body: 'Snoozed: $newText',
+                  scheduledDate: snoozeTime,
+                  alertType: alertType,
+                );
+                TopBanner.show(
+                  context,
+                  title: 'Reminder Snoozed',
+                  message: 'Will alert again in 10 minutes.',
+                  icon: Icons.snooze_rounded,
+                  color: googleAmber,
+                );
+              },
               onDismiss: () {},
             );
           }
@@ -1052,15 +1086,26 @@ class __ReminderEditorSheetState extends State<_ReminderEditorSheet> {
   }
 
   Future<void> _addCheckpoint() async {
+    final now = DateTime.now();
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate.isBefore(now) ? now : _selectedDate,
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 365)),
+      helpText: 'Select Checkpoint Date',
+    );
+    if (pickedDate == null || !mounted) return;
+
     final pickedTime = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.now(),
+      helpText: 'Select Checkpoint Time',
     );
-    if (pickedTime != null) {
+    if (pickedTime != null && mounted) {
       final dt = DateTime(
-        _selectedDate.year,
-        _selectedDate.month,
-        _selectedDate.day,
+        pickedDate.year,
+        pickedDate.month,
+        pickedDate.day,
         pickedTime.hour,
         pickedTime.minute,
       );
@@ -1503,7 +1548,15 @@ class __ReminderEditorSheetState extends State<_ReminderEditorSheet> {
                           final idx = entry.key;
                           final cpStr = entry.value;
                           final cpDt = DateTime.tryParse(cpStr);
-                          final label = cpDt != null ? DateFormat('h:mm a').format(cpDt).toLowerCase() : cpStr;
+                          String label = cpStr;
+                          if (cpDt != null) {
+                            final isSameDay = cpDt.year == _selectedDate.year &&
+                                cpDt.month == _selectedDate.month &&
+                                cpDt.day == _selectedDate.day;
+                            label = isSameDay
+                                ? DateFormat('h:mm a').format(cpDt).toLowerCase()
+                                : DateFormat('d MMM • h:mm a').format(cpDt).toLowerCase();
+                          }
                           return Chip(
                             backgroundColor: Colors.white,
                             side: const BorderSide(color: googleBorder),

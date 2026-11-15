@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../data/keep_note_model.dart';
+import '../../../services/vault_service.dart';
 import '../../../utils/theme.dart';
 
 class NoteCard extends StatelessWidget {
@@ -10,6 +11,7 @@ class NoteCard extends StatelessWidget {
   final VoidCallback onToggleArchive;
   final VoidCallback onDelete;
   final Function(String colorHex) onColorChanged;
+  final VoidCallback? onToggleLock;
 
   const NoteCard({
     Key? key,
@@ -19,6 +21,7 @@ class NoteCard extends StatelessWidget {
     required this.onToggleArchive,
     required this.onDelete,
     required this.onColorChanged,
+    this.onToggleLock,
   }) : super(key: key);
 
   Color get _cardBgColor => KeepNoteColors.getColor(note.color, isDark: false);
@@ -49,7 +52,17 @@ class NoteCard extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: onTap,
-          onLongPress: () => _showCardContextMenu(context),
+          onLongPress: () {
+            if (note.isLocked) {
+              VaultService.instance.showAuthDialog(
+                context,
+                title: 'Unlock Protected Note',
+                onAuthenticated: () => _showCardContextMenu(context),
+              );
+            } else {
+              _showCardContextMenu(context);
+            }
+          },
           child: Padding(
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
             child: Column(
@@ -261,6 +274,15 @@ class NoteCard extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (onToggleLock != null)
+              ListTile(
+                leading: Icon(note.isLocked ? Icons.lock_open_rounded : Icons.lock_outline_rounded, color: googleBlue),
+                title: Text(note.isLocked ? 'Unlock / Unprotect Note' : 'Protect Note with Vault PIN'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  onToggleLock?.call();
+                },
+              ),
             ListTile(
               leading: Icon(note.isPinned ? Icons.push_pin_outlined : Icons.push_pin_rounded, color: googleBlue),
               title: Text(note.isPinned ? 'Unpin Note' : 'Pin Note to Top'),

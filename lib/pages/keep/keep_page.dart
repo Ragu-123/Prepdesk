@@ -114,6 +114,50 @@ class _KeepPageState extends State<KeepPage> {
     await _loadNotes();
   }
 
+  Future<void> _toggleLock(KeepNote note) async {
+    if (!note.isLocked) {
+      final hasPin = await VaultService.instance.hasVaultPin();
+      if (!hasPin) {
+        if (!mounted) return;
+        final setSuccess = await VaultService.instance.showSetPinDialog(
+          context,
+          title: 'Set Vault PIN First',
+          subtitle: 'Create a PIN to protect this note.',
+        );
+        if (setSuccess != true) return;
+      }
+      await DatabaseService.instance.toggleLockKeepNote(note.id, true);
+      await _loadNotes();
+      if (mounted) {
+        TopBanner.show(
+          context,
+          title: 'Note Protected',
+          message: 'Note is now locked behind Vault PIN.',
+          icon: Icons.lock_rounded,
+          color: googleBlue,
+        );
+      }
+    } else {
+      VaultService.instance.showAuthDialog(
+        context,
+        title: 'Unlock Protected Note',
+        onAuthenticated: () async {
+          await DatabaseService.instance.toggleLockKeepNote(note.id, false);
+          await _loadNotes();
+          if (mounted) {
+            TopBanner.show(
+              context,
+              title: 'Protection Removed',
+              message: 'Note is now accessible without PIN.',
+              icon: Icons.lock_open_rounded,
+              color: googleAmber,
+            );
+          }
+        },
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final pinnedNotes = _allNotes.where((n) => n.isPinned).toList();
@@ -292,6 +336,7 @@ class _KeepPageState extends State<KeepPage> {
               onToggleArchive: () => _toggleArchive(n),
               onDelete: () => _deleteNote(n),
               onColorChanged: (hex) => _updateNoteColor(n, hex),
+              onToggleLock: () => _toggleLock(n),
             ),
           );
         }).toList(),
@@ -325,6 +370,7 @@ class _KeepPageState extends State<KeepPage> {
                   onToggleArchive: () => _toggleArchive(n),
                   onDelete: () => _deleteNote(n),
                   onColorChanged: (hex) => _updateNoteColor(n, hex),
+                  onToggleLock: () => _toggleLock(n),
                 ),
               );
             }).toList(),
@@ -342,6 +388,7 @@ class _KeepPageState extends State<KeepPage> {
                   onToggleArchive: () => _toggleArchive(n),
                   onDelete: () => _deleteNote(n),
                   onColorChanged: (hex) => _updateNoteColor(n, hex),
+                  onToggleLock: () => _toggleLock(n),
                 ),
               );
             }).toList(),

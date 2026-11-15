@@ -186,7 +186,7 @@ class _SettingsPageState extends State<SettingsPage> {
         break;
       case 'alerts':
         _openSubPage(
-          title: 'Notifications & Alerts',
+          title: 'Reminders & Routine',
           icon: Icons.notifications_none_rounded,
           builder: (ctx) => _buildAlertsDetail(),
         );
@@ -752,7 +752,16 @@ class _SettingsPageState extends State<SettingsPage> {
             onTap: () => _navigateToSection('server'),
           ),
 
-          // 2b. Keep Vault & Security Tile
+          // 3. In-App Updates Tile
+          _buildCategoryTile(
+            icon: Icons.system_update_rounded,
+            iconColor: googleGreen,
+            title: 'In-App Updates',
+            subtitle: 'v${AppUpdateService.currentVersion} • GitHub releases channel',
+            onTap: () => _navigateToSection('updates'),
+          ),
+
+          // 4. Keep Vault & Note Security Tile (under In-App Updates)
           _buildCategoryTile(
             icon: Icons.lock_outline_rounded,
             iconColor: const Color(0xFFF29900),
@@ -768,21 +777,12 @@ class _SettingsPageState extends State<SettingsPage> {
             onTap: () => _navigateToSection('keep'),
           ),
 
-          // 3. In-App Updates Tile
-          _buildCategoryTile(
-            icon: Icons.system_update_rounded,
-            iconColor: googleGreen,
-            title: 'In-App Updates',
-            subtitle: 'v${AppUpdateService.currentVersion} • GitHub releases channel',
-            onTap: () => _navigateToSection('updates'),
-          ),
-
-          // 4. Reminders & Routine Alerts Tile
+          // 5. Reminders & Routine Tile
           _buildCategoryTile(
             icon: Icons.notifications_none_rounded,
             iconColor: googleAmber,
-            title: 'Reminders & Routine Alerts',
-            subtitle: 'Morning Brief ($_morningBriefTime), Spaced Recall, Backlog Shield',
+            title: 'Reminders & Routine',
+            subtitle: 'Morning Brief ($_morningBriefTime), Spaced Recall, custom alerts',
             onTap: () => _navigateToSection('alerts'),
           ),
 
