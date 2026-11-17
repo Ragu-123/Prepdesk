@@ -45,7 +45,7 @@ async function checkSession() {
 }
 $('pair-dialog').addEventListener('cancel', event => event.preventDefault());
 $('pair-form').addEventListener('submit', async event => {
-  event.preventDefault(); const button = event.submitter; button.disabled = true; $('pair-error').textContent = '';
+  event.preventDefault(); const button = event.submitter || event.currentTarget.querySelector('button[type=submit]'); button.disabled = true; $('pair-error').textContent = '';
   try {
     const data = await api('/api/auth/verify', { method: 'POST', body: JSON.stringify({ pin: $('pair-pin').value }) });
     if (!data.success || !data.token) throw new Error(data.error || 'That code was not accepted. Check the code on your phone.');
@@ -86,7 +86,7 @@ function renderNotes() {
     const card = node('article', 'note' + (truth(note.is_code) ? ' is-code' : ''));
     if (/^#[0-9a-fA-F]{6}$/.test(note.color || '')) card.style.backgroundColor = note.color;
     const open = node('button', 'note-open'); open.type = 'button'; open.addEventListener('click', () => openNote(note));
-    open.append(node('h3', '', note.title || 'Untitled note'));
+    open.append(node('h2', '', note.title || 'Untitled note'));
     if (note.content) open.append(node('div', 'note-body', note.content));
     if (truth(note.is_todo_list)) {
       const list = node('div', 'note-body');
@@ -95,9 +95,9 @@ function renderNotes() {
     const tags = node('div', 'note-meta'); jsonList(note.tags_json).forEach(tag => tags.append(node('span', 'tag', tag))); open.append(tags);
     const controls = node('div', 'card-actions');
     const updated = Number(note.updated_at); controls.append(node('span', 'note-date', Number.isFinite(updated) && updated > 0 ? new Date(updated).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : ''));
-    controls.append(action(truth(note.is_pinned) ? 'Unpin note' : 'Pin note', 'pin', event => mutateNote(note, { is_pinned: !truth(note.is_pinned) }, event.currentTarget)),
-      action(truth(note.is_archived) ? 'Restore note' : 'Archive note', 'archive', event => mutateNote(note, { is_archived: !truth(note.is_archived) }, event.currentTarget)),
-      action('Delete note', 'delete', () => deleteRecord('note', note.id)));
+    controls.append(action((truth(note.is_pinned) ? 'Unpin: ' : 'Pin: ') + (note.title || 'Untitled note'), 'pin', event => mutateNote(note, { is_pinned: !truth(note.is_pinned) }, event.currentTarget)),
+      action((truth(note.is_archived) ? 'Restore: ' : 'Archive: ') + (note.title || 'Untitled note'), 'archive', event => mutateNote(note, { is_archived: !truth(note.is_archived) }, event.currentTarget)),
+      action('Delete: ' + (note.title || 'Untitled note'), 'delete', () => deleteRecord('note', note.id)));
     card.append(open, controls); container.append(card);
   });
 }
@@ -116,7 +116,7 @@ function openNote(note = null) {
   $('note-dialog').showModal(); $('note-title').focus();
 }
 $('note-form').addEventListener('submit', async event => {
-  event.preventDefault(); const button = event.submitter; button.disabled = true; $('note-form-error').textContent = '';
+  event.preventDefault(); const button = event.submitter || event.currentTarget.querySelector('button[type=submit]'); button.disabled = true; $('note-form-error').textContent = '';
   const payload = { title: $('note-title').value.trim(), content: $('note-content').value.trim(), tags: $('note-tags').value.split(',').map(tag => tag.trim()).filter(Boolean), color: $('note-color').value };
   if (!payload.title && !payload.content && !state.editingNote) { $('note-form-error').textContent = 'Add a title or a note before saving.'; button.disabled = false; return; }
   try {
@@ -164,7 +164,7 @@ function renderMistakes() {
 }
 function openMistake() { $('mistake-form').reset(); $('mistake-form-error').textContent = ''; $('mistake-dialog').showModal(); $('mistake-subject').focus(); }
 $('mistake-form').addEventListener('submit', async event => {
-  event.preventDefault(); const button = event.submitter; button.disabled = true; $('mistake-form-error').textContent = '';
+  event.preventDefault(); const button = event.submitter || event.currentTarget.querySelector('button[type=submit]'); button.disabled = true; $('mistake-form-error').textContent = '';
   const fields = { subject: 'subject', topic: 'topic', severity: 'severity', quiz_title: 'quiz', question_text: 'question', wrong_answer: 'wrong', correct_answer: 'correct', mistake_reason: 'reason', key_takeaway: 'takeaway' }; const payload = {};
   Object.entries(fields).forEach(([key, field]) => payload[key] = $('mistake-' + field).value.trim());
   try { await api('/api/mistakes', { method: 'POST', body: JSON.stringify(payload) }); $('mistake-dialog').close(); await Promise.all([loadMistakes(), loadSubjects()]); toast('Mistake saved to your phone'); }

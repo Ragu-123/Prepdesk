@@ -298,8 +298,10 @@ class _NoteEditorSheetState extends State<NoteEditorSheet> {
 
       await DatabaseService.instance.saveKeepNote(savedNote);
 
-      // Schedule or cancel system notification for Keep Note Reminder
-      if (_reminderAt != null) {
+      // Schedule or cancel system notification for Keep Note Reminder.
+      if (_isLocked) {
+        await NotificationService.instance.refreshKeepNotePrivacy(_noteId);
+      } else if (_reminderAt != null) {
         final scheduledDt = DateTime.fromMillisecondsSinceEpoch(_reminderAt!);
         await NotificationService.instance.scheduleKeepNoteReminder(
           noteId: _noteId,
@@ -319,7 +321,7 @@ class _NoteEditorSheetState extends State<NoteEditorSheet> {
         TopBanner.show(
           context,
           title: widget.note == null ? 'Note Created' : 'Note Saved',
-          message: title.isNotEmpty ? title : 'Note updated in Keep',
+          message: _isLocked ? 'Protected note saved in Keep.' : (title.isNotEmpty ? title : 'Note updated in Keep'),
           icon: Icons.check_circle_outline_rounded,
           color: googleGreen,
         );

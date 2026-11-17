@@ -304,7 +304,7 @@ class _TopBannerWidgetState extends State<_TopBannerWidget>
                                   color: googleTextPrimary,
                                   height: 1.2,
                                 ),
-                                maxLines: 1,
+                                maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
                               const SizedBox(height: 2),

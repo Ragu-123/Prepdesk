@@ -7,7 +7,6 @@ import 'package:tasks/pages/keep/note_editor_sheet.dart';
 import 'package:tasks/services/notification_service.dart';
 import 'package:tasks/services/vault_service.dart';
 import 'package:tasks/utils/theme.dart';
-import 'package:tasks/widgets/full_screen_alarm_dialog.dart';
 import 'package:tasks/widgets/google_checkbox.dart';
 import 'package:tasks/widgets/top_banner_notification.dart';
 
@@ -91,8 +90,17 @@ class _AlertsPageState extends State<AlertsPage> {
     String? text,
     String alertType = 'notification',
   }) async {
-    await DatabaseService.instance.toggleReminderStatus(id, completed);
-    if (completed) {
+    final advanced = completed ? await DatabaseService.instance.completeReminderOccurrence(id) : false;
+    if (!completed) await DatabaseService.instance.toggleReminderStatus(id, false);
+    if (advanced) {
+      final reminders = await DatabaseService.instance.getCustomReminders();
+      final next = reminders.firstWhere((row) => row['id'] == id);
+      final checkpoints = (jsonDecode(next['checkpoints_json']?.toString() ?? '[]') as List).map((value) => value.toString()).toList();
+      await NotificationService.instance.scheduleReminder(id: id,
+        title: next['text']?.toString() ?? 'Study reminder', body: '',
+        scheduledDate: DateTime.parse(next['remind_at'].toString()),
+        alertType: next['alert_type']?.toString() ?? 'notification', checkpoints: checkpoints);
+    } else if (completed) {
       await NotificationService.instance.cancelReminder(id);
     } else if (remindAtStr != null && text != null) {
       final dt = DateTime.tryParse(remindAtStr) ?? DateTime.now();
@@ -114,8 +122,8 @@ class _AlertsPageState extends State<AlertsPage> {
     if (mounted) {
       TopBanner.show(
         context,
-        title: completed ? 'Reminder Completed' : 'Reminder Active',
-        message: completed ? 'Moved to completed schedule' : 'Restored to active reminders',
+        title: advanced ? 'Checkpoint Completed' : (completed ? 'Reminder Completed' : 'Reminder Active'),
+        message: advanced ? 'Your next checkpoint remains active.' : (completed ? 'Moved to completed schedule' : 'Restored to active reminders'),
         icon: completed ? Icons.task_alt_rounded : Icons.alarm_on_rounded,
         color: completed ? googleGreen : googleBlue,
       );
@@ -759,6 +767,11 @@ class _AlertsPageState extends State<AlertsPage> {
       remindAt = DateTime.parse(remindAtStr);
     } catch (_) {}
 
+    if (!isCompleted && (repeatDays == null || repeatDays.trim().isEmpty)) {
+      final upcoming = [remindAt, ...checkpoints.map(DateTime.tryParse).whereType<DateTime>()]
+        .where((time) => time.isAfter(DateTime.now())).toList()..sort();
+      if (upcoming.isNotEmpty) remindAt = upcoming.first;
+    }
     final timeFormatted = DateFormat('h:mm a').format(remindAt).toLowerCase();
     final dateFormatted = DateFormat('EEE, d MMM').format(remindAt);
 
@@ -1208,39 +1221,16 @@ class __ReminderEditorSheetState extends State<_ReminderEditorSheet> {
     }
   }
 
-  void _previewAlarm() {
-    FullScreenAlarmDialog.show(
-      context,
-      title: _nameController.text.trim().isEmpty ? 'Study Reminder' : _nameController.text.trim(),
-      timeText: _formatTimeDisplay(),
-      onSnooze5: () {
-        TopBanner.show(
-          context,
-          title: 'Alarm Snoozed',
-          message: 'Snoozed for 5 minutes.',
-          icon: Icons.snooze_rounded,
-          color: googleBlue,
-        );
-      },
-      onSnooze10: () {
-        TopBanner.show(
-          context,
-          title: 'Alarm Snoozed',
-          message: 'Snoozed for 10 minutes.',
-          icon: Icons.snooze_rounded,
-          color: googleAmber,
-        );
-      },
-      onDismiss: () {
-        TopBanner.show(
-          context,
-          title: 'Alarm Dismissed',
-          message: 'Alarm stopped successfully.',
-          icon: Icons.done_all_rounded,
-          color: googleGreen,
-        );
-      },
-    );
+  Future<void> _previewAlarm() async {
+    try {
+      await NotificationService.instance.testRingingAlarm(
+        _nameController.text.trim().isEmpty ? 'Test study alarm' : _nameController.text.trim());
+      if (mounted) TopBanner.show(context, title: 'Test alarm scheduled',
+        message: 'The alarm will ring in 2 seconds.', icon: Icons.alarm_rounded);
+    } catch (error) {
+      if (mounted) TopBanner.show(context, title: 'Alarm access needed',
+        message: error.toString(), icon: Icons.alarm_rounded, color: googleRed);
+    }
   }
 
   @override
@@ -1309,7 +1299,7 @@ class __ReminderEditorSheetState extends State<_ReminderEditorSheet> {
                       const SizedBox(width: 8),
                       IconButton(
                         icon: const Icon(Icons.play_circle_outline_rounded, color: googleBlue, size: 26),
-                        tooltip: 'Preview Alarm Screen',
+                        tooltip: 'Test a ringing alarm',
                         onPressed: _previewAlarm,
                       ),
                     ],

@@ -1234,6 +1234,37 @@ class DatabaseService {
     );
   }
 
+  /// Completes one occurrence; future checkpoints remain an active schedule.
+  Future<bool> completeReminderOccurrence(int id) async {
+    final db = await database;
+    return db.transaction((transaction) async {
+      final rows = await transaction.query('custom_reminders', where: 'id = ?', whereArgs: [id], limit: 1);
+      if (rows.isEmpty) return false;
+      final row = rows.first;
+      final recurring = (row['repeat_days']?.toString() ?? '').trim().isNotEmpty;
+      final primary = DateTime.tryParse(row['remind_at']?.toString() ?? '');
+      final now = DateTime.now();
+      final times = <DateTime>[];
+      if (primary != null) times.add(primary);
+      try {
+        times.addAll((jsonDecode(row['checkpoints_json']?.toString() ?? '[]') as List)
+          .map((value) => DateTime.tryParse(value.toString())).whereType<DateTime>());
+      } catch (_) {}
+      times.sort();
+      if (times.isNotEmpty) times.removeAt(0);
+      final remaining = times.where((time) => time.isAfter(now)).toList();
+      if (!recurring && remaining.isNotEmpty) {
+        await transaction.update('custom_reminders', {
+          'status': 'PENDING', 'remind_at': remaining.first.toIso8601String(),
+          'checkpoints_json': jsonEncode(remaining.skip(1).map((time) => time.toIso8601String()).toList()),
+        }, where: 'id = ?', whereArgs: [id]);
+        return true;
+      }
+      await transaction.update('custom_reminders', {'status': 'COMPLETED'}, where: 'id = ?', whereArgs: [id]);
+      return false;
+    });
+  }
+
   Future<int> autoCompleteExpiredReminders() async {
     try {
       final db = await database;

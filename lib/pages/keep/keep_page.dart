@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../data/database_service.dart';
 import '../../data/keep_note_model.dart';
 import '../../services/vault_service.dart';
+import '../../services/notification_service.dart';
 import '../../utils/theme.dart';
 import '../../widgets/top_banner_notification.dart';
 import '../settings/settings_page.dart';
@@ -128,6 +129,7 @@ class _KeepPageState extends State<KeepPage> {
         if (setSuccess != true) return;
       }
       await DatabaseService.instance.toggleLockKeepNote(note.id, true);
+      await NotificationService.instance.refreshKeepNotePrivacy(note.id);
       await _loadNotes();
       if (mounted) {
         TopBanner.show(
@@ -144,6 +146,7 @@ class _KeepPageState extends State<KeepPage> {
         title: 'Unlock Protected Note',
         onAuthenticated: () async {
           await DatabaseService.instance.toggleLockKeepNote(note.id, false);
+          await NotificationService.instance.refreshKeepNotePrivacy(note.id);
           await _loadNotes();
           if (mounted) {
             TopBanner.show(

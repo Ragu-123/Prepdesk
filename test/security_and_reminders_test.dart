@@ -9,6 +9,8 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:tasks/data/database_service.dart';
 import 'package:tasks/services/vault_service.dart';
 import 'package:tasks/services/notification_service.dart';
+import 'package:tasks/services/desktop/desktop_notes_handler.dart';
+import 'package:tasks/services/desktop/desktop_auth_handler.dart';
 
 class _Paths extends PathProviderPlatform {
   final String path;
@@ -17,6 +19,11 @@ class _Paths extends PathProviderPlatform {
   Future<String?> getApplicationDocumentsPath() async => path;
   @override
   Future<String?> getTemporaryPath() async => path;
+}
+
+class _RealHttp extends HttpOverrides {
+  @override
+  HttpClient createHttpClient(SecurityContext? context) => super.createHttpClient(context);
 }
 
 void main() {
@@ -61,6 +68,21 @@ void main() {
     expect(rows[1]['status'], 'COMPLETED');
     expect(rows[2]['status'], 'PENDING');
   });
+  test('Checking off one checkpoint advances the schedule instead of completing the group', () async {
+    final db = await dbService.database;
+    final now = DateTime.now();
+    await db.insert('custom_reminders', {'id': 5, 'text': 'Revision', 'status': 'PENDING',
+      'remind_at': now.subtract(const Duration(hours: 1)).toIso8601String(), 'repeat_days': '',
+      'checkpoints_json': jsonEncode([now.add(const Duration(days: 1)).toIso8601String(), now.add(const Duration(days: 2)).toIso8601String()])});
+    expect(await dbService.completeReminderOccurrence(5), isTrue);
+    var row = (await db.query('custom_reminders', where: 'id = 5')).single;
+    expect(row['status'], 'PENDING');
+    expect(jsonDecode(row['checkpoints_json'] as String), hasLength(1));
+    expect(await dbService.completeReminderOccurrence(5), isTrue);
+    expect(await dbService.completeReminderOccurrence(5), isFalse);
+    row = (await db.query('custom_reminders', where: 'id = 5')).single;
+    expect(row['status'], 'COMPLETED');
+  });
   test('Alarm mode delegates to Android alarm-clock scheduling, including future checkpoints', () async {
     Map<dynamic, dynamic>? scheduled;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
@@ -97,6 +119,46 @@ void main() {
     expect(await exported.query('app_config', where: "key LIKE 'keep_vault_%'"), isEmpty);
     await exported.close();
     expect(await db.query('keep_notes'), hasLength(2));
+  });
+  test('Desktop cannot read, overwrite or delete protected notes', () async {
+    await HttpOverrides.runWithHttpOverrides(() async {
+      final db = await dbService.database;
+      await db.insert('keep_notes', {'id': 'private', 'title': 'Hidden title', 'content': 'Secret text', 'is_locked': 1, 'created_at': 1, 'updated_at': 1});
+      final handler = DesktopNotesHandler(authHandler: DesktopAuthHandler());
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      final subscription = server.listen((request) {
+        if (request.method == 'GET') handler.handleGetNotes(request);
+        else if (request.method == 'POST') handler.handleCreateNote(request);
+        else if (request.method == 'PATCH') handler.handleUpdateNote(request, 'private');
+        else handler.handleDeleteNote(request, 'private');
+      });
+      final client = HttpClient();
+      Future<HttpClientResponse> send(String method, [Map<String, dynamic>? data]) async {
+        final request = await client.openUrl(method, Uri.parse('http://127.0.0.1:${server.port}/api/notes'));
+        request.headers.contentType = ContentType.json;
+        if (data != null) request.write(jsonEncode(data));
+        return request.close();
+      }
+      try {
+        final list = await send('GET');
+        final body = await utf8.decodeStream(list);
+        expect(body, isNot(contains('Secret text')));
+        expect(body, isNot(contains('Hidden title')));
+        for (final method in ['POST', 'PATCH', 'DELETE']) {
+          final response = await send(method, {'id': 'private', 'title': 'Replacement'});
+          expect(response.statusCode, method == 'POST' ? HttpStatus.conflict : HttpStatus.forbidden);
+          await response.drain<void>();
+        }
+        expect((await dbService.getKeepNoteById('private'))!.content, 'Secret text');
+        final created = await send('POST', {'id': 'public', 'title': 'Revision notes'});
+        expect(created.statusCode, HttpStatus.created);
+        await created.drain<void>();
+      } finally {
+        client.close(force: true);
+        await server.close(force: true);
+        await subscription.cancel();
+      }
+    }, _RealHttp());
   });
   testWidgets('Missing vault credentials never turn unlock into PIN setup', (tester) async {
     var unlocked = false;

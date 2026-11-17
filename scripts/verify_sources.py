@@ -6,7 +6,8 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 SAFE = 'safe.directory=' + ROOT.as_posix()
-changed = subprocess.check_output(['git', '-c', SAFE, 'diff', '--name-only'], cwd=ROOT, text=True).splitlines()
+diff_args = ['--name-only'] + ([sys.argv[1]] if len(sys.argv) > 1 else [])
+changed = subprocess.check_output(['git', '-c', SAFE, 'diff', *diff_args], cwd=ROOT, text=True).splitlines()
 untracked = subprocess.check_output(['git', '-c', SAFE, 'ls-files', '--others', '--exclude-standard'], cwd=ROOT, text=True).splitlines()
 paths = sorted(set(changed + untracked))
 emoji = re.compile('[\U0001F000-\U0001FAFF\u2600-\u26ff\u2700-\u27bf\ud800-\udfff]')

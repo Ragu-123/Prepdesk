@@ -51,6 +51,13 @@ class MainActivity: FlutterFragmentActivity() {
                 "requestBluetoothPermissions" -> {
                     requestBluetoothPermissions(result)
                 }
+                "hasStudyAlarmMigration" -> {
+                    result.success(getSharedPreferences("nyro_alarm_setup", MODE_PRIVATE).getBoolean("migrated", false))
+                }
+                "markStudyAlarmMigration" -> {
+                    getSharedPreferences("nyro_alarm_setup", MODE_PRIVATE).edit().putBoolean("migrated", true).apply()
+                    result.success(null)
+                }
                 "scheduleStudyAlarms" -> {
                     try {
                         val alarms = call.argument<List<Map<String, Any>>>("alarms") ?: emptyList()

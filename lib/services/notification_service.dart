@@ -493,8 +493,9 @@ class NotificationService {
     required String body,
     required DateTime scheduledDate,
     String? repeat,
+    bool requestPermission = true,
   }) async {
-    await _requestNotificationsIfNeeded();
+    if (requestPermission) await _requestNotificationsIfNeeded();
     final int notifId = (noteId.hashCode.abs() % 50000) + 20000;
     await cancelKeepNoteReminder(noteId);
 
@@ -568,9 +569,38 @@ class NotificationService {
     } catch (_) {}
   }
 
+  Future<void> refreshKeepNotePrivacy(String noteId) async {
+    final note = await DatabaseService.instance.getKeepNoteById(noteId);
+    if (note == null) return;
+    if (note.isLocked) {
+      final db = await DatabaseService.instance.database;
+      await db.update('inapp_notifications', {
+        'title': 'Protected note reminder', 'message': 'Unlock Keep to view this note.',
+      }, where: 'type = ? AND title = ?',
+        whereArgs: ['keep_note', 'Keep Reminder: ${note.title.isNotEmpty ? note.title : "Note"}']);
+      // Older releases did not retain a note ID in save-history records.
+      await db.update('inapp_notifications', {'message': 'Open Keep to view your notes.'},
+        where: 'title IN (?, ?)', whereArgs: ['Note Created', 'Note Saved']);
+    }
+    // Remove the previously scheduled plaintext notification before replacing it.
+    await cancelKeepNoteReminder(noteId);
+    if (note.reminderAt == null) return;
+    await scheduleKeepNoteReminder(noteId: note.id,
+      title: note.isLocked ? 'Protected note reminder' : note.title,
+      body: note.isLocked ? 'Unlock Keep to view this note.' : note.content,
+      scheduledDate: DateTime.fromMillisecondsSinceEpoch(note.reminderAt!), repeat: note.reminderRepeat,
+      requestPermission: false);
+  }
+
   Future<void> cancelKeepNoteReminder(String noteId) async {
     final int notifId = (noteId.hashCode.abs() % 50000) + 20000;
     await flutterLocalNotificationsPlugin.cancel(notifId);
+    final pending = await flutterLocalNotificationsPlugin.pendingNotificationRequests();
+    for (final notification in pending) {
+      if (notification.payload == 'route:keep_note:$noteId') {
+        await flutterLocalNotificationsPlugin.cancel(notification.id);
+      }
+    }
   }
 
   Future<void> scheduleDailySessionAlerts({
@@ -619,6 +649,16 @@ class NotificationService {
   }
 
   static const _native = MethodChannel('io.github.thelazyindian.tasks/native');
+
+  Future<void> testRingingAlarm(String title) async {
+    await _requestNotificationsIfNeeded();
+    await prepareAlarmAccess();
+    final id = 0x70000000 | (DateTime.now().microsecondsSinceEpoch & 0x00ffffff);
+    await _native.invokeMethod('scheduleStudyAlarms', {'alarms': [{
+      'id': id, 'group': id, 'at': DateTime.now().add(const Duration(seconds: 2)).millisecondsSinceEpoch,
+      'title': title, 'body': 'Test alarm', 'intervalDays': 0,
+    }]});
+  }
 
   Future<void> prepareAlarmAccess() async {
     final android = flutterLocalNotificationsPlugin
@@ -672,7 +712,7 @@ class NotificationService {
 
   Future<void> migrateNativeAlarms() async {
     final db = DatabaseService.instance;
-    if (await db.getConfigValue('native_alarm_migration_v1') == 'done') return;
+    if (await _native.invokeMethod<bool>('hasStudyAlarmMigration') == true) return;
     final access = await _native.invokeMapMethod<String, bool>('getNotificationAccess') ?? {};
     if (access['exact'] != true || access['fullScreen'] != true) return;
     final reminders = await db.getCustomReminders();
@@ -687,7 +727,7 @@ class NotificationService {
       await _scheduleNativeAlarm(id: id, title: reminder['text']?.toString() ?? 'Study alarm', body: '',
         scheduledDate: time, repeatDays: reminder['repeat_days']?.toString(), checkpoints: checkpoints);
     }
-    await db.setConfigValue('native_alarm_migration_v1', 'done');
+    await _native.invokeMethod('markStudyAlarmMigration');
   }
 
   Future<void> cancelReminder(int id) async {
