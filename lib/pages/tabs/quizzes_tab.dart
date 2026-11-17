@@ -165,7 +165,7 @@ class _QuizzesTabState extends State<QuizzesTab> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: googleBackground,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -340,7 +340,7 @@ class _QuizzesTabState extends State<QuizzesTab> {
     final completed = _quizzes.where((q) => (q['status'] as String?)?.toUpperCase() == 'COMPLETED').toList();
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: googleBackground,
       body: Column(
         children: [
           // Sub-Tab Navigation (Weekly Quizzes | Test Series Mocks)
@@ -350,7 +350,7 @@ class _QuizzesTabState extends State<QuizzesTab> {
             child: Container(
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
-                color: const Color(0xFFF1F3F4),
+                color: googleHairline,
                 borderRadius: BorderRadius.circular(24),
               ),
               child: Row(
@@ -562,7 +562,7 @@ class _QuizzesTabState extends State<QuizzesTab> {
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             margin: const EdgeInsets.only(right: 6),
                             decoration: BoxDecoration(
-                              color: isCompleted ? const Color(0xFFF1F3F4) : googleBlue.withOpacity(0.08),
+                              color: isCompleted ? googleHairline : googleBlue.withOpacity(0.08),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
@@ -659,7 +659,7 @@ class _QuizzesTabState extends State<QuizzesTab> {
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: trapCount > 0 ? severityHigh.withOpacity(0.12) : const Color(0xFFF1F3F4),
+                              color: trapCount > 0 ? severityHigh.withOpacity(0.12) : googleHairline,
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Row(
@@ -709,7 +709,7 @@ class _QuizzesTabState extends State<QuizzesTab> {
           _loadQuizzes();
         },
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
+          duration: MediaQuery.disableAnimationsOf(context) ? Duration.zero : const Duration(milliseconds: 220),
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
             color: isSelected ? Colors.white : Colors.transparent,
@@ -756,7 +756,7 @@ Future<void> showQuizTrapsModalSheet(
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
-    backgroundColor: Colors.white,
+    backgroundColor: googleBackground,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
     ),
@@ -873,7 +873,7 @@ Future<void> showQuizTrapsModalSheet(
                           margin: const EdgeInsets.only(top: 12),
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF8FAFD),
+                            color: googleBackground,
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(color: googleHairline),
                           ),

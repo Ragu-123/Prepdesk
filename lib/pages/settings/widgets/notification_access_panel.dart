@@ -35,6 +35,9 @@ class _NotificationAccessPanelState extends State<NotificationAccessPanel> with 
     try {
       final result = await _native.invokeMapMethod<String, bool>('getNotificationAccess');
       if (mounted) setState(() { _access = result; _error = null; });
+      if (result?['exact'] == true && result?['fullScreen'] == true) {
+        try { await NotificationService.instance.migrateNativeAlarms(); } catch (_) {}
+      }
     } catch (_) {
       if (mounted) setState(() => _error = 'Unable to read device settings.');
     }
@@ -74,8 +77,8 @@ class _NotificationAccessPanelState extends State<NotificationAccessPanel> with 
         if (_access != null) ...[
           const SizedBox(height: 12),
           _row('notifications', Icons.notifications_none_rounded, 'Notifications', 'Banners and reminder alerts'),
-          _row('exact', Icons.schedule_rounded, 'Precise timing', 'Optional. Without access, alerts may arrive later.'),
-          _row('fullScreen', Icons.alarm_rounded, 'Full-screen alarms', 'Optional. For reminders you set to alarm mode.'),
+          _row('exact', Icons.schedule_rounded, 'Precise timing', 'Required for ringing alarms. Banner reminders can use approximate timing.'),
+          _row('fullScreen', Icons.alarm_rounded, 'Full-screen alarms', 'Required to show ringing alarms over the lock screen.'),
         ],
         if (_error != null) Padding(padding: const EdgeInsets.symmetric(vertical: 12),
           child: Text(_error!, style: const TextStyle(color: googleRed))),

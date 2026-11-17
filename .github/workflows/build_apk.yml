@@ -39,9 +39,9 @@ jobs:
       - name: Regression tests
         run: flutter test
       - name: Build GitHub APK
-        run: flutter build apk --release --flavor github
+        run: flutter build apk --release --flavor github --no-tree-shake-icons
       - name: Build Google Play bundle
-        run: flutter build appbundle --release --flavor play --dart-define=NYRO_PLAY_STORE=true
+        run: flutter build appbundle --release --flavor play --no-tree-shake-icons --dart-define=NYRO_PLAY_STORE=true
       - name: Prepare release assets
         run: |
           mkdir -p release

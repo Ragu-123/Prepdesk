@@ -11,6 +11,12 @@ import 'package:tasks/widgets/task_navigation_bar.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   var enabled = true;
+  setUpAll(() async {
+    final regular = FontLoader('NotoSans')..addFont(rootBundle.load('assets/google_fonts/NotoSans-Regular.ttf'));
+    final icons = FontLoader('MaterialIcons')..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
+    await regular.load();
+    await icons.load();
+  });
   setUp(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
       const MethodChannel('io.github.thelazyindian.tasks/native'), (call) async {
@@ -31,9 +37,7 @@ void main() {
       child: Scaffold(
         appBar: AppBar(title: const Text('Reminders & routine alerts')),
         body: const SingleChildScrollView(padding: EdgeInsets.all(16), child: NotificationAccessPanel()),
-        floatingActionButton: FloatingActionButton(onPressed: () {}, child: const Icon(Icons.add_rounded)),
-        floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-        bottomNavigationBar: TaskNavigationBar(selectedIndex: 0, onSelected: (_) {}, revisitCount: 3),
+        bottomNavigationBar: TaskNavigationBar(selectedIndex: 0, onSelected: (_) {}, onCreate: () {}, revisitCount: 3),
       ),
     )));
     await tester.pumpAndSettle();

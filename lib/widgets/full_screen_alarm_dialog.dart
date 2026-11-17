@@ -259,8 +259,8 @@ class _FullScreenAlarmDialogState extends State<FullScreenAlarmDialog>
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: googleRed,
-                        foregroundColor: googleBlue,
-                        elevation: 4,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
                         padding: const EdgeInsets.symmetric(vertical: 16),
                       ),

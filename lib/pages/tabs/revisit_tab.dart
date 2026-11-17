@@ -160,7 +160,7 @@ class _RevisitTabState extends State<RevisitTab> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFD),
+        color: googleBackground,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: googleHairline),
       ),
@@ -191,7 +191,7 @@ class _RevisitTabState extends State<RevisitTab> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: isSelected ? col : const Color(0xFFF1F3F4),
+          color: isSelected ? col : googleHairline,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Text(
@@ -227,7 +227,7 @@ class _RevisitTabState extends State<RevisitTab> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: googleBackground,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -403,7 +403,7 @@ class _RevisitTabState extends State<RevisitTab> {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF8FAFD),
+                          color: googleBackground,
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(color: googleHairline),
                         ),
@@ -447,7 +447,7 @@ class _RevisitTabState extends State<RevisitTab> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: googleBackground,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -556,7 +556,7 @@ class _RevisitTabState extends State<RevisitTab> {
         (_dueBacklog['lectures']?.length ?? 0);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: googleBackground,
       body: Column(
         children: [
           // 3 Main Sub-Tabs Switcher
@@ -566,7 +566,7 @@ class _RevisitTabState extends State<RevisitTab> {
             child: Container(
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
-                color: const Color(0xFFF1F3F4),
+                color: googleHairline,
                 borderRadius: BorderRadius.circular(24),
               ),
               child: Row(
@@ -626,7 +626,7 @@ class _RevisitTabState extends State<RevisitTab> {
         behavior: HitTestBehavior.opaque,
         onTap: () => setState(() => _activeSubIndex = index),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
+          duration: MediaQuery.disableAnimationsOf(context) ? Duration.zero : const Duration(milliseconds: 220),
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
             color: isSelected ? Colors.white : Colors.transparent,
@@ -690,7 +690,7 @@ class _RevisitTabState extends State<RevisitTab> {
         // DPP Protocol header
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          color: const Color(0xFFF8FAFD),
+          color: googleBackground,
           child: Row(
             children: [
               const Expanded(
@@ -745,7 +745,7 @@ class _RevisitTabState extends State<RevisitTab> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: isSelected ? googleBlue : const Color(0xFFF1F3F4),
+          color: isSelected ? googleBlue : googleHairline,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Text(
@@ -812,7 +812,7 @@ class _RevisitTabState extends State<RevisitTab> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFF1F3F4),
+                                color: googleHairline,
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
@@ -895,7 +895,7 @@ class _RevisitTabState extends State<RevisitTab> {
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                                 margin: const EdgeInsets.only(right: 6),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFF1F3F4),
+                                  color: googleHairline,
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
@@ -1065,7 +1065,7 @@ class _RevisitTabState extends State<RevisitTab> {
                     final done = data[1];
                     final pct = total > 0 ? (done / total) : 0.0;
 
-                    Color bg = const Color(0xFFF8FAFD);
+                    Color bg = googleBackground;
                     Color textCol = googleTextSecondary;
                     if (total > 0) {
                       if (pct == 1.0) {
@@ -1301,7 +1301,7 @@ class _RevisitTabState extends State<RevisitTab> {
         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
         color: isSelected ? googleBlue : googleTextSecondary,
       ),
-      backgroundColor: const Color(0xFFF1F3F4),
+      backgroundColor: googleHairline,
       selectedColor: const Color(0xFFD3E3FD),
       side: BorderSide.none,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),

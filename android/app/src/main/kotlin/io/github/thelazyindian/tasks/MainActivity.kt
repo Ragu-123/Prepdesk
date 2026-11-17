@@ -15,6 +15,10 @@ import io.flutter.plugin.common.MethodChannel
 import java.io.File
 
 class MainActivity: FlutterFragmentActivity() {
+    companion object { @Volatile var isVisible = false }
+    override fun onResume() { super.onResume(); isVisible = true }
+    override fun onPause() { isVisible = false; super.onPause() }
+
     private val CHANNEL = "io.github.thelazyindian.tasks/native"
     private val BT_CHANNEL = "io.github.thelazyindian.tasks/bluetooth_permissions"
     private val BT_PERMISSION_REQUEST_CODE = 2001
@@ -46,6 +50,29 @@ class MainActivity: FlutterFragmentActivity() {
                 }
                 "requestBluetoothPermissions" -> {
                     requestBluetoothPermissions(result)
+                }
+                "scheduleStudyAlarms" -> {
+                    try {
+                        val alarms = call.argument<List<Map<String, Any>>>("alarms") ?: emptyList()
+                        alarms.forEach { value ->
+                            io.github.thelazyindian.tasks.alarms.StudyAlarmScheduler.schedule(this, org.json.JSONObject(value))
+                        }
+                        result.success(true)
+                    } catch (error: Exception) {
+                        result.error("ALARM_SCHEDULE", error.message, null)
+                    }
+                }
+                "cancelStudyAlarmGroup" -> {
+                    val group = call.argument<Int>("group")
+                    if (group != null) io.github.thelazyindian.tasks.alarms.StudyAlarmScheduler.cancelGroup(this, group)
+                    result.success(null)
+                }
+                "stopStudyAlarm" -> {
+                    val id = call.argument<Int>("id")
+                    if (id == io.github.thelazyindian.tasks.alarms.StudyAlarmService.activeId) {
+                        stopService(Intent(this, io.github.thelazyindian.tasks.alarms.StudyAlarmService::class.java))
+                    }
+                    result.success(null)
                 }
                 "setAlarmWindow" -> {
                     val enabled = call.argument<Boolean>("enabled") == true

@@ -144,7 +144,7 @@ class _NotificationsHistorySheetState extends State<NotificationsHistorySheet> {
                             const SizedBox(height: 4),
                             const Text(
                               'Reminders, routines, sync logs, and study alerts will appear here.',
-                              style: TextStyle(fontSize: 12, color: googleTextSecondary),
+                              style: TextStyle(fontSize: 14, color: googleTextSecondary),
                               textAlign: TextAlign.center,
                             ),
                           ],
@@ -197,7 +197,7 @@ class _NotificationsHistorySheetState extends State<NotificationsHistorySheet> {
                             onTap: () => _handleNotificationTap(item),
                             borderRadius: BorderRadius.circular(12),
                             child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+                              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 4),
                               child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -221,8 +221,8 @@ class _NotificationsHistorySheetState extends State<NotificationsHistorySheet> {
                                             Expanded(
                                               child: Text(
                                                 title,
-                                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: googleTextPrimary),
-                                                maxLines: 1,
+                                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: googleTextPrimary),
+                                                maxLines: 2,
                                                 overflow: TextOverflow.ellipsis,
                                               ),
                                             ),
@@ -230,7 +230,7 @@ class _NotificationsHistorySheetState extends State<NotificationsHistorySheet> {
                                               const SizedBox(width: 8),
                                               Text(
                                                 timeDisplay,
-                                                style: const TextStyle(fontSize: 11, color: googleTextSecondary),
+                                                style: const TextStyle(fontSize: 12, color: googleTextSecondary),
                                               ),
                                             ],
                                           ],
@@ -238,7 +238,7 @@ class _NotificationsHistorySheetState extends State<NotificationsHistorySheet> {
                                         const SizedBox(height: 3),
                                         Text(
                                           message,
-                                          style: const TextStyle(fontSize: 12, color: googleTextSecondary, height: 1.3),
+                                          style: const TextStyle(fontSize: 14, color: googleTextSecondary, height: 1.3),
                                         ),
                                       ],
                                     ),

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:tasks/data/database_service.dart';
 import 'package:tasks/services/app_update_service.dart';
@@ -255,6 +256,24 @@ class DesktopLogServerService {
       token = authHeader.substring(7).trim();
     }
     final isAuthenticated = isSessionValid(token);
+
+    const fontAssets = <String, String>{
+      '/assets/material-icons.otf': 'fonts/MaterialIcons-Regular.otf',
+      '/assets/studio-regular.ttf': 'assets/google_fonts/NotoSans-Regular.ttf',
+      '/assets/studio-bold.ttf': 'assets/google_fonts/NotoSans-Bold.ttf',
+    };
+    if (request.method == 'GET' && fontAssets.containsKey(path)) {
+      try {
+        final data = await rootBundle.load(fontAssets[path]!);
+        request.response.headers.set('Content-Type', path.endsWith('.otf') ? 'font/otf' : 'font/ttf');
+        request.response.headers.set('Cache-Control', 'public, max-age=86400');
+        request.response.add(data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes));
+      } catch (_) {
+        request.response.statusCode = HttpStatus.notFound;
+      }
+      await request.response.close();
+      return;
+    }
 
     // 1. Root Portal & Static Assets (Unauthenticated)
     if (request.method == 'GET' && (path == '/' || path == '/index.html')) {

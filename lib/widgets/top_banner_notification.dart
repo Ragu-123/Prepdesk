@@ -299,7 +299,7 @@ class _TopBannerWidgetState extends State<_TopBannerWidget>
                               Text(
                                 widget.title,
                                 style: const TextStyle(
-                                  fontSize: 13,
+                                  fontSize: 16,
                                   fontWeight: FontWeight.bold,
                                   color: googleTextPrimary,
                                   height: 1.2,
@@ -311,11 +311,11 @@ class _TopBannerWidgetState extends State<_TopBannerWidget>
                               Text(
                                 widget.message,
                                 style: const TextStyle(
-                                  fontSize: 12,
+                                  fontSize: 14,
                                   color: googleTextSecondary,
                                   height: 1.25,
                                 ),
-                                maxLines: 2,
+                                maxLines: 4,
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ],

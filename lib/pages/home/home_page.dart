@@ -1416,7 +1416,8 @@ class _HomePageState extends State<HomePage> {
       backgroundColor: googleBackground,
       endDrawer: _buildSideNavigationDrawer(),
       appBar: AppBar(
-        titleSpacing: 4,
+        titleSpacing: 8,
+        toolbarHeight: 72,
         leading: IconButton(
           icon: const Icon(Icons.calendar_month_outlined, color: googleBlue, size: 22),
           tooltip: 'Jump to Date',
@@ -1424,10 +1425,10 @@ class _HomePageState extends State<HomePage> {
         ),
         title: Row(
           children: [
-            const Text(
-              'Tasks',
-              style: TextStyle(
-                fontSize: 22,
+            Text(
+              const ['Today', 'Timetable', 'Revisit', 'Quizzes'][_currentNavIndex],
+              style: const TextStyle(
+                fontSize: 26,
                 fontWeight: FontWeight.bold,
                 color: googleTextPrimary,
                 letterSpacing: -0.5,
@@ -1549,20 +1550,9 @@ class _HomePageState extends State<HomePage> {
         ],
       )),
 
-      // Quick "+" Floating Action Button (Google Tasks style center-docked)
-      floatingActionButton: FloatingActionButton(
-        elevation: 0,
-        backgroundColor: googleBlueContainer,
-        foregroundColor: googleOnBlueContainer,
-        onPressed: () => _showNewTaskBottomSheet(),
-        tooltip: 'New Task / Schedule / Quiz',
-        child: const Icon(Icons.add_rounded, size: 28),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-
-      // Clean 4-Item Bottom Navigation Bar
       bottomNavigationBar: TaskNavigationBar(
         selectedIndex: _currentNavIndex,
+        onCreate: _showNewTaskBottomSheet,
         onSelected: (index) => setState(() => _currentNavIndex = index),
         revisitCount: _badgeCounts['due_revisits'] ?? 0,
         quizCount: _badgeCounts['pending_quizzes'] ?? 0,

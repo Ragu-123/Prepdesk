@@ -131,7 +131,7 @@ class _TimetableTabState extends State<TimetableTab> {
     final pct = total > 0 ? (completed.length / total).clamp(0.0, 1.0) : 0.0;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: googleBackground,
       body: Column(
         children: [
           // 1. Fixed Top Subject Dropdown Bar with Search Action
@@ -151,7 +151,7 @@ class _TimetableTabState extends State<TimetableTab> {
                         height: 44,
                         padding: const EdgeInsets.symmetric(horizontal: 14),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF1F3F4),
+                          color: googleHairline,
                           borderRadius: BorderRadius.circular(22),
                           border: Border.all(color: googleBorder.withOpacity(0.4)),
                         ),
@@ -197,7 +197,7 @@ class _TimetableTabState extends State<TimetableTab> {
                       decoration: BoxDecoration(
                         color: _isSearchVisible || _searchController.text.isNotEmpty
                             ? googleBlue.withOpacity(0.12)
-                            : const Color(0xFFF1F3F4),
+                            : googleHairline,
                         borderRadius: BorderRadius.circular(22),
                       ),
                       child: IconButton(
@@ -228,7 +228,7 @@ class _TimetableTabState extends State<TimetableTab> {
                     height: 42,
                     padding: const EdgeInsets.symmetric(horizontal: 14),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFD),
+                      color: googleBackground,
                       borderRadius: BorderRadius.circular(21),
                       border: Border.all(color: googleBlue.withOpacity(0.3)),
                     ),

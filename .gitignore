@@ -47,3 +47,5 @@ app.*.map.json
 
 .vscode/
 .fvm/flutter_sdk
+# Local browser verification profiles
+.taste-skill/

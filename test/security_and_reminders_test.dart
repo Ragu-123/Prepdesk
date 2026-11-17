@@ -8,6 +8,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:tasks/data/database_service.dart';
 import 'package:tasks/services/vault_service.dart';
+import 'package:tasks/services/notification_service.dart';
 
 class _Paths extends PathProviderPlatform {
   final String path;
@@ -59,6 +60,31 @@ void main() {
     expect(rows[0]['status'], 'PENDING');
     expect(rows[1]['status'], 'COMPLETED');
     expect(rows[2]['status'], 'PENDING');
+  });
+  test('Alarm mode delegates to Android alarm-clock scheduling, including future checkpoints', () async {
+    Map<dynamic, dynamic>? scheduled;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+      const MethodChannel('io.github.thelazyindian.tasks/native'), (call) async {
+        if (call.method == 'getNotificationAccess') return {'notifications': true, 'exact': true, 'fullScreen': true};
+        if (call.method == 'scheduleStudyAlarms') scheduled = call.arguments as Map;
+        return null;
+      });
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+      const MethodChannel('dexterous.com/flutter/local_notifications'), (call) async {
+        if (call.method == 'areNotificationsEnabled') return true;
+        if (call.method == 'pendingNotificationRequests') return [];
+        return null;
+      });
+    final now = DateTime.now();
+    await NotificationService.instance.scheduleReminder(id: 77, title: 'Study Reminder', body: 'Review matrices',
+      alertType: 'alarm', scheduledDate: now.subtract(const Duration(hours: 1)),
+      checkpoints: [now.add(const Duration(hours: 1)).toIso8601String()]);
+    expect(scheduled, isNotNull);
+    final alarms = scheduled!['alarms'] as List;
+    expect(alarms, hasLength(1));
+    expect((alarms.single as Map)['title'], contains('Review matrices'));
+    expect((alarms.single as Map)['group'], 77);
+    expect((alarms.single as Map)['intervalDays'], 0);
   });
   test('Cloud export strips vault credentials and protected notes', () async {
     final db = await dbService.database;

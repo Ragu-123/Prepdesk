@@ -138,6 +138,7 @@ class _AlertsPageState extends State<AlertsPage> {
         initialAlertType: 'notification',
         initialCheckpoints: const [],
         onSave: (newText, newDateTime, newRepeatDays, alertType, checkpoints) async {
+          if (alertType == 'alarm') await NotificationService.instance.prepareAlarmAccess();
           final id = await DatabaseService.instance.addCustomReminder(
             newText,
             newDateTime,
@@ -234,6 +235,7 @@ class _AlertsPageState extends State<AlertsPage> {
         initialAlertType: alertType,
         initialCheckpoints: checkpoints,
         onSave: (newText, newDateTime, newRepeatDays, newAlertType, newCheckpoints) async {
+          if (newAlertType == 'alarm') await NotificationService.instance.prepareAlarmAccess();
           await DatabaseService.instance.updateCustomReminder(
             id: id,
             text: newText,

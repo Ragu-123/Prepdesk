@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'notification_route.dart';
 import 'dart:typed_data';
 import 'package:flutter/widgets.dart';
@@ -105,6 +106,7 @@ class NotificationService {
     }
 
     try { await syncDailyRoutineFromSettings(); } catch (_) {}
+    try { await migrateNativeAlarms(); } catch (_) {}
   }
 
   Future<void> syncDailyRoutineFromSettings() async {
@@ -138,14 +140,25 @@ class NotificationService {
   Future<void> snooze({required String payload, required int minutes}) async {
     final route = NotificationRoute.parse(payload);
     final isAlarm = route != null;
-    final title = route?.title ?? 'Snoozed reminder';
+    var title = route?.title ?? 'Snoozed reminder';
+    if (route == null && payload.startsWith('route:reminders:')) {
+      final id = int.tryParse(payload.substring('route:reminders:'.length));
+      final reminders = await DatabaseService.instance.getCustomReminders();
+      final matches = reminders.where((row) => row['id'] == id);
+      if (matches.isNotEmpty) title = matches.first['text']?.toString() ?? title;
+    } else if (payload.startsWith('route:keep_note:')) {
+      final note = await DatabaseService.instance.getKeepNoteById(payload.substring('route:keep_note:'.length));
+      if (note != null) title = note.isLocked ? 'Protected note reminder' : note.title;
+    }
     final details = NotificationDetails(android: AndroidNotificationDetails(
       isAlarm ? alarmChannelId : studyChannelId,
       isAlarm ? alarmChannelName : studyChannelName,
       importance: Importance.max,
       priority: Priority.high,
       category: isAlarm ? AndroidNotificationCategory.alarm : AndroidNotificationCategory.reminder,
-      visibility: NotificationVisibility.private,
+      visibility: payload.startsWith('route:keep_note:') ? NotificationVisibility.private : NotificationVisibility.public,
+      styleInformation: BigTextStyleInformation('Snoozed for $minutes minutes',
+        contentTitle: '<b>${const HtmlEscape().convert(title)}</b>', htmlFormatContentTitle: true),
       fullScreenIntent: isAlarm,
       autoCancel: !isAlarm,
       timeoutAfter: isAlarm ? 120000 : null,
@@ -174,6 +187,7 @@ class NotificationService {
   }
 
   Future<void> dismissDisplayed(int id) async {
+    await _native.invokeMethod('stopStudyAlarm', {'id': id});
     await const MethodChannel('io.github.thelazyindian.tasks/native')
         .invokeMethod('dismissDeliveredNotification', {'id': id});
   }
@@ -203,19 +217,21 @@ class NotificationService {
     String? payload,
     String type = 'reminder',
   }) async {
-    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+    final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
       studyChannelId,
       studyChannelName,
       channelDescription: 'Alerts and reminders for GATE study tasks',
       importance: Importance.max,
       priority: Priority.high,
-      visibility: NotificationVisibility.private,
+      visibility: NotificationVisibility.public,
+      styleInformation: BigTextStyleInformation(body,
+        contentTitle: '<b>${const HtmlEscape().convert(title)}</b>', htmlFormatContentTitle: true),
       showWhen: true,
       enableVibration: true,
       playSound: true,
     );
 
-    const NotificationDetails platformDetails = NotificationDetails(android: androidDetails);
+    final NotificationDetails platformDetails = NotificationDetails(android: androidDetails);
 
     final id = DateTime.now().millisecondsSinceEpoch % 100000;
     await flutterLocalNotificationsPlugin.show(
@@ -244,11 +260,18 @@ class NotificationService {
     String alertType = 'notification',
     List<String>? checkpoints,
   }) async {
+    if ((title == 'Study Reminder' || title == 'NYRO Study Task') && body.trim().isNotEmpty) title = body.trim();
     await _requestNotificationsIfNeeded();
-    // Clear any previous notification triggers for this reminder ID
-    await cancelReminder(id);
-
     final isAlarm = alertType.toLowerCase() == 'alarm';
+    if (isAlarm) await prepareAlarmAccess();
+    // Cancel the old schedule only after access has been verified.
+    await cancelReminder(id);
+    if (isAlarm) {
+      await _scheduleNativeAlarm(id: id, title: title, body: body,
+        scheduledDate: scheduledDate, repeatDays: repeatDays, checkpoints: checkpoints);
+      return;
+    }
+
     final targetChannel = isAlarm ? alarmChannelId : studyChannelId;
     final targetChannelName = isAlarm ? alarmChannelName : studyChannelName;
 
@@ -265,7 +288,10 @@ class NotificationService {
       timeoutAfter: isAlarm ? 120000 : null,
       additionalFlags: isAlarm ? Int32List.fromList([4]) : null,
       audioAttributesUsage: isAlarm ? AudioAttributesUsage.alarm : AudioAttributesUsage.notification,
-      visibility: NotificationVisibility.private,
+      visibility: NotificationVisibility.public,
+      styleInformation: BigTextStyleInformation(body == title ? 'Your scheduled study reminder is due.' : body,
+        contentTitle: '<b>${const HtmlEscape().convert(title)}</b>', htmlFormatContentTitle: true,
+        summaryText: 'Study reminder'),
       showWhen: true,
       enableVibration: true,
       playSound: true,
@@ -472,13 +498,15 @@ class NotificationService {
     final int notifId = (noteId.hashCode.abs() % 50000) + 20000;
     await cancelKeepNoteReminder(noteId);
 
-    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+    final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
       studyChannelId,
       studyChannelName,
       channelDescription: 'Google Keep Note Reminders',
       importance: Importance.max,
       priority: Priority.high,
       visibility: NotificationVisibility.private,
+      styleInformation: BigTextStyleInformation(body,
+        contentTitle: '<b>${const HtmlEscape().convert(title)}</b>', htmlFormatContentTitle: true),
       showWhen: true,
       enableVibration: true,
       playSound: true,
@@ -488,7 +516,7 @@ class NotificationService {
       ],
     );
 
-    const NotificationDetails platformDetails = NotificationDetails(android: androidDetails);
+    final NotificationDetails platformDetails = NotificationDetails(android: androidDetails);
     final now = tz.TZDateTime.now(tz.local);
     var tzScheduled = tz.TZDateTime.from(scheduledDate, tz.local);
 
@@ -590,7 +618,80 @@ class NotificationService {
       'Evening Backlog Shield', 'Check unfinished study tasks and plan your next session.');
   }
 
+  static const _native = MethodChannel('io.github.thelazyindian.tasks/native');
+
+  Future<void> prepareAlarmAccess() async {
+    final android = flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    var access = await _native.invokeMapMethod<String, bool>('getNotificationAccess') ?? {};
+    if (access['notifications'] != true) throw StateError('Allow notifications before saving a ringing alarm.');
+    if (access['exact'] != true) {
+      await android?.requestExactAlarmsPermission();
+      access = await _native.invokeMapMethod<String, bool>('getNotificationAccess') ?? {};
+      if (access['exact'] != true) throw StateError('Enable precise timing in Settings before saving a ringing alarm.');
+    }
+    if (access['fullScreen'] != true) {
+      await _native.invokeMethod('openFullScreenIntentSettings');
+      throw StateError('Enable full-screen alarm access in Android settings, then return and save your alarm.');
+    }
+  }
+
+  Future<void> _scheduleNativeAlarm({required int id, required String title, required String body,
+    required DateTime scheduledDate, String? repeatDays, List<String>? checkpoints}) async {
+    final now = DateTime.now();
+    final days = (repeatDays ?? '').split(',').map((day) => int.tryParse(day.trim()))
+        .whereType<int>().where((day) => day >= 0 && day <= 6).toSet();
+    final alarms = <Map<String, dynamic>>[];
+    void add(DateTime time, int index, int intervalDays, String label) {
+      if (!time.isAfter(now)) return;
+      alarms.add({'id': _childId(id, index), 'group': id, 'at': time.millisecondsSinceEpoch,
+        'title': label, 'body': body, 'intervalDays': intervalDays});
+    }
+    if (days.isEmpty) {
+      add(scheduledDate, 0, 0, title);
+    } else if (days.length == 7) {
+      var next = DateTime(now.year, now.month, now.day, scheduledDate.hour, scheduledDate.minute);
+      if (!next.isAfter(now)) next = DateTime(now.year, now.month, now.day + 1, scheduledDate.hour, scheduledDate.minute);
+      add(next, 0, 1, title);
+    } else {
+      for (final day in days) {
+        var next = DateTime(now.year, now.month, now.day, scheduledDate.hour, scheduledDate.minute);
+        while (next.weekday % 7 != day || !next.isAfter(now)) {
+          next = DateTime(next.year, next.month, next.day + 1, scheduledDate.hour, scheduledDate.minute);
+        }
+        add(next, day, 7, title);
+      }
+    }
+    for (var i = 0; i < (checkpoints?.length ?? 0); i++) {
+      final time = DateTime.tryParse(checkpoints![i]);
+      if (time != null) add(time, i + 8, 0, '$title (Checkpoint ${i + 1})');
+    }
+    await _native.invokeMethod('scheduleStudyAlarms', {'alarms': alarms});
+    await DatabaseService.instance.addInAppNotification(title: 'Alarm scheduled: $title', message: body, type: 'alarm');
+  }
+
+  Future<void> migrateNativeAlarms() async {
+    final db = DatabaseService.instance;
+    if (await db.getConfigValue('native_alarm_migration_v1') == 'done') return;
+    final access = await _native.invokeMapMethod<String, bool>('getNotificationAccess') ?? {};
+    if (access['exact'] != true || access['fullScreen'] != true) return;
+    final reminders = await db.getCustomReminders();
+    for (final reminder in reminders) {
+      if (reminder['alert_type'] != 'alarm' || reminder['status'] == 'COMPLETED') continue;
+      final time = DateTime.tryParse(reminder['remind_at']?.toString() ?? '');
+      final id = reminder['id'] as int?;
+      if (time == null || id == null) continue;
+      List<String> checkpoints = [];
+      try { checkpoints = (jsonDecode(reminder['checkpoints_json']?.toString() ?? '[]') as List).map((v) => v.toString()).toList(); } catch (_) {}
+      await cancelReminder(id);
+      await _scheduleNativeAlarm(id: id, title: reminder['text']?.toString() ?? 'Study alarm', body: '',
+        scheduledDate: time, repeatDays: reminder['repeat_days']?.toString(), checkpoints: checkpoints);
+    }
+    await db.setConfigValue('native_alarm_migration_v1', 'done');
+  }
+
   Future<void> cancelReminder(int id) async {
+    await _native.invokeMethod('cancelStudyAlarmGroup', {'group': id});
     await flutterLocalNotificationsPlugin.cancel(id);
     final pending = await flutterLocalNotificationsPlugin.pendingNotificationRequests();
     final childIds = <int>{for (var i = 0; i < 64; i++) _childId(id, i)};
