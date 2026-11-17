@@ -34,6 +34,8 @@ dev_dependencies:
   path_provider_platform_interface: ^2.1.2
 
 dependency_overrides:
+  # sqflite_common_ffi 2.x uses the sqlite3 2.x open.dart API in CI tests.
+  sqlite3: 2.9.4
   platform: ^3.1.5
   local_auth_android: 1.0.40
   flutter_plugin_android_lifecycle: 2.0.20

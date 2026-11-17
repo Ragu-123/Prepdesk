@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../../widgets/content_transition.dart';
 import '../../services/notification_route.dart';
 import '../../widgets/task_navigation_bar.dart';
 import 'package:flutter/material.dart';
@@ -1377,7 +1378,7 @@ class _HomePageState extends State<HomePage> {
                   const Divider(height: 1, thickness: 1, color: googleHairline),
                   // 6. Notifications (no subtitle)
                   ListTile(
-                    leading: const Icon(Icons.mark_chat_unread_outlined, color: Colors.deepPurple, size: 22),
+                    leading: const Icon(Icons.notifications_none_rounded, color: googleTextSecondary, size: 22),
                     title: const Text('Notifications', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: googleTextPrimary)),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     onTap: () {
@@ -1509,7 +1510,9 @@ class _HomePageState extends State<HomePage> {
       ),
 
       // 4 Main Tab Views
-      body: IndexedStack(
+      body: ContentTransition(
+        selection: _currentNavIndex,
+        child: IndexedStack(
         index: _currentNavIndex,
         children: [
           TodayTab(
@@ -1544,7 +1547,7 @@ class _HomePageState extends State<HomePage> {
             onOpenFilter: _showSubjectFilterSheet,
           ),
         ],
-      ),
+      )),
 
       // Quick "+" Floating Action Button (Google Tasks style center-docked)
       floatingActionButton: FloatingActionButton(

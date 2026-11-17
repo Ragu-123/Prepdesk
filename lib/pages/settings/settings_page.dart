@@ -803,14 +803,14 @@ class _SettingsPageState extends State<SettingsPage> {
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(color: googleHairline),
       ),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
         leading: Container(
-          width: 40,
-          height: 40,
+          width: 44,
+          height: 44,
           decoration: BoxDecoration(
             color: iconColor.withOpacity(0.1),
             borderRadius: BorderRadius.circular(12),
@@ -822,7 +822,7 @@ class _SettingsPageState extends State<SettingsPage> {
             Expanded(
               child: Text(
                 title,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: googleTextPrimary),
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: googleTextPrimary),
               ),
             ),
             if (badgeWidget != null) badgeWidget,
@@ -830,12 +830,12 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
         subtitle: Text(
           subtitle,
-          style: const TextStyle(fontSize: 11, color: googleTextSecondary),
-          maxLines: 1,
+          style: const TextStyle(fontSize: 13, color: googleTextSecondary),
+          maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
         trailing: const Icon(Icons.chevron_right_rounded, color: googleTextSecondary, size: 20),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         onTap: onTap,
       ),
     );
@@ -1351,16 +1351,16 @@ class _SettingsPageState extends State<SettingsPage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
+                Expanded(child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'Current Version: v${AppUpdateService.currentVersion}',
                       style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                     ),
-                    const Text('Repository: Ragu-123/nyro-tasks', style: TextStyle(fontSize: 12, color: googleTextSecondary)),
+                    Text(AppUpdateService.isPlayStore ? 'Updates from Google Play' : 'GitHub release channel', style: const TextStyle(fontSize: 12, color: googleTextSecondary)),
                   ],
-                ),
+                )),
                 ElevatedButton(
                   onPressed: _isCheckingUpdates ? null : _checkForUpdates,
                   style: ElevatedButton.styleFrom(
@@ -1370,7 +1370,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   child: _isCheckingUpdates
                       ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : const Text('Check Now', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      : Text(AppUpdateService.isPlayStore ? 'Open Play' : 'Check now', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                 ),
               ],
             ),
@@ -1378,7 +1378,7 @@ class _SettingsPageState extends State<SettingsPage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Check for updates on app launch', style: TextStyle(fontSize: 13)),
+                const Expanded(child: Text('Check for updates on app launch', style: TextStyle(fontSize: 13))),
                 Switch(
                   value: _autoCheckUpdates,
                   activeColor: googleBlue,
@@ -1645,8 +1645,8 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget _buildCardContainer({required List<Widget> children}) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        color: googleSurface,
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(color: googleHairline),
       ),
       padding: const EdgeInsets.all(16),

@@ -40,6 +40,7 @@ void main() {
     expect(find.text('Enable'), findsNothing);
     expect(find.text('Enabled'), findsNWidgets(3));
     expect(tester.takeException(), isNull);
+    await tester.runAsync(() async {
     final boundary = preview.currentContext!.findRenderObject()! as RenderRepaintBoundary;
     final picture = await boundary.toImage();
     final bytes = await picture.toByteData(format: ui.ImageByteFormat.png);
@@ -47,6 +48,7 @@ void main() {
     await file.parent.create(recursive: true);
     await file.writeAsBytes(bytes!.buffer.asUint8List());
     picture.dispose();
+    });
   });
   testWidgets('Only missing access shows Enable, including with larger text', (tester) async {
     enabled = false;

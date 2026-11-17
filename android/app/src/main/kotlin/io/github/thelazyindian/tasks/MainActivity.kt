@@ -47,6 +47,20 @@ class MainActivity: FlutterFragmentActivity() {
                 "requestBluetoothPermissions" -> {
                     requestBluetoothPermissions(result)
                 }
+                "setAlarmWindow" -> {
+                    val enabled = call.argument<Boolean>("enabled") == true
+                    if (Build.VERSION.SDK_INT >= 27) {
+                        setShowWhenLocked(enabled)
+                        setTurnScreenOn(enabled)
+                    } else if (enabled) {
+                        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                            android.view.WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON)
+                    } else {
+                        window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                            android.view.WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON)
+                    }
+                    result.success(null)
+                }
                 "getNotificationAccess" -> {
                     val alarms = getSystemService(android.content.Context.ALARM_SERVICE) as android.app.AlarmManager
                     val notifications = getSystemService(android.content.Context.NOTIFICATION_SERVICE) as android.app.NotificationManager

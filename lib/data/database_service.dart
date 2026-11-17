@@ -1432,7 +1432,13 @@ class DatabaseService {
     final tempDir = await getTemporaryDirectory();
     final sanitizedPath = p.join(tempDir.path, 'sanitized_upload_nyro_${DateTime.now().millisecondsSinceEpoch}.db');
 
-    final localBytes = await File(localPath).readAsBytes();
+    final source = await database;
+    final checkpoint = await source.rawQuery('PRAGMA wal_checkpoint(TRUNCATE)');
+    if (checkpoint.isNotEmpty && checkpoint.first['busy'] != 0) {
+      throw StateError('Database is busy. Please retry the backup.');
+    }
+    // Read before yielding again so the snapshot includes committed WAL changes.
+    final localBytes = File(localPath).readAsBytesSync();
     await File(sanitizedPath).writeAsBytes(localBytes, flush: true);
 
     // Open temporary copy and strip private keys and sensitive credentials

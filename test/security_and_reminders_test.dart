@@ -63,13 +63,14 @@ void main() {
   test('Cloud export strips vault credentials and protected notes', () async {
     final db = await dbService.database;
     await db.insert('keep_notes', {'id': 'private', 'title': 'Secret', 'content': 'Private', 'is_locked': 1, 'created_at': 1, 'updated_at': 1});
+    await db.insert('keep_notes', {'id': 'public', 'title': 'Revision', 'created_at': 1, 'updated_at': 1});
     await dbService.setKeepVaultPinHash('old-hash');
     final path = await dbService.exportSanitizedDatabaseForCloudUpload();
     final exported = await openDatabase(path);
-    expect(await exported.query('keep_notes'), isEmpty);
+    expect((await exported.query('keep_notes')).map((row) => row['id']), ['public']);
     expect(await exported.query('app_config', where: "key LIKE 'keep_vault_%'"), isEmpty);
     await exported.close();
-    expect(await db.query('keep_notes'), hasLength(1));
+    expect(await db.query('keep_notes'), hasLength(2));
   });
   testWidgets('Missing vault credentials never turn unlock into PIN setup', (tester) async {
     var unlocked = false;
@@ -77,7 +78,10 @@ void main() {
       body: TextButton(onPressed: () => VaultService.instance.showAuthDialog(context,
         onAuthenticated: () => unlocked = true), child: const Text('Open private note')),
     ))));
-    await tester.tap(find.text('Open private note'));
+    await tester.runAsync(() async {
+      await tester.tap(find.text('Open private note'));
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+    });
     await tester.pumpAndSettle();
     expect(unlocked, isFalse);
     expect(find.text('Set Master Vault PIN'), findsNothing);

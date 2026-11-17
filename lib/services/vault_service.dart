@@ -117,7 +117,7 @@ class VaultService {
     try {
       final canBio = await _auth.canCheckBiometrics;
       final supported = await _auth.isDeviceSupported();
-      return canBio && supported;
+      return canBio && supported && (await _auth.getAvailableBiometrics()).isNotEmpty;
     } catch (_) {
       return false;
     }
