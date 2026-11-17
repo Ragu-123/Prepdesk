@@ -258,7 +258,7 @@ class _TodayTabState extends State<TodayTab> {
     return ListView(
       controller: widget.scrollController,
       physics: const ClampingScrollPhysics(),
-      padding: EdgeInsets.zero,
+      padding: const EdgeInsets.only(bottom: 32),
       children: [
         // Minimal Google Tasks Date Header
         Padding(
@@ -317,8 +317,12 @@ class _TodayTabState extends State<TodayTab> {
 
         // 1. Google Pacing Header (No Box Card — Flat on canvas)
         Container(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-          color: Colors.white,
+          margin: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            color: googleBlueContainer.withOpacity(0.55),
+            borderRadius: BorderRadius.circular(28),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -328,7 +332,7 @@ class _TodayTabState extends State<TodayTab> {
                 textBaseline: TextBaseline.alphabetic,
                 children: [
                   const Text(
-                    'DAILY LECTURE TARGET',
+                    'YOUR DAILY PACE',
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
@@ -375,7 +379,7 @@ class _TodayTabState extends State<TodayTab> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Consolidated pace: ${remaining.toStringAsFixed(1)}h remaining today',
+                    '${remaining.toStringAsFixed(1)}h left to reach your goal',
                     style: const TextStyle(fontSize: 12, color: googleTextSecondary),
                   ),
                   const Text(
@@ -390,7 +394,7 @@ class _TodayTabState extends State<TodayTab> {
 
         // 2. Sliding Pill Segmented Indicator Tabs
         Container(
-          color: Colors.white,
+          color: googleBackground,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Container(
             padding: const EdgeInsets.all(4),
@@ -429,8 +433,8 @@ class _TodayTabState extends State<TodayTab> {
           setState(() => _selectedPageIndex = index);
         },
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          duration: MediaQuery.disableAnimationsOf(context) ? Duration.zero : const Duration(milliseconds: 220),
+          padding: const EdgeInsets.symmetric(vertical: 14),
           decoration: BoxDecoration(
             color: isSelected ? Colors.white : Colors.transparent,
             borderRadius: BorderRadius.circular(20),

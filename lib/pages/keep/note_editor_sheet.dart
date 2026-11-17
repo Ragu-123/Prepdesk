@@ -1,4 +1,5 @@
 import 'dart:math';
+import '../../widgets/protected_content.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../data/database_service.dart';
@@ -302,8 +303,8 @@ class _NoteEditorSheetState extends State<NoteEditorSheet> {
         final scheduledDt = DateTime.fromMillisecondsSinceEpoch(_reminderAt!);
         await NotificationService.instance.scheduleKeepNoteReminder(
           noteId: _noteId,
-          title: title.isNotEmpty ? title : 'Note Reminder',
-          body: content.isNotEmpty ? content : (_todoItems.isNotEmpty ? '${_todoItems.length} checklist items' : 'Keep Note Reminder'),
+          title: _isLocked ? 'Protected note reminder' : (title.isNotEmpty ? title : 'Note Reminder'),
+          body: _isLocked ? 'Unlock Keep to view this note.' : (content.isNotEmpty ? content : (_todoItems.isNotEmpty ? '${_todoItems.length} checklist items' : 'Keep Note Reminder')),
           scheduledDate: scheduledDt,
           repeat: _reminderRepeat,
         );
@@ -385,7 +386,12 @@ class _NoteEditorSheetState extends State<NoteEditorSheet> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ProtectedContent(
+    protected: _isLocked,
+    child: _buildSheet(context),
+  );
+
+  Widget _buildSheet(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
     return Container(

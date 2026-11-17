@@ -166,9 +166,9 @@ class _KeepPageState extends State<KeepPage> {
     final isFiltered = _searchQuery.isNotEmpty || _selectedTag != null;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: googleBackground,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: googleBackground,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded, color: googleTextPrimary),

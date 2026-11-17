@@ -96,6 +96,9 @@ class _AlertsPageState extends State<AlertsPage> {
       await NotificationService.instance.cancelReminder(id);
     } else if (remindAtStr != null && text != null) {
       final dt = DateTime.tryParse(remindAtStr) ?? DateTime.now();
+      final reminder = _reminders.firstWhere((row) => row['id'] == id, orElse: () => <String, dynamic>{});
+      List<String> checkpoints = [];
+      try { checkpoints = (jsonDecode(reminder['checkpoints_json']?.toString() ?? '[]') as List).map((v) => v.toString()).toList(); } catch (_) {}
       await NotificationService.instance.scheduleReminder(
         id: id,
         title: 'Study Reminder',
@@ -103,6 +106,7 @@ class _AlertsPageState extends State<AlertsPage> {
         scheduledDate: dt,
         repeatDays: repeatDays,
         alertType: alertType,
+        checkpoints: checkpoints,
       );
     }
     await _loadAlerts();
@@ -297,9 +301,9 @@ class _AlertsPageState extends State<AlertsPage> {
     final completed = _reminders.where((r) => (r['status'] as String?)?.toUpperCase() == 'COMPLETED').toList();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: googleBackground,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: googleBackground,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded, color: googleTextPrimary),
@@ -1558,7 +1562,7 @@ class __ReminderEditorSheetState extends State<_ReminderEditorSheet> {
                                 : DateFormat('d MMM • h:mm a').format(cpDt).toLowerCase();
                           }
                           return Chip(
-                            backgroundColor: Colors.white,
+                            backgroundColor: googleBackground,
                             side: const BorderSide(color: googleBorder),
                             padding: const EdgeInsets.symmetric(horizontal: 6),
                             label: Text(label, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600)),

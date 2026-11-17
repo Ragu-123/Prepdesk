@@ -128,7 +128,8 @@ class AppUpdateProgress {
 }
 
 class AppUpdateService {
-  static const String currentVersion = '1.0.17';
+  static const isPlayStore = bool.fromEnvironment('NYRO_PLAY_STORE');
+  static const String currentVersion = '1.0.18';
   static const String defaultGithubRepo = 'Ragu-123/nyro-tasks';
   static const MethodChannel _nativeChannel = MethodChannel('io.github.thelazyindian.tasks/native');
 
@@ -140,6 +141,7 @@ class AppUpdateService {
 
   // Check GitHub releases for newer version
   Future<AppReleaseInfo?> checkForUpdate() async {
+    if (isPlayStore) return null;
     final client = HttpClient();
     client.connectionTimeout = const Duration(seconds: 15);
     try {
@@ -290,6 +292,7 @@ class AppUpdateService {
 
   // Launch native package installer
   Future<bool> installApk(String filePath) async {
+    if (isPlayStore) return false;
     try {
       final res = await _nativeChannel.invokeMethod<bool>('installApk', {'filePath': filePath});
       return res ?? false;

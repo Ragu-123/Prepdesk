@@ -47,6 +47,47 @@ class MainActivity: FlutterFragmentActivity() {
                 "requestBluetoothPermissions" -> {
                     requestBluetoothPermissions(result)
                 }
+                "getNotificationAccess" -> {
+                    val alarms = getSystemService(android.content.Context.ALARM_SERVICE) as android.app.AlarmManager
+                    val notifications = getSystemService(android.content.Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+                    result.success(mapOf(
+                        "notifications" to androidx.core.app.NotificationManagerCompat.from(this).areNotificationsEnabled(),
+                        "exact" to (Build.VERSION.SDK_INT < 31 || alarms.canScheduleExactAlarms()),
+                        "fullScreen" to (Build.VERSION.SDK_INT < 34 || notifications.canUseFullScreenIntent())
+                    ))
+                }
+                "openNotificationSettings" -> {
+                    val intent = if (Build.VERSION.SDK_INT >= 26) {
+                        Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+                    } else {
+                        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))
+                    }
+                    startActivity(intent)
+                    result.success(null)
+                }
+                "openFullScreenIntentSettings" -> {
+                    if (Build.VERSION.SDK_INT >= 34) {
+                        startActivity(Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT,
+                            Uri.parse("package:$packageName")))
+                    }
+                    result.success(null)
+                }
+                "setSecureWindow" -> {
+                    if (call.argument<Boolean>("enabled") == true) {
+                        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+                    } else {
+                        window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+                    }
+                    result.success(null)
+                }
+                "dismissDeliveredNotification" -> {
+                    val id = call.argument<Int>("id")
+                    if (id != null) {
+                        val manager = getSystemService(android.content.Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+                        manager.cancel(id)
+                    }
+                    result.success(null)
+                }
                 "getAppCacheDir" -> {
                     result.success(cacheDir.absolutePath)
                 }

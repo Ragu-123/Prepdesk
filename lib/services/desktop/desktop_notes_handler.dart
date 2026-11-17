@@ -23,13 +23,14 @@ class DesktopNotesHandler {
         tag: tag,
       );
 
-      final jsonNotes = notes.map((n) => n.toMap()).toList();
+      final visible = notes.where((n) => !n.isLocked).toList();
+      final jsonNotes = visible.map((n) => n.toMap()).toList();
       final tags = await DatabaseService.instance.getAllKeepTags();
 
       request.response.headers.contentType = ContentType.json;
       request.response.write(jsonEncode({
         'success': true,
-        'count': notes.length,
+        'count': visible.length,
         'notes': jsonNotes,
         'all_tags': tags,
       }));
@@ -76,6 +77,12 @@ class DesktopNotesHandler {
       }
 
       final noteId = json['id']?.toString() ?? 'note_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(9999)}';
+      final existing = await DatabaseService.instance.getKeepNoteById(noteId);
+      if (existing != null) {
+        request.response.statusCode = HttpStatus.conflict;
+        request.response.write(jsonEncode({'error': 'Note ID already exists'}));
+        return;
+      }
       final now = DateTime.now().millisecondsSinceEpoch;
 
       final note = KeepNote(
@@ -115,6 +122,12 @@ class DesktopNotesHandler {
         request.response.headers.contentType = ContentType.json;
         request.response.write(jsonEncode({'error': 'Note not found'}));
         await request.response.close();
+        return;
+      }
+
+      if (existing.isLocked) {
+        request.response.statusCode = HttpStatus.forbidden;
+        request.response.write(jsonEncode({'error': 'Protected notes can only be changed on your phone'}));
         return;
       }
 
@@ -172,6 +185,12 @@ class DesktopNotesHandler {
 
   Future<void> handleDeleteNote(HttpRequest request, String noteId) async {
     try {
+      final note = await DatabaseService.instance.getKeepNoteById(noteId);
+      if (note?.isLocked == true) {
+        request.response.statusCode = HttpStatus.forbidden;
+        request.response.write(jsonEncode({'error': 'Protected notes can only be deleted on your phone'}));
+        return;
+      }
       await DatabaseService.instance.deleteKeepNote(noteId);
       request.response.headers.contentType = ContentType.json;
       request.response.write(jsonEncode({'success': true, 'id': noteId}));

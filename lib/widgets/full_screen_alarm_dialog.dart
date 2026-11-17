@@ -38,7 +38,7 @@ class FullScreenAlarmDialog extends StatefulWidget {
       context: context,
       barrierDismissible: false,
       barrierColor: Colors.black.withOpacity(0.85),
-      transitionDuration: const Duration(milliseconds: 300),
+      transitionDuration: MediaQuery.disableAnimationsOf(context) ? Duration.zero : const Duration(milliseconds: 240),
       pageBuilder: (ctx, anim1, anim2) => FullScreenAlarmDialog(
         title: title,
         timeText: timeText,
@@ -75,11 +75,22 @@ class _FullScreenAlarmDialogState extends State<FullScreenAlarmDialog>
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1000),
-    )..repeat(reverse: true);
+    );
 
     _pulseAnimation = Tween<double>(begin: 1.0, end: 1.15).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _pulseController.stop();
+      _pulseController.value = 0;
+    } else if (!_pulseController.isAnimating) {
+      _pulseController.repeat(reverse: true);
+    }
   }
 
   @override

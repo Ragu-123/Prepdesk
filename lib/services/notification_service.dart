@@ -1,8 +1,20 @@
 import 'dart:async';
+import 'notification_route.dart';
+import 'dart:typed_data';
+import 'package:flutter/widgets.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz_data;
 import 'package:tasks/data/database_service.dart';
+
+@pragma('vm:entry-point')
+void notificationActionBackground(NotificationResponse response) async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await NotificationService.instance.init(background: true);
+  await NotificationService.instance.handleResponse(response);
+}
 
 class NotificationService {
   static final NotificationService instance = NotificationService._internal();
@@ -15,7 +27,7 @@ class NotificationService {
   static const String studyChannelName = 'NYRO Study Notifications';
   static const String dailyChannelId = 'nyro_daily_channel';
   static const String dailyChannelName = 'Daily Study Routine';
-  static const String alarmChannelId = 'nyro_alarm_channel';
+  static const String alarmChannelId = 'nyro_alarm_channel_v2';
   static const String alarmChannelName = 'Full-Screen Study Alarms';
 
   final StreamController<String> _payloadController = StreamController<String>.broadcast();
@@ -25,8 +37,8 @@ class NotificationService {
   String? get pendingLaunchPayload => _pendingLaunchPayload;
   void clearPendingLaunchPayload() => _pendingLaunchPayload = null;
 
-  Future<void> init() async {
-    _configureLocalTimeZone();
+  Future<void> init({bool background = false}) async {
+    await _configureLocalTimeZone();
 
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -37,38 +49,21 @@ class NotificationService {
 
     await flutterLocalNotificationsPlugin.initialize(
       initializationSettings,
-      onDidReceiveNotificationResponse: (NotificationResponse response) async {
-        final payload = response.payload;
-        final actionId = response.actionId;
-
-        if (actionId == 'snooze_5' || actionId == 'snooze_10') {
-          final minutes = (actionId == 'snooze_5') ? 5 : 10;
-          final snoozeDt = DateTime.now().add(Duration(minutes: minutes));
-          final reminderId = (response.id != null && response.id! > 0)
-              ? response.id!
-              : (DateTime.now().millisecondsSinceEpoch % 100000);
-          final isAlarm = payload != null && payload.startsWith('route:alarm:');
-          await NotificationService.instance.scheduleReminder(
-            id: reminderId,
-            title: 'Snoozed Reminder',
-            body: 'Snoozed for $minutes minutes',
-            scheduledDate: snoozeDt,
-            alertType: isAlarm ? 'alarm' : 'notification',
-          );
-        } else if (actionId == 'dismiss') {
-          if (response.id != null) {
-            await NotificationService.instance.cancelReminder(response.id!);
-          }
-        } else if (payload != null && payload.isNotEmpty) {
-          _payloadController.add(payload);
-        }
-      },
+      onDidReceiveNotificationResponse: handleResponse,
+      onDidReceiveBackgroundNotificationResponse: notificationActionBackground,
     );
+
+    if (background) return;
 
     try {
       final launchDetails = await flutterLocalNotificationsPlugin.getNotificationAppLaunchDetails();
       if (launchDetails != null && launchDetails.didNotificationLaunchApp) {
-        _pendingLaunchPayload = launchDetails.notificationResponse?.payload;
+        final response = launchDetails.notificationResponse;
+        if (response != null && (response.actionId?.isNotEmpty ?? false)) {
+          await handleResponse(response);
+        } else {
+          _pendingLaunchPayload = response?.payload;
+        }
       }
     } catch (_) {}
 
@@ -101,6 +96,7 @@ class NotificationService {
           alarmChannelId,
           alarmChannelName,
           description: 'Critical ringing study alarms with full-screen wake screen',
+          audioAttributesUsage: AudioAttributesUsage.alarm,
           importance: Importance.max,
           playSound: true,
           enableVibration: true,
@@ -108,46 +104,95 @@ class NotificationService {
       );
     }
 
-    // Request permissions asynchronously without blocking app startup
-    requestPermissions().catchError((_) => false);
-
-    // Automatically load alert settings from DatabaseService and schedule daily routine on startup
-    try {
-      final alertSettings = await DatabaseService.instance.getAlertSettings();
-      final morning = (alertSettings['morning_brief'] as int? ?? 1) == 1;
-      final afternoon = (alertSettings['afternoon_session'] as int? ?? 1) == 1;
-      final evening = (alertSettings['evening_review'] as int? ?? 1) == 1;
-      await scheduleDailySessionAlerts(
-        morning: morning,
-        afternoon: afternoon,
-        evening: evening,
-      );
-    } catch (_) {}
+    try { await syncDailyRoutineFromSettings(); } catch (_) {}
   }
 
-  void _configureLocalTimeZone() {
+  Future<void> syncDailyRoutineFromSettings() async {
+    final settings = await DatabaseService.instance.getAlertSettings();
+    await scheduleDailySessionAlerts(
+      morning: settings['morning_brief'] == 1,
+      afternoon: settings['afternoon_session'] == 1,
+      evening: settings['evening_review'] == 1,
+    );
+  }
+
+  Future<void> _configureLocalTimeZone() async {
     tz_data.initializeTimeZones();
+    final zone = await FlutterTimezone.getLocalTimezone();
+    tz.setLocalLocation(tz.getLocation(zone));
+  }
+
+  Future<void> handleResponse(NotificationResponse response) async {
+    final action = response.actionId;
+    if (action == 'snooze_5' || action == 'snooze_10') {
+      await snooze(payload: response.payload ?? 'route:reminders',
+        minutes: action == 'snooze_5' ? 5 : 10);
+    } else if (action != 'dismiss') {
+      final payload = response.payload;
+      if (payload != null && payload.isNotEmpty) _payloadController.add(payload);
+    }
+    // Action buttons cancel only the displayed notification through Android.
+    // They must not cancel the next occurrence of a recurring reminder.
+  }
+
+  Future<void> snooze({required String payload, required int minutes}) async {
+    final route = NotificationRoute.parse(payload);
+    final isAlarm = route != null;
+    final title = route?.title ?? 'Snoozed reminder';
+    final details = NotificationDetails(android: AndroidNotificationDetails(
+      isAlarm ? alarmChannelId : studyChannelId,
+      isAlarm ? alarmChannelName : studyChannelName,
+      importance: Importance.max,
+      priority: Priority.high,
+      category: isAlarm ? AndroidNotificationCategory.alarm : AndroidNotificationCategory.reminder,
+      visibility: NotificationVisibility.private,
+      fullScreenIntent: isAlarm,
+      autoCancel: !isAlarm,
+      timeoutAfter: isAlarm ? 120000 : null,
+      additionalFlags: isAlarm ? Int32List.fromList([4]) : null,
+      audioAttributesUsage: isAlarm ? AudioAttributesUsage.alarm : AudioAttributesUsage.notification,
+      actions: const [
+        AndroidNotificationAction('snooze_5', 'Snooze 5m'),
+        AndroidNotificationAction('snooze_10', 'Snooze 10m'),
+        AndroidNotificationAction('dismiss', 'Dismiss'),
+      ],
+    ));
+    final id = 0x60000000 | (DateTime.now().microsecondsSinceEpoch & 0x0fffffff);
+    final snoozePayload = route != null ? NotificationRoute(id, route.groupId, title).encode() : payload;
+    final when = tz.TZDateTime.now(tz.local).add(Duration(minutes: minutes));
     try {
-      final offset = DateTime.now().timeZoneOffset;
-      // Match timezone database against current system offset
-      for (final entry in tz.timeZoneDatabase.locations.entries) {
-        final loc = entry.value;
-        final nowInLoc = tz.TZDateTime.now(loc);
-        if (nowInLoc.timeZoneOffset == offset) {
-          tz.setLocalLocation(loc);
-          return;
-        }
-      }
-    } catch (_) {}
+      await flutterLocalNotificationsPlugin.zonedSchedule(id, title, 'Snoozed for $minutes minutes',
+        when, details, payload: snoozePayload,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime);
+    } catch (_) {
+      await flutterLocalNotificationsPlugin.zonedSchedule(id, title, 'Snoozed for $minutes minutes',
+        when, details, payload: snoozePayload,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime);
+    }
+  }
+
+  Future<void> dismissDisplayed(int id) async {
+    await const MethodChannel('io.github.thelazyindian.tasks/native')
+        .invokeMethod('dismissDeliveredNotification', {'id': id});
+  }
+
+  // Dedicated namespaces avoid collisions with task IDs, routines and Keep.
+  static int _childId(int id, int index) => 0x20000000 | ((id & 0x1fffff) << 6) | index;
+
+  Future<void> _requestNotificationsIfNeeded() async {
+    final android = flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    if (await android?.areNotificationsEnabled() == false) {
+      await android?.requestNotificationsPermission();
+    }
   }
 
   Future<bool> requestPermissions() async {
     final android = flutterLocalNotificationsPlugin
         .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
     final granted = await android?.requestNotificationsPermission();
-    try {
-      await android?.requestExactAlarmsPermission();
-    } catch (_) {}
     return granted ?? false;
   }
 
@@ -164,6 +209,7 @@ class NotificationService {
       channelDescription: 'Alerts and reminders for GATE study tasks',
       importance: Importance.max,
       priority: Priority.high,
+      visibility: NotificationVisibility.private,
       showWhen: true,
       enableVibration: true,
       playSound: true,
@@ -198,6 +244,7 @@ class NotificationService {
     String alertType = 'notification',
     List<String>? checkpoints,
   }) async {
+    await _requestNotificationsIfNeeded();
     // Clear any previous notification triggers for this reminder ID
     await cancelReminder(id);
 
@@ -214,6 +261,11 @@ class NotificationService {
       importance: Importance.max,
       priority: Priority.high,
       fullScreenIntent: isAlarm,
+      autoCancel: !isAlarm,
+      timeoutAfter: isAlarm ? 120000 : null,
+      additionalFlags: isAlarm ? Int32List.fromList([4]) : null,
+      audioAttributesUsage: isAlarm ? AudioAttributesUsage.alarm : AudioAttributesUsage.notification,
+      visibility: NotificationVisibility.private,
       showWhen: true,
       enableVibration: true,
       playSound: true,
@@ -239,7 +291,7 @@ class NotificationService {
             .toSet()
         : <int>{};
 
-    final notifPayload = isAlarm ? 'route:alarm:$id:$title' : 'route:reminders';
+    final notifPayload = isAlarm ? NotificationRoute(id, id, title).encode() : 'route:reminders:$id';
 
     if (parsedDays.isEmpty) {
       // One-time reminder
@@ -247,11 +299,10 @@ class NotificationService {
       if (tzScheduled.isBefore(now)) {
         if (now.difference(tzScheduled).inMinutes <= 5) {
           tzScheduled = now.add(const Duration(seconds: 5));
-        } else {
-          return; // Skip past dates
         }
       }
 
+      if (tzScheduled.isAfter(now)) {
       try {
         await flutterLocalNotificationsPlugin.zonedSchedule(
           id,
@@ -276,6 +327,7 @@ class NotificationService {
               UILocalNotificationDateInterpretation.absoluteTime,
           payload: notifPayload,
         );
+      }
       }
     } else if (parsedDays.length == 7) {
       // Daily recurring routine (all 7 days selected)
@@ -334,7 +386,7 @@ class NotificationService {
           targetDate = targetDate.add(const Duration(days: 1));
         }
 
-        final notifId = id * 10 + dayIndex;
+        final notifId = _childId(id, dayIndex);
         try {
           await flutterLocalNotificationsPlugin.zonedSchedule(
             notifId,
@@ -346,7 +398,7 @@ class NotificationService {
             uiLocalNotificationDateInterpretation:
                 UILocalNotificationDateInterpretation.absoluteTime,
             matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
-            payload: notifPayload,
+            payload: isAlarm ? NotificationRoute(notifId, id, title).encode() : notifPayload,
           );
         } catch (_) {
           await flutterLocalNotificationsPlugin.zonedSchedule(
@@ -359,7 +411,7 @@ class NotificationService {
             uiLocalNotificationDateInterpretation:
                 UILocalNotificationDateInterpretation.absoluteTime,
             matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
-            payload: notifPayload,
+            payload: isAlarm ? NotificationRoute(notifId, id, title).encode() : notifPayload,
           );
         }
       }
@@ -374,7 +426,7 @@ class NotificationService {
         var tzCp = tz.TZDateTime.from(cpDt, tz.local);
         if (tzCp.isBefore(now)) continue;
 
-        final cpId = id * 100 + (i + 1);
+        final cpId = _childId(id, i + 8);
         try {
           await flutterLocalNotificationsPlugin.zonedSchedule(
             cpId,
@@ -385,9 +437,16 @@ class NotificationService {
             androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
             uiLocalNotificationDateInterpretation:
                 UILocalNotificationDateInterpretation.absoluteTime,
-            payload: notifPayload,
+            payload: isAlarm ? NotificationRoute(cpId, id, title).encode() : notifPayload,
           );
-        } catch (_) {}
+        } catch (_) {
+          await flutterLocalNotificationsPlugin.zonedSchedule(
+            cpId, '$title (Checkpoint ${i + 1})', body, tzCp, platformDetails,
+            androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+            uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+            payload: isAlarm ? NotificationRoute(cpId, id, title).encode() : notifPayload,
+          );
+        }
       }
     }
 
@@ -409,6 +468,7 @@ class NotificationService {
     required DateTime scheduledDate,
     String? repeat,
   }) async {
+    await _requestNotificationsIfNeeded();
     final int notifId = (noteId.hashCode.abs() % 50000) + 20000;
     await cancelKeepNoteReminder(noteId);
 
@@ -418,6 +478,7 @@ class NotificationService {
       channelDescription: 'Google Keep Note Reminders',
       importance: Importance.max,
       priority: Priority.high,
+      visibility: NotificationVisibility.private,
       showWhen: true,
       enableVibration: true,
       playSound: true,
@@ -489,147 +550,61 @@ class NotificationService {
     bool afternoon = true,
     bool evening = true,
   }) async {
-    const androidDetails = AndroidNotificationDetails(
-      dailyChannelId,
-      dailyChannelName,
-      channelDescription: 'Scheduled reminders for Morning, Afternoon, and Evening blocks',
-      importance: Importance.max,
-      priority: Priority.high,
-      enableVibration: true,
-      playSound: true,
-    );
-    const platformDetails = NotificationDetails(android: androidDetails);
-
+    final settings = await DatabaseService.instance.getAlertSettings();
+    final morningClock = (settings['morning_brief_time']?.toString() ?? '05:00').split(':');
+    final shieldClock = (settings['shield_time']?.toString() ?? '21:30').split(':');
     final now = tz.TZDateTime.now(tz.local);
-    const payload = 'route:today';
-
-    // 1. Morning Block at 5:00 AM (ID: 9001)
-    if (morning) {
-      var morningTime = tz.TZDateTime(tz.local, now.year, now.month, now.day, 5, 0);
-      if (morningTime.isBefore(now)) {
-        morningTime = morningTime.add(const Duration(days: 1));
+    const details = NotificationDetails(android: AndroidNotificationDetails(
+      dailyChannelId, dailyChannelName,
+      importance: Importance.high, priority: Priority.high,
+      visibility: NotificationVisibility.private,
+    ));
+    Future<void> schedule(int id, bool enabled, int hour, int minute, String title, String body) async {
+      if (!enabled) {
+        await flutterLocalNotificationsPlugin.cancel(id);
+        return;
       }
+      var next = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
+      if (!next.isAfter(now)) next = tz.TZDateTime(tz.local, now.year, now.month, now.day + 1, hour, minute);
       try {
-        await flutterLocalNotificationsPlugin.zonedSchedule(
-          9001,
-          'Morning Study Brief (05:00 AM)',
-          'Rise and conquer: Review your target lectures and recall items for today!',
-          morningTime,
-          platformDetails,
+        await flutterLocalNotificationsPlugin.zonedSchedule(id, title, body, next, details,
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
           uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-          matchDateTimeComponents: DateTimeComponents.time,
-          payload: payload,
-        );
+          matchDateTimeComponents: DateTimeComponents.time, payload: 'route:today');
       } catch (_) {
-        await flutterLocalNotificationsPlugin.zonedSchedule(
-          9001,
-          'Morning Study Brief (05:00 AM)',
-          'Rise and conquer: Review your target lectures and recall items for today!',
-          morningTime,
-          platformDetails,
+        await flutterLocalNotificationsPlugin.zonedSchedule(id, title, body, next, details,
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
           uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-          matchDateTimeComponents: DateTimeComponents.time,
-          payload: payload,
-        );
+          matchDateTimeComponents: DateTimeComponents.time, payload: 'route:today');
       }
-    } else {
-      await cancelNotification(9001);
     }
-
-    // 2. Afternoon Session at 1:30 PM (ID: 9002)
-    if (afternoon) {
-      var afternoonTime = tz.TZDateTime(tz.local, now.year, now.month, now.day, 13, 30);
-      if (afternoonTime.isBefore(now)) {
-        afternoonTime = afternoonTime.add(const Duration(days: 1));
-      }
-      try {
-        await flutterLocalNotificationsPlugin.zonedSchedule(
-          9002,
-          'Afternoon Session (01:30 PM)',
-          'Time for Afternoon & Aptitude Block. Stay focused on your GATE target!',
-          afternoonTime,
-          platformDetails,
-          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-          uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-          matchDateTimeComponents: DateTimeComponents.time,
-          payload: payload,
-        );
-      } catch (_) {
-        await flutterLocalNotificationsPlugin.zonedSchedule(
-          9002,
-          'Afternoon Session (01:30 PM)',
-          'Time for Afternoon & Aptitude Block. Stay focused on your GATE target!',
-          afternoonTime,
-          platformDetails,
-          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-          uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-          matchDateTimeComponents: DateTimeComponents.time,
-          payload: payload,
-        );
-      }
-    } else {
-      await cancelNotification(9002);
-    }
-
-    // 3. Evening Review at 7:00 PM (ID: 9003)
-    if (evening) {
-      var eveningTime = tz.TZDateTime(tz.local, now.year, now.month, now.day, 19, 0);
-      if (eveningTime.isBefore(now)) {
-        eveningTime = eveningTime.add(const Duration(days: 1));
-      }
-      try {
-        await flutterLocalNotificationsPlugin.zonedSchedule(
-          9003,
-          'Evening Review & Recall (07:00 PM)',
-          'Wrap up today lectures, log tricky quiz mistakes, and clear Day 1/4/7 recall checkpoints.',
-          eveningTime,
-          platformDetails,
-          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-          uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-          matchDateTimeComponents: DateTimeComponents.time,
-          payload: payload,
-        );
-      } catch (_) {
-        await flutterLocalNotificationsPlugin.zonedSchedule(
-          9003,
-          'Evening Review & Recall (07:00 PM)',
-          'Wrap up today lectures, log tricky quiz mistakes, and clear Day 1/4/7 recall checkpoints.',
-          eveningTime,
-          platformDetails,
-          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-          uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-          matchDateTimeComponents: DateTimeComponents.time,
-          payload: payload,
-        );
-      }
-    } else {
-      await cancelNotification(9003);
-    }
-
-    if (morning || afternoon || evening) {
-      try {
-        await DatabaseService.instance.addInAppNotification(
-          title: 'Daily Study Routine Active',
-          message: 'Daily study checkpoints configured (Morning brief, recall shield, evening review).',
-          type: 'routine',
-        );
-      } catch (_) {}
-    }
+    await schedule(9001, morning, int.tryParse(morningClock.first) ?? 5,
+      morningClock.length > 1 ? int.tryParse(morningClock[1]) ?? 0 : 0,
+      'Morning Study Brief', 'Review your lecture targets and due recalls for today.');
+    await schedule(9002, afternoon, 13, 30,
+      'Afternoon Session', 'Continue your study session and make time for aptitude practice.');
+    await schedule(9003, evening, 19, 0,
+      'Evening Review', 'Review today, log mistakes and clear due recall checkpoints.');
+    await schedule(9004, settings['backlog_shield'] == 1, int.tryParse(shieldClock.first) ?? 21,
+      shieldClock.length > 1 ? int.tryParse(shieldClock[1]) ?? 30 : 30,
+      'Evening Backlog Shield', 'Check unfinished study tasks and plan your next session.');
   }
 
   Future<void> cancelReminder(int id) async {
     await flutterLocalNotificationsPlugin.cancel(id);
-    for (int d = 0; d < 7; d++) {
-      try {
-        await flutterLocalNotificationsPlugin.cancel(id * 10 + d);
-      } catch (_) {}
-    }
-    for (int i = 0; i < 20; i++) {
-      try {
-        await flutterLocalNotificationsPlugin.cancel(id * 100 + i);
-      } catch (_) {}
+    final pending = await flutterLocalNotificationsPlugin.pendingNotificationRequests();
+    final childIds = <int>{for (var i = 0; i < 64; i++) _childId(id, i)};
+    final legacyIds = <int>{
+      for (var d = 0; d < 7; d++) id * 10 + d,
+      for (var i = 1; i <= 20; i++) id * 100 + i,
+    };
+    for (final request in pending) {
+      final payload = request.payload ?? '';
+      final alarmRoute = NotificationRoute.parse(payload);
+      if (alarmRoute?.groupId == id || (childIds.contains(request.id) && (payload.startsWith('route:alarm:') || payload.startsWith('route:reminders:'))) || payload == 'route:reminders:$id' || payload.startsWith('route:alarm:$id:') ||
+          (legacyIds.contains(request.id) && payload == 'route:reminders')) {
+        await flutterLocalNotificationsPlugin.cancel(request.id);
+      }
     }
   }
 

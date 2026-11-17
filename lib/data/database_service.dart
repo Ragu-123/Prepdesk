@@ -62,42 +62,42 @@ class DatabaseService {
   Future<void> _createAllTables(Database db) async {
     await db.execute('''
       CREATE TABLE IF NOT EXISTS timetables (
-        id INTEGER PRIMARY KEY AUTOINCREMENT, 
-        title VARCHAR, 
-        subject VARCHAR, 
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title VARCHAR,
+        subject VARCHAR,
         created_at DATETIME
       )
     ''');
 
     await db.execute('''
       CREATE TABLE IF NOT EXISTS daily_sessions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT, 
-        date_str VARCHAR, 
-        target_hours FLOAT, 
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date_str VARCHAR,
+        target_hours FLOAT,
         watched_hours FLOAT
       )
     ''');
 
     await db.execute('''
       CREATE TABLE IF NOT EXISTS timetable_proposals (
-        id INTEGER PRIMARY KEY AUTOINCREMENT, 
-        proposal_type VARCHAR, 
-        title VARCHAR, 
-        summary VARCHAR, 
-        changes_payload VARCHAR, 
-        status VARCHAR, 
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        proposal_type VARCHAR,
+        title VARCHAR,
+        summary VARCHAR,
+        changes_payload VARCHAR,
+        status VARCHAR,
         created_at DATETIME
       )
     ''');
 
     await db.execute('''
       CREATE TABLE IF NOT EXISTS alert_settings (
-        id INTEGER PRIMARY KEY, 
-        morning_brief BOOLEAN, 
-        morning_brief_time VARCHAR, 
-        revisit_alerts BOOLEAN, 
-        backlog_shield BOOLEAN, 
-        shield_time VARCHAR, 
+        id INTEGER PRIMARY KEY,
+        morning_brief BOOLEAN,
+        morning_brief_time VARCHAR,
+        revisit_alerts BOOLEAN,
+        backlog_shield BOOLEAN,
+        shield_time VARCHAR,
         last_morning_brief_date VARCHAR,
         afternoon_session BOOLEAN DEFAULT 1,
         evening_review BOOLEAN DEFAULT 1
@@ -106,95 +106,95 @@ class DatabaseService {
 
     await db.execute('''
       CREATE TABLE IF NOT EXISTS custom_reminders (
-        id INTEGER PRIMARY KEY AUTOINCREMENT, 
-        text VARCHAR NOT NULL, 
-        remind_at DATETIME NOT NULL, 
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        text VARCHAR NOT NULL,
+        remind_at DATETIME NOT NULL,
         repeat_days TEXT,
         alert_type TEXT DEFAULT 'notification',
         checkpoints_json TEXT DEFAULT '[]',
-        status VARCHAR, 
-        created_at DATETIME, 
-        anchor_id INTEGER, 
-        relative_id INTEGER, 
-        anchor_type TEXT DEFAULT 'none', 
-        offset_days INTEGER DEFAULT 0, 
+        status VARCHAR,
+        created_at DATETIME,
+        anchor_id INTEGER,
+        relative_id INTEGER,
+        anchor_type TEXT DEFAULT 'none',
+        offset_days INTEGER DEFAULT 0,
         offset_time_str TEXT DEFAULT '08:00'
       )
     ''');
 
     await db.execute('''
       CREATE TABLE IF NOT EXISTS lectures (
-        id INTEGER PRIMARY KEY AUTOINCREMENT, 
-        timetable_id INTEGER, 
-        date_str VARCHAR, 
-        topic VARCHAR, 
-        details VARCHAR, 
-        duration_hours FLOAT, 
-        session_block VARCHAR, 
-        status VARCHAR, 
-        completed_at DATETIME, 
-        anchor_id INTEGER, 
-        relative_id INTEGER, 
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        timetable_id INTEGER,
+        date_str VARCHAR,
+        topic VARCHAR,
+        details VARCHAR,
+        duration_hours FLOAT,
+        session_block VARCHAR,
+        status VARCHAR,
+        completed_at DATETIME,
+        anchor_id INTEGER,
+        relative_id INTEGER,
         offset_days INTEGER DEFAULT 0
       )
     ''');
 
     await db.execute('''
       CREATE TABLE IF NOT EXISTS revisit_items (
-        id INTEGER PRIMARY KEY AUTOINCREMENT, 
-        lecture_id INTEGER, 
-        topic VARCHAR, 
-        stage VARCHAR, 
-        duration_mins INTEGER, 
-        due_date VARCHAR, 
-        status VARCHAR, 
-        completed_at DATETIME, 
-        anchor_id INTEGER, 
-        relative_id INTEGER, 
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        lecture_id INTEGER,
+        topic VARCHAR,
+        stage VARCHAR,
+        duration_mins INTEGER,
+        due_date VARCHAR,
+        status VARCHAR,
+        completed_at DATETIME,
+        anchor_id INTEGER,
+        relative_id INTEGER,
         offset_days INTEGER DEFAULT 0
       )
     ''');
 
     await db.execute('''
       CREATE TABLE IF NOT EXISTS quiz_items (
-        id INTEGER PRIMARY KEY AUTOINCREMENT, 
-        quiz_type VARCHAR, 
-        title VARCHAR, 
-        week_number INTEGER, 
-        date_str VARCHAR, 
-        duration_mins INTEGER, 
-        total_questions INTEGER, 
-        total_marks INTEGER, 
-        syllabus_topics VARCHAR, 
-        status VARCHAR, 
-        score FLOAT, 
-        created_at DATETIME, 
-        subject VARCHAR, 
-        module_name VARCHAR, 
-        action_url VARCHAR, 
-        exam_id INTEGER, 
-        is_premium BOOLEAN, 
-        notes VARCHAR, 
-        anchor_id INTEGER, 
-        relative_id INTEGER, 
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        quiz_type VARCHAR,
+        title VARCHAR,
+        week_number INTEGER,
+        date_str VARCHAR,
+        duration_mins INTEGER,
+        total_questions INTEGER,
+        total_marks INTEGER,
+        syllabus_topics VARCHAR,
+        status VARCHAR,
+        score FLOAT,
+        created_at DATETIME,
+        subject VARCHAR,
+        module_name VARCHAR,
+        action_url VARCHAR,
+        exam_id INTEGER,
+        is_premium BOOLEAN,
+        notes VARCHAR,
+        anchor_id INTEGER,
+        relative_id INTEGER,
         offset_days INTEGER DEFAULT 0
       )
     ''');
 
     await db.execute('''
       CREATE TABLE IF NOT EXISTS mistake_records (
-        id INTEGER PRIMARY KEY AUTOINCREMENT, 
-        subject VARCHAR, 
-        topic VARCHAR, 
-        question_text VARCHAR, 
-        wrong_answer VARCHAR, 
-        correct_answer VARCHAR, 
-        mistake_reason VARCHAR, 
-        key_takeaway VARCHAR, 
-        quiz_title VARCHAR, 
-        severity VARCHAR, 
-        status VARCHAR, 
-        created_at DATETIME, 
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        subject VARCHAR,
+        topic VARCHAR,
+        question_text VARCHAR,
+        wrong_answer VARCHAR,
+        correct_answer VARCHAR,
+        mistake_reason VARCHAR,
+        key_takeaway VARCHAR,
+        quiz_title VARCHAR,
+        severity VARCHAR,
+        status VARCHAR,
+        created_at DATETIME,
         resolved_at DATETIME
       )
     ''');
@@ -273,33 +273,33 @@ class DatabaseService {
 
     // Performance composite indices for BitChat queries
     await db.execute('''
-      CREATE INDEX IF NOT EXISTS idx_bitchat_messages_channel_timestamp 
+      CREATE INDEX IF NOT EXISTS idx_bitchat_messages_channel_timestamp
       ON bitchat_messages(channel, timestamp ASC)
     ''');
     await db.execute('''
-      CREATE INDEX IF NOT EXISTS idx_bitchat_messages_timestamp 
+      CREATE INDEX IF NOT EXISTS idx_bitchat_messages_timestamp
       ON bitchat_messages(timestamp ASC)
     ''');
     await db.execute('''
-      CREATE INDEX IF NOT EXISTS idx_bitchat_peers_last_seen 
+      CREATE INDEX IF NOT EXISTS idx_bitchat_peers_last_seen
       ON bitchat_peers(last_seen DESC)
     ''');
     await db.execute('''
-      CREATE INDEX IF NOT EXISTS idx_bitchat_channels_type 
+      CREATE INDEX IF NOT EXISTS idx_bitchat_channels_type
       ON bitchat_channels(type)
     ''');
 
     // Performance indices for high-frequency Tasks core queries
     await db.execute('''
-      CREATE INDEX IF NOT EXISTS idx_lectures_date_str 
+      CREATE INDEX IF NOT EXISTS idx_lectures_date_str
       ON lectures(date_str)
     ''');
     await db.execute('''
-      CREATE INDEX IF NOT EXISTS idx_daily_sessions_date_str 
+      CREATE INDEX IF NOT EXISTS idx_daily_sessions_date_str
       ON daily_sessions(date_str)
     ''');
     await db.execute('''
-      CREATE INDEX IF NOT EXISTS idx_revisit_items_lecture_id 
+      CREATE INDEX IF NOT EXISTS idx_revisit_items_lecture_id
       ON revisit_items(lecture_id)
     ''');
 
@@ -324,19 +324,19 @@ class DatabaseService {
       )
     ''');
     await db.execute('''
-      CREATE INDEX IF NOT EXISTS idx_keep_notes_updated_at 
+      CREATE INDEX IF NOT EXISTS idx_keep_notes_updated_at
       ON keep_notes(updated_at DESC)
     ''');
     await db.execute('''
-      CREATE INDEX IF NOT EXISTS idx_keep_notes_pinned 
+      CREATE INDEX IF NOT EXISTS idx_keep_notes_pinned
       ON keep_notes(is_pinned DESC)
     ''');
     await db.execute('''
-      CREATE INDEX IF NOT EXISTS idx_keep_notes_archived 
+      CREATE INDEX IF NOT EXISTS idx_keep_notes_archived
       ON keep_notes(is_archived)
     ''');
     await db.execute('''
-      CREATE INDEX IF NOT EXISTS idx_keep_notes_reminder 
+      CREATE INDEX IF NOT EXISTS idx_keep_notes_reminder
       ON keep_notes(reminder_at)
     ''');
   }
@@ -1065,7 +1065,7 @@ class DatabaseService {
     final mSubjs = await db.rawQuery('SELECT DISTINCT subject FROM mistake_records WHERE subject IS NOT NULL');
     final cSubjs = await db.rawQuery('SELECT DISTINCT name FROM custom_subjects WHERE name IS NOT NULL');
     final lSubjs = await db.rawQuery('SELECT DISTINCT topic FROM lectures WHERE topic IS NOT NULL');
-    
+
     final set = <String>{};
     for (var r in qSubjs) {
       final s = r['subject']?.toString().trim();
@@ -1139,7 +1139,7 @@ class DatabaseService {
     final db = await database;
     final qTrim = quizTitle.trim();
     String sql = '''
-      SELECT COUNT(*) as cnt FROM mistake_records 
+      SELECT COUNT(*) as cnt FROM mistake_records
       WHERE (
         lower(quiz_title) LIKE lower(?)
         OR (trim(quiz_title) != '' AND lower(?) LIKE '%' || lower(trim(quiz_title)) || '%')
@@ -1246,13 +1246,25 @@ class DatabaseService {
         }
       } catch (_) {}
 
-      final nowIso = DateTime.now().toIso8601String();
-      return await db.update(
-        'custom_reminders',
-        {'status': 'COMPLETED'},
-        where: 'remind_at < ? AND (status IS NULL OR status != ?) AND (repeat_days IS NULL OR trim(repeat_days) = ?)',
-        whereArgs: [nowIso, 'COMPLETED', ''],
-      );
+      final rows = await db.query('custom_reminders',
+        where: '(status IS NULL OR status != ?) AND (repeat_days IS NULL OR trim(repeat_days) = ?)',
+        whereArgs: ['COMPLETED', '']);
+      final now = DateTime.now();
+      var completed = 0;
+      for (final row in rows) {
+        final times = <DateTime>[];
+        final primary = DateTime.tryParse(row['remind_at']?.toString() ?? '');
+        if (primary != null) times.add(primary);
+        try {
+          final checkpoints = jsonDecode(row['checkpoints_json']?.toString() ?? '[]') as List;
+          times.addAll(checkpoints.map((v) => DateTime.tryParse(v.toString())).whereType<DateTime>());
+        } catch (_) {}
+        if (times.isNotEmpty && times.every((time) => time.isBefore(now))) {
+          completed += await db.update('custom_reminders', {'status': 'COMPLETED'},
+            where: 'id = ?', whereArgs: [row['id']]);
+        }
+      }
+      return completed;
     } catch (e) {
       debugPrint('autoCompleteExpiredReminders warning: $e');
       return 0;
@@ -1373,6 +1385,10 @@ class DatabaseService {
     final savedNpub = await getConfig('bitchat_nostr_npub');
     final savedGeohash = await getConfig('bitchat_geohash');
 
+    final localDb = await database;
+    final protectedNotes = await localDb.query('keep_notes', where: 'is_locked = 1');
+    final vaultSettings = await localDb.query('app_config', where: "key LIKE 'keep_vault_%'");
+
     final localPath = await getDbPath();
 
     if (_db != null && _db!.isOpen) {
@@ -1385,6 +1401,15 @@ class DatabaseService {
 
     _db = await openDatabase(localPath);
     await _createAllTables(_db!);
+    await _runMigrations(_db!);
+    await _db!.delete('app_config', where: "key LIKE 'keep_vault_%'");
+    for (final setting in vaultSettings) {
+      await _db!.insert('app_config', setting, conflictAlgorithm: ConflictAlgorithm.replace);
+    }
+    for (final note in protectedNotes) {
+      await _db!.insert('keep_notes', note, conflictAlgorithm: ConflictAlgorithm.replace);
+    }
+
 
     if (savedToken != null && savedToken.isNotEmpty) await setHfToken(savedToken);
     if (savedUsername != null && savedUsername.isNotEmpty) await setHfUsername(savedUsername);
@@ -1413,7 +1438,9 @@ class DatabaseService {
     // Open temporary copy and strip private keys and sensitive credentials
     final tempDb = await openDatabase(sanitizedPath);
     try {
-      await tempDb.delete('app_config', where: "key IN ('hf_token', 'bitchat_noise_priv', 'bitchat_nostr_priv')");
+      await tempDb.delete('app_config', where: "key IN ('hf_token', 'bitchat_noise_priv', 'bitchat_nostr_priv') OR key LIKE 'keep_vault_%'");
+      // Protected notes stay on this device until encrypted sync is supported.
+      await tempDb.delete('keep_notes', where: 'is_locked = 1');
       // Vacuum to ensure deleted data is not retained in SQLite free pages
       await tempDb.execute('VACUUM');
     } finally {
@@ -1588,6 +1615,7 @@ class DatabaseService {
 
     if (searchQuery != null && searchQuery.trim().isNotEmpty) {
       final term = '%${searchQuery.trim()}%';
+      sql += ' AND is_locked = 0';
       sql += ' AND (lower(title) LIKE lower(?) OR lower(content) LIKE lower(?) OR lower(todo_items_json) LIKE lower(?))';
       args.addAll([term, term, term]);
     }
@@ -1653,7 +1681,7 @@ class DatabaseService {
   Future<List<String>> getAllKeepTags() async {
     final db = await database;
     try {
-      final rows = await db.query('keep_notes', columns: ['tags_json']);
+      final rows = await db.query('keep_notes', columns: ['tags_json'], where: 'is_locked = 0');
       final Set<String> allTags = {};
       for (final r in rows) {
         final tagsStr = r['tags_json'] as String?;

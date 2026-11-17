@@ -1,5 +1,6 @@
-import 'dart:convert';
-import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'security/vault_pin_codec.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:local_auth/local_auth.dart';
@@ -12,50 +13,111 @@ class VaultService {
 
   final LocalAuthentication _auth = LocalAuthentication();
 
-  String _hashPin(String pin) {
-    return sha256.convert(utf8.encode(pin)).toString();
-  }
+  static const _storage = FlutterSecureStorage();
+  static const _credentialKey = 'nyro_keep_vault_credential';
+  bool _verifying = false;
 
-  Future<bool> hasVaultPin() async {
-    final hash = await DatabaseService.instance.getKeepVaultPinHash();
-    return hash != null && hash.trim().isNotEmpty;
-  }
+  Future<String?> _credential() async =>
+      await _storage.read(key: _credentialKey) ??
+      await DatabaseService.instance.getKeepVaultPinHash();
+
+  Future<bool> hasVaultPin() async => (await _credential())?.isNotEmpty == true;
 
   Future<int> getVaultPinLength() async {
-    final lenStr = await DatabaseService.instance.getConfigValue('keep_vault_pin_length');
-    return int.tryParse(lenStr ?? '') ?? 4;
+    final value = await DatabaseService.instance.getConfigValue('keep_vault_pin_length');
+    return value == '6' ? 6 : 4;
   }
 
   Future<bool> verifyPin(String pin) async {
-    final hash = await DatabaseService.instance.getKeepVaultPinHash();
-    if (hash == null || hash.trim().isEmpty) return false;
-    return hash.trim() == _hashPin(pin.trim());
+    if (_verifying) return false;
+    _verifying = true;
+    try {
+      final db = DatabaseService.instance;
+      final until = int.tryParse(await db.getConfigValue('keep_vault_retry_after') ?? '') ?? 0;
+      if (DateTime.now().millisecondsSinceEpoch < until) return false;
+      final credential = await _credential();
+      if (credential == null || credential.isEmpty) return false;
+      final valid = await compute(VaultPinCodec.verify, [pin, credential]);
+      if (valid) {
+        // Upgrade existing installations only after proving knowledge of their PIN.
+        final upgraded = credential.startsWith('pbkdf2-sha256:')
+            ? credential : await compute(VaultPinCodec.encode, pin);
+        await _storage.write(key: _credentialKey, value: upgraded);
+        await db.removeKeepVaultPinHash();
+        await db.setConfigValue('keep_vault_failed_attempts', '0');
+        await db.setConfigValue('keep_vault_retry_after', '0');
+      } else {
+        final failures = (int.tryParse(await db.getConfigValue('keep_vault_failed_attempts') ?? '') ?? 0) + 1;
+        await db.setConfigValue('keep_vault_failed_attempts', failures.toString());
+        if (failures >= 5) {
+          final seconds = (30 * (failures - 4)).clamp(30, 900).toInt();
+          await db.setConfigValue('keep_vault_retry_after',
+              DateTime.now().add(Duration(seconds: seconds)).millisecondsSinceEpoch.toString());
+        }
+      }
+      return valid;
+    } finally {
+      _verifying = false;
+    }
   }
 
-  Future<void> setVaultPin(String pin) async {
-    final hash = _hashPin(pin.trim());
-    await DatabaseService.instance.setKeepVaultPinHash(hash);
-    await DatabaseService.instance.setConfigValue('keep_vault_pin_length', pin.trim().length.toString());
-  }
-
-  Future<void> removeVaultPin() async {
+  Future<void> _setVaultPin(String pin) async {
+    if (!RegExp(r'^(?:[0-9]{4}|[0-9]{6})$').hasMatch(pin)) {
+      throw ArgumentError('PIN must contain 4 or 6 digits.');
+    }
+    await _storage.write(key: _credentialKey, value: await compute(VaultPinCodec.encode, pin));
     await DatabaseService.instance.removeKeepVaultPinHash();
-    await DatabaseService.instance.setConfigValue('keep_vault_pin_length', '4');
+    await DatabaseService.instance.setConfigValue('keep_vault_pin_length', pin.length.toString());
+  }
+
+  Future<bool> authenticate(BuildContext context, {bool allowBiometrics = true}) async {
+    if (!await hasVaultPin() || !context.mounted) return false;
+    return await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _VaultPinAuthSheet(
+        title: 'Verify Vault PIN',
+        allowBiometrics: allowBiometrics,
+        onAuthenticated: () {},
+      ),
+    ) == true;
+  }
+
+  Future<bool> removeVaultPin(BuildContext context) async {
+    if (!await authenticate(context, allowBiometrics: false)) return false;
+    final db = await DatabaseService.instance.database;
+    final locked = await db.query('keep_notes', columns: ['id'], where: 'is_locked = 1', limit: 1);
+    if (locked.isNotEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Remove protection from your notes before removing the vault PIN.'),
+        ));
+      }
+      return false;
+    }
+    await _storage.delete(key: _credentialKey);
+    await DatabaseService.instance.removeKeepVaultPinHash();
+    await DatabaseService.instance.setKeepBiometricsEnabled(false);
+    return true;
   }
 
   Future<bool> isBiometricsEnabled() async {
     return await DatabaseService.instance.isKeepBiometricsEnabled();
   }
 
-  Future<void> setBiometricsEnabled(bool enabled) async {
+  Future<bool> setBiometricsEnabled(bool enabled, BuildContext context) async {
+    if (!await authenticate(context, allowBiometrics: false)) return false;
+    if (enabled && !await canCheckBiometrics()) return false;
     await DatabaseService.instance.setKeepBiometricsEnabled(enabled);
+    return true;
   }
 
   Future<bool> canCheckBiometrics() async {
     try {
       final canBio = await _auth.canCheckBiometrics;
       final supported = await _auth.isDeviceSupported();
-      return canBio || supported;
+      return canBio && supported;
     } catch (_) {
       return false;
     }
@@ -71,7 +133,7 @@ class VaultService {
         localizedReason: reason,
         options: const AuthenticationOptions(
           stickyAuth: true,
-          biometricOnly: false,
+          biometricOnly: true,
         ),
       );
     } catch (_) {
@@ -86,14 +148,10 @@ class VaultService {
   }) async {
     final hasPin = await hasVaultPin();
     if (!hasPin) {
-      // If no PIN has been set yet, prompt user to set a PIN
       if (!context.mounted) return;
-      await showSetPinDialog(
-        context,
-        title: 'Set Master Vault PIN',
-        subtitle: 'Create a 4 or 6 digit PIN to protect private notes.',
-        onPinSet: onAuthenticated,
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Vault credentials are unavailable. Protected notes remain locked.'),
+      ));
       return;
     }
 
@@ -116,6 +174,21 @@ class VaultService {
     String subtitle = 'Enter a 4 or 6 digit PIN to secure protected notes.',
     VoidCallback? onPinSet,
   }) async {
+    if (await hasVaultPin()) {
+      if (!context.mounted || !await authenticate(context, allowBiometrics: false)) return false;
+    } else {
+      final db = await DatabaseService.instance.database;
+      final locked = await db.query('keep_notes', columns: ['id'], where: 'is_locked = 1', limit: 1);
+      if (locked.isNotEmpty) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Existing protected notes cannot be unlocked by creating a new PIN.'),
+          ));
+        }
+        return false;
+      }
+    }
+    if (!context.mounted) return false;
     return await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -131,11 +204,13 @@ class VaultService {
 
 class _VaultPinAuthSheet extends StatefulWidget {
   final String title;
+  final bool allowBiometrics;
   final VoidCallback onAuthenticated;
 
   const _VaultPinAuthSheet({
     Key? key,
     required this.title,
+    this.allowBiometrics = true,
     required this.onAuthenticated,
   }) : super(key: key);
 
@@ -145,6 +220,7 @@ class _VaultPinAuthSheet extends StatefulWidget {
 
 class _VaultPinAuthSheetState extends State<_VaultPinAuthSheet> {
   String _enteredPin = '';
+  bool _checkingPin = false;
   String? _errorMessage;
   bool _canBio = false;
   int _targetPinLength = 4;
@@ -153,7 +229,7 @@ class _VaultPinAuthSheetState extends State<_VaultPinAuthSheet> {
   void initState() {
     super.initState();
     _loadPinLength();
-    _checkAndPromptBiometrics();
+    _loadBiometrics();
   }
 
   Future<void> _loadPinLength() async {
@@ -163,25 +239,34 @@ class _VaultPinAuthSheetState extends State<_VaultPinAuthSheet> {
     }
   }
 
-  Future<void> _checkAndPromptBiometrics() async {
+  Future<void> _loadBiometrics() async {
     final enabled = await VaultService.instance.isBiometricsEnabled();
     final canBio = await VaultService.instance.canCheckBiometrics();
     if (mounted) {
-      setState(() => _canBio = canBio);
+      setState(() => _canBio = enabled && canBio && widget.allowBiometrics);
     }
-    if (enabled && canBio) {
+  }
+
+  bool _biometricBusy = false;
+
+  Future<void> _checkAndPromptBiometrics() async {
+    if (!_canBio || _biometricBusy) return;
+    _biometricBusy = true;
+    try {
       final success = await VaultService.instance.authenticateWithBiometrics(
         reason: widget.title,
       );
       if (success && mounted) {
-        Navigator.pop(context);
+        Navigator.pop(context, true);
         widget.onAuthenticated();
       }
+    } finally {
+      _biometricBusy = false;
     }
   }
 
   void _onDigitPressed(String digit) async {
-    if (_enteredPin.length >= _targetPinLength) return;
+    if (_enteredPin.length >= _targetPinLength || _checkingPin || _biometricBusy) return;
     HapticFeedback.lightImpact();
     final newPin = _enteredPin + digit;
     setState(() {
@@ -190,18 +275,26 @@ class _VaultPinAuthSheetState extends State<_VaultPinAuthSheet> {
     });
 
     if (newPin.length == _targetPinLength) {
-      final valid = await VaultService.instance.verifyPin(newPin);
+      _checkingPin = true;
+      bool valid;
+      try {
+        valid = await VaultService.instance.verifyPin(newPin);
+      } catch (_) {
+        valid = false;
+      } finally {
+        _checkingPin = false;
+      }
       if (valid) {
         HapticFeedback.mediumImpact();
         if (mounted) {
-          Navigator.pop(context);
+          Navigator.pop(context, true);
           widget.onAuthenticated();
         }
       } else {
         HapticFeedback.heavyImpact();
         if (mounted) {
           setState(() {
-            _errorMessage = 'Incorrect PIN. Try again.';
+            _errorMessage = 'PIN not accepted. After 5 attempts, wait before trying again.';
             _enteredPin = '';
           });
         }
@@ -231,7 +324,7 @@ class _VaultPinAuthSheetState extends State<_VaultPinAuthSheet> {
       ),
       child: SafeArea(
         top: false,
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -448,9 +541,9 @@ class _VaultSetPinSheetState extends State<_VaultSetPinSheet> {
 
     setState(() => _isSaving = true);
     try {
-      await VaultService.instance.setVaultPin(pin);
+      await VaultService.instance._setVaultPin(pin);
       if (_canBio) {
-        await VaultService.instance.setBiometricsEnabled(_enableBiometrics);
+        await DatabaseService.instance.setKeepBiometricsEnabled(_enableBiometrics);
       }
       if (mounted) {
         Navigator.pop(context, true);

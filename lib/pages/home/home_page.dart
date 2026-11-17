@@ -1,4 +1,6 @@
 import 'dart:async';
+import '../../services/notification_route.dart';
+import '../../widgets/task_navigation_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:tasks/pages/tabs/today_tab.dart';
@@ -128,11 +130,13 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Future<void> _handleNotificationPayload(String payload) async {
+  Future<void> _handleNotificationPayload(String rawPayload) async {
     if (!mounted) return;
+    final alarmRoute = NotificationRoute.parse(rawPayload);
+    final payload = alarmRoute == null ? rawPayload : 'route:alarm:${alarmRoute.occurrenceId}:${alarmRoute.title}';
     if (payload == 'route:today') {
       setState(() => _currentNavIndex = 0);
-    } else if (payload == 'route:reminders') {
+    } else if (payload == 'route:reminders' || payload.startsWith('route:reminders:')) {
       _showAlertsSheet();
     } else if (payload.startsWith('route:alarm:')) {
       final parts = payload.split(':');
@@ -144,14 +148,11 @@ class _HomePageState extends State<HomePage> {
         title: title.isNotEmpty ? title : 'Study Alarm',
         timeText: timeStr,
         onSnooze5: () async {
-          final snoozeTime = DateTime.now().add(const Duration(minutes: 5));
-          await NotificationService.instance.scheduleReminder(
-            id: DateTime.now().millisecondsSinceEpoch % 100000,
-            title: title,
-            body: 'Snoozed alarm ringing',
-            scheduledDate: snoozeTime,
-            alertType: 'alarm',
-          );
+          await NotificationService.instance.snooze(payload: rawPayload, minutes: 5);
+          if (parts.length > 2) {
+            final id = int.tryParse(parts[2]);
+            if (id != null) await NotificationService.instance.dismissDisplayed(id);
+          }
           if (mounted) {
             TopBanner.show(
               context,
@@ -163,14 +164,11 @@ class _HomePageState extends State<HomePage> {
           }
         },
         onSnooze10: () async {
-          final snoozeTime = DateTime.now().add(const Duration(minutes: 10));
-          await NotificationService.instance.scheduleReminder(
-            id: DateTime.now().millisecondsSinceEpoch % 100000,
-            title: title,
-            body: 'Snoozed alarm ringing',
-            scheduledDate: snoozeTime,
-            alertType: 'alarm',
-          );
+          await NotificationService.instance.snooze(payload: rawPayload, minutes: 10);
+          if (parts.length > 2) {
+            final id = int.tryParse(parts[2]);
+            if (id != null) await NotificationService.instance.dismissDisplayed(id);
+          }
           if (mounted) {
             TopBanner.show(
               context,
@@ -181,7 +179,10 @@ class _HomePageState extends State<HomePage> {
             );
           }
         },
-        onDismiss: () {
+        onDismiss: () async {
+          final id = parts.length > 2 ? int.tryParse(parts[2]) : null;
+          if (id != null) await NotificationService.instance.dismissDisplayed(id);
+          if (!mounted) return;
           TopBanner.show(
             context,
             title: 'Alarm Dismissed',
@@ -1411,7 +1412,7 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: Colors.white,
+      backgroundColor: googleBackground,
       endDrawer: _buildSideNavigationDrawer(),
       appBar: AppBar(
         titleSpacing: 4,
@@ -1547,9 +1548,9 @@ class _HomePageState extends State<HomePage> {
 
       // Quick "+" Floating Action Button (Google Tasks style center-docked)
       floatingActionButton: FloatingActionButton(
-        elevation: 3.0,
-        backgroundColor: Colors.white,
-        foregroundColor: googleBlue,
+        elevation: 0,
+        backgroundColor: googleBlueContainer,
+        foregroundColor: googleOnBlueContainer,
         onPressed: () => _showNewTaskBottomSheet(),
         tooltip: 'New Task / Schedule / Quiz',
         child: const Icon(Icons.add_rounded, size: 28),
@@ -1557,71 +1558,11 @@ class _HomePageState extends State<HomePage> {
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
 
       // Clean 4-Item Bottom Navigation Bar
-      bottomNavigationBar: BottomAppBar(
-        elevation: 8.0,
-        color: Colors.white,
-        notchMargin: 6.0,
-        shape: const CircularNotchedRectangle(),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _buildNavItem(0, Icons.access_time_rounded, 'Today', 0),
-            _buildNavItem(1, Icons.calendar_month_outlined, 'Timetable', 0),
-            const SizedBox(width: 44), // FAB gap
-            _buildNavItem(2, Icons.replay_rounded, 'Revisit', _badgeCounts['due_revisits'] ?? 0),
-            _buildNavItem(3, Icons.check_circle_outline_rounded, 'Quizzes', _badgeCounts['pending_quizzes'] ?? 0),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNavItem(int index, IconData icon, String label, int badgeCount) {
-    final isSelected = _currentNavIndex == index;
-    final color = isSelected ? googleBlue : googleTextSecondary;
-
-    return InkWell(
-      onTap: () {
-        setState(() => _currentNavIndex = index);
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Icon(icon, color: color, size: 22),
-                if (badgeCount > 0)
-                  Positioned(
-                    top: -2,
-                    right: -6,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                      decoration: BoxDecoration(
-                        color: googleAmber,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        badgeCount > 99 ? '99+' : badgeCount.toString(),
-                        style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.white),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: color,
-              ),
-            ),
-          ],
-        ),
+      bottomNavigationBar: TaskNavigationBar(
+        selectedIndex: _currentNavIndex,
+        onSelected: (index) => setState(() => _currentNavIndex = index),
+        revisitCount: _badgeCounts['due_revisits'] ?? 0,
+        quizCount: _badgeCounts['pending_quizzes'] ?? 0,
       ),
     );
   }

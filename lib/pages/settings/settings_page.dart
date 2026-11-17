@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'widgets/notification_access_panel.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:tasks/data/database_service.dart';
@@ -40,6 +41,8 @@ class _SettingsPageState extends State<SettingsPage> {
 
   // Alerts
   bool _morningBrief = true;
+  bool _afternoonSession = true;
+  bool _eveningReview = true;
   String _morningBriefTime = '05:00';
   bool _revisitAlerts = true;
   bool _backlogShield = true;
@@ -115,6 +118,8 @@ class _SettingsPageState extends State<SettingsPage> {
     // Alerts
     final alerts = await DatabaseService.instance.getAlertSettings();
     _morningBrief = alerts['morning_brief'] == 1;
+    _afternoonSession = alerts['afternoon_session'] == 1;
+    _eveningReview = alerts['evening_review'] == 1;
     _morningBriefTime = alerts['morning_brief_time'] ?? '05:00';
     _revisitAlerts = alerts['revisit_alerts'] == 1;
     _backlogShield = alerts['backlog_shield'] == 1;
@@ -216,7 +221,7 @@ class _SettingsPageState extends State<SettingsPage> {
           builder: (subContext, setSubState) {
             _subPageSetState = setSubState;
             return Scaffold(
-              backgroundColor: const Color(0xFFF8FAFC),
+              backgroundColor: googleBackground,
               appBar: AppBar(
                 title: Text(
                   title,
@@ -362,6 +367,10 @@ class _SettingsPageState extends State<SettingsPage> {
   // --- In-App Updates Actions ---
 
   Future<void> _checkForUpdates() async {
+    if (AppUpdateService.isPlayStore) {
+      await openExternalUrl('https://play.google.com/store/apps/details?id=com.nyro.gate.tasks');
+      return;
+    }
     setState(() => _isCheckingUpdates = true);
 
     try {
@@ -400,7 +409,7 @@ class _SettingsPageState extends State<SettingsPage> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: googleBackground,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (context) {
         return StatefulBuilder(
@@ -586,38 +595,10 @@ class _SettingsPageState extends State<SettingsPage> {
       backlogShield: _backlogShield,
       morningBriefTime: _morningBriefTime,
       shieldTime: _shieldTime,
+      afternoonSession: _afternoonSession,
+      eveningReview: _eveningReview,
     );
-  }
-
-  Future<void> _requestNotificationPermission() async {
-    final granted = await NotificationService.instance.requestPermissions();
-    if (mounted) {
-      TopBanner.show(
-        context,
-        title: granted ? 'Permissions Granted' : 'Permissions Checked',
-        message: granted
-            ? 'Notifications & exact alarms are enabled.'
-            : 'Please allow notification permissions in device settings.',
-        icon: granted ? Icons.notifications_active_rounded : Icons.notifications_off_outlined,
-        color: granted ? googleGreen : googleAmber,
-      );
-    }
-  }
-
-  Future<void> _sendTestNotification() async {
-    await NotificationService.instance.showInstantNotification(
-      title: 'NYRO Study Alert',
-      body: 'Notifications are working! Alarms and channels are active.',
-    );
-    if (mounted) {
-      TopBanner.show(
-        context,
-        title: 'Test Notification Dispatched',
-        message: 'Check your status bar notification shade.',
-        icon: Icons.check_circle_outline_rounded,
-        color: googleBlue,
-      );
-    }
+    await NotificationService.instance.syncDailyRoutineFromSettings();
   }
 
   Future<void> _pickMorningBriefTime() async {
@@ -668,7 +649,7 @@ class _SettingsPageState extends State<SettingsPage> {
         : 'Connect laptop to log exam blunders';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: googleBackground,
       appBar: AppBar(
         title: const Text(
           'Settings',
@@ -1208,7 +1189,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     final res = await VaultService.instance.showSetPinDialog(
                       context,
                       title: _hasVaultPin ? 'Change Vault PIN' : 'Set Vault PIN',
-                      subtitle: 'Enter a 4 to 6 digit PIN to protect sensitive notes.',
+                      subtitle: 'Enter a 4 or 6 digit PIN to protect sensitive notes.',
                     );
                     if (res == true) {
                       await _loadAllSettings();
@@ -1239,7 +1220,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         builder: (ctx) => AlertDialog(
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                           title: const Text('Remove Vault PIN?', style: TextStyle(fontWeight: FontWeight.bold)),
-                          content: const Text('Removing your PIN will unlock protected notes. Continue?'),
+                          content: const Text('Verify your current PIN to remove it. Protected notes must be unprotected individually first.'),
                           actions: [
                             TextButton(
                               onPressed: () => Navigator.pop(ctx, false),
@@ -1257,7 +1238,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         ),
                       );
                       if (confirm == true) {
-                        await VaultService.instance.removeVaultPin();
+                        if (!await VaultService.instance.removeVaultPin(context)) return;
                         await _loadAllSettings();
                         if (mounted) {
                           TopBanner.show(
@@ -1321,8 +1302,9 @@ class _SettingsPageState extends State<SettingsPage> {
                   value: _biometricsEnabled,
                   activeColor: googleBlue,
                   onChanged: (val) async {
-                    setState(() => _biometricsEnabled = val);
-                    await VaultService.instance.setBiometricsEnabled(val);
+                    if (await VaultService.instance.setBiometricsEnabled(val, context)) {
+                      if (mounted) setState(() => _biometricsEnabled = val);
+                    }
                   },
                 ),
               ],
@@ -1418,96 +1400,8 @@ class _SettingsPageState extends State<SettingsPage> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        // 1. Android System Permissions & Diagnostics
-        const Padding(
-          padding: EdgeInsets.only(left: 4, bottom: 8),
-          child: Text(
-            'PERMISSIONS & SYSTEM INTEGRATION',
-            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: googleTextSecondary, letterSpacing: 0.6),
-          ),
-        ),
-        _buildCardContainer(
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: googleBlue.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.security_rounded, color: googleBlue, size: 20),
-                ),
-                const SizedBox(width: 14),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('System Notification Access', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold)),
-                      SizedBox(height: 2),
-                      Text('Required for on-time study bells and daily briefings', style: TextStyle(fontSize: 11.5, color: googleTextSecondary)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _requestNotificationPermission,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: googleBlue,
-                      side: const BorderSide(color: googleBorder),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                    ),
-                    icon: const Icon(Icons.notifications_active_outlined, size: 16),
-                    label: const Text('Grant / Verify', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _sendTestNotification,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: googleBlue,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                    ),
-                    icon: const Icon(Icons.send_rounded, size: 16),
-                    label: const Text('Send Test Alert', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF1F3F4),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.info_outline_rounded, size: 16, color: googleTextSecondary),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Ensure battery optimization is set to "Unrestricted" so alarms fire on time.',
-                      style: TextStyle(fontSize: 11, color: googleTextSecondary, height: 1.3),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 20),
+        const NotificationAccessPanel(),
+        const SizedBox(height: 16),
 
         // 2. Daily Study Routine Schedules
         const Padding(
@@ -1534,7 +1428,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         const SizedBox(height: 2),
                         Row(
                           children: [
-                            Text('Scheduled at $_morningBriefTime AM', style: const TextStyle(fontSize: 11, color: googleTextSecondary)),
+                            Text('Scheduled at $_morningBriefTime', style: const TextStyle(fontSize: 11, color: googleTextSecondary)),
                             const SizedBox(width: 6),
                             const Icon(Icons.edit_outlined, size: 13, color: googleBlue),
                           ],
@@ -1552,6 +1446,22 @@ class _SettingsPageState extends State<SettingsPage> {
                   },
                 ),
               ],
+            ),
+            const Divider(height: 16, thickness: 1, color: googleHairline),
+
+            SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Afternoon Session'),
+              subtitle: const Text('Daily at 13:30'),
+              value: _afternoonSession,
+              onChanged: (value) { setState(() => _afternoonSession = value); _saveAlertSettings(); },
+            ),
+            SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Evening Review'),
+              subtitle: const Text('Daily at 19:00'),
+              value: _eveningReview,
+              onChanged: (value) { setState(() => _eveningReview = value); _saveAlertSettings(); },
             ),
             const Divider(height: 16, thickness: 1, color: googleHairline),
 
@@ -1596,7 +1506,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         const SizedBox(height: 2),
                         Row(
                           children: [
-                            Text('Scheduled at $_shieldTime PM', style: const TextStyle(fontSize: 11, color: googleTextSecondary)),
+                            Text('Scheduled at $_shieldTime', style: const TextStyle(fontSize: 11, color: googleTextSecondary)),
                             const SizedBox(width: 6),
                             const Icon(Icons.edit_outlined, size: 13, color: googleBlue),
                           ],

@@ -1,19 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 
-const googleBlue = Color(0xFF0B57D0);
-const googleBlueContainer = Color(0xFFD3E3FD);
-const googleOnBlueContainer = Color(0xFF041E49);
+const googleBlue = Color(0xFF315DA8);
+const googleBlueContainer = Color(0xFFDCE7FD);
+const googleOnBlueContainer = Color(0xFF15335F);
 const googleSurface = Colors.white;
-const googleBackground = Color(0xFFF8FAFD);
-const googleTextPrimary = Color(0xFF1F1F1F);
-const googleTextSecondary = Color(0xFF5F6368);
+const googleBackground = Color(0xFFF7F8FC);
+const googleTextPrimary = Color(0xFF202630);
+const googleTextSecondary = Color(0xFF58616E);
 const googleBorder = Color(0xFFE0E2EC);
-const googleHairline = Color(0xFFF1F3F4);
+const googleHairline = Color(0xFFEDEFF5);
 const severityHigh = Color(0xFFB3261E);
 const severityMed = Color(0xFFE37400);
-const severityLow = Color(0xFF0B57D0);
+const severityLow = Color(0xFF315DA8);
 const googleRed = Color(0xFFB3261E);
 const googleAmber = Color(0xFFF29900);
 const googleGreen = Color(0xFF137333);
@@ -21,6 +20,9 @@ const googleGreen = Color(0xFF137333);
 final lightTheme = ThemeData(
   useMaterial3: true,
   brightness: Brightness.light,
+  fontFamily: 'NotoSans',
+  splashFactory: InkSparkle.splashFactory,
+  visualDensity: VisualDensity.standard,
   colorScheme: const ColorScheme.light(
     primary: googleBlue,
     onPrimary: Colors.white,
@@ -35,7 +37,7 @@ final lightTheme = ThemeData(
   cardColor: googleSurface,
   dividerColor: googleBorder,
   appBarTheme: const AppBarTheme(
-    backgroundColor: googleSurface,
+    backgroundColor: googleBackground,
     surfaceTintColor: Colors.transparent,
     elevation: 0,
     iconTheme: IconThemeData(color: googleTextPrimary),
@@ -48,13 +50,51 @@ final lightTheme = ThemeData(
   bottomSheetTheme: const BottomSheetThemeData(
     backgroundColor: googleSurface,
     shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(16.0)),
+      borderRadius: BorderRadius.vertical(top: Radius.circular(28.0)),
     ),
   ),
-  textTheme: GoogleFonts.robotoTextTheme().apply(
-    bodyColor: googleTextPrimary,
-    displayColor: googleTextPrimary,
+  textTheme: const TextTheme(
+    headlineLarge: TextStyle(fontSize: 32, height: 1.2, fontWeight: FontWeight.w700, letterSpacing: -1),
+    headlineMedium: TextStyle(fontSize: 28, height: 1.25, fontWeight: FontWeight.w700, letterSpacing: -0.7),
+    titleLarge: TextStyle(fontSize: 22, height: 1.3, fontWeight: FontWeight.w700, letterSpacing: -0.4),
+    titleMedium: TextStyle(fontSize: 16, height: 1.4, fontWeight: FontWeight.w600),
+    bodyLarge: TextStyle(fontSize: 16, height: 1.5),
+    bodyMedium: TextStyle(fontSize: 14, height: 1.5),
+    labelLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+  ).apply(bodyColor: googleTextPrimary, displayColor: googleTextPrimary),
+  inputDecorationTheme: InputDecorationTheme(
+    filled: true,
+    fillColor: const Color(0xFFF0F3F9),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+    border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: googleBlue, width: 2)),
   ),
+  elevatedButtonTheme: ElevatedButtonThemeData(style: ElevatedButton.styleFrom(
+    elevation: 0, minimumSize: const Size(48, 48),
+    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+  )),
+  outlinedButtonTheme: OutlinedButtonThemeData(style: OutlinedButton.styleFrom(
+    minimumSize: const Size(48, 48),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+  )),
+  floatingActionButtonTheme: FloatingActionButtonThemeData(
+    elevation: 0,
+    backgroundColor: googleBlueContainer,
+    foregroundColor: googleOnBlueContainer,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+  ),
+  listTileTheme: const ListTileThemeData(
+    contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+    iconColor: googleTextSecondary,
+    minVerticalPadding: 12,
+  ),
+  pageTransitionsTheme: const PageTransitionsTheme(builders: {
+    TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
+    TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+  }),
+
 );
 
 const systemUiOverlayStyleLight = SystemUiOverlayStyle(
