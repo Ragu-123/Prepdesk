@@ -27,15 +27,15 @@ class TodayProgressSummary extends StatelessWidget {
     return Padding(padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
       child: Column(children: [
         LayoutBuilder(builder: (context, constraints) {
-          final ringSize = math.min(240.0, constraints.maxWidth * 0.47);
           final largeText = MediaQuery.textScalerOf(context).scale(14) > 19;
+          final ringSize = math.min(largeText ? 280.0 : 240.0, constraints.maxWidth * (largeText ? 0.75 : 0.47));
           final ring = Semantics(label: '${watchedHours.toStringAsFixed(1)} of ${targetHours.toStringAsFixed(1)} study hours completed',
             child: SizedBox(width: ringSize, height: ringSize,
               child: TweenAnimationBuilder<double>(tween: Tween(begin: 0, end: progress),
                 duration: MediaQuery.disableAnimationsOf(context) ? Duration.zero : const Duration(milliseconds: 500),
                 builder: (_, value, child) => CustomPaint(painter: _ProgressRing(value, _accent(context)), child: child),
                 child: Padding(padding: EdgeInsets.all(ringSize * 0.17),
-                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  child: FittedBox(fit: BoxFit.scaleDown, child: Column(mainAxisSize: MainAxisSize.min, children: [
                     const Text('Watched', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
                     const SizedBox(height: 10),
                     FittedBox(child: Text('${watchedHours.toStringAsFixed(1)}h',
@@ -43,7 +43,7 @@ class TodayProgressSummary extends StatelessWidget {
                     const SizedBox(height: 8),
                     FittedBox(child: Text('of ${targetHours.toStringAsFixed(1)}h',
                       style: TextStyle(color: _accent(context), fontSize: 14, fontWeight: FontWeight.w700))),
-                  ])),
+                  ]))),
               )),
           );
           final metrics = Column(children: [

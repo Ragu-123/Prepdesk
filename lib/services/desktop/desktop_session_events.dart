@@ -8,9 +8,11 @@ class DesktopSessionEvents {
 
   Future<void> attach(HttpRequest request) async {
     final response = request.response;
+    response.bufferOutput = false;
     response.headers.contentType = ContentType('text', 'event-stream', charset: 'utf-8');
     response.headers.set('Cache-Control', 'no-store');
     response.headers.set('Connection', 'keep-alive');
+    response.headers.set('X-Accel-Buffering', 'no');
     _clients.add(response);
     final heartbeat = Timer.periodic(const Duration(seconds: 15), (_) async {
       try { response.write(': keep-alive\n\n'); await response.flush(); }
