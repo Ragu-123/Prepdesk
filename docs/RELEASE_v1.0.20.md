@@ -12,6 +12,8 @@ Notifications follow the same session accent. Native alarm preferences persist t
 
 Task checkboxes retain their circular style with a 48 dp touch target, checked semantics, and reduced-motion support. App bar typography uses the bundled font explicitly.
 
+The reminder editor's additional-reminder row wraps its label and uses a full-size text button so narrow screens do not overflow.
+
 ## Verification
 
 Local checks are lexical Dart delimiter/quote checks, zero-emoji scanning, XML parsing, desktop JavaScript syntax and control references, shared theme-role guards, and git whitespace checks. Flutter remains CI-only.

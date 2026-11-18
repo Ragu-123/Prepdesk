@@ -1477,26 +1477,16 @@ class __ReminderEditorSheetState extends State<_ReminderEditorSheet> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            Icon(Icons.more_time_rounded, size: 18, color: Theme.of(context).colorScheme.primary),
-                            SizedBox(width: 8),
-                            Text(
-                              'Multiple Reminders for this Task',
-                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: googleTextPrimary),
-                            ),
-                          ],
-                        ),
-                        InkWell(
-                          onTap: _addCheckpoint,
-                          borderRadius: BorderRadius.circular(8),
-                          child: Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            child: Text(
-                              '+ Add Time',
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
-                            ),
-                          ),
+                        Expanded(child: Row(children: [
+                          Icon(Icons.more_time_rounded, size: 18, color: Theme.of(context).colorScheme.primary),
+                          const SizedBox(width: 8),
+                          const Expanded(child: Text('Additional reminders',
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: googleTextPrimary))),
+                        ])),
+                        const SizedBox(width: 8),
+                        TextButton(
+                          onPressed: _addCheckpoint,
+                          child: const Text('Add time'),
                         ),
                       ],
                     ),

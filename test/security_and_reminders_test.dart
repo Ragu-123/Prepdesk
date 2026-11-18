@@ -530,9 +530,7 @@ void main() {
     await tester.pumpWidget(MaterialApp(theme: buildLightTheme(accent),
       builder: (context, child) => RepaintBoundary(key: preview, child: child!), home: const HomePage()));
     await settleDatabase(tester, find.byType(TodayProgressSummary));
-    await tester.tap(find.byTooltip('Create task, schedule, quiz or reminder'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Schedule').last);
+    await tester.tap(find.text('Add session'));
     await tester.pumpAndSettle();
     final save = find.widgetWithText(ElevatedButton, 'Save');
     expect(tester.widget<ElevatedButton>(save).style!.backgroundColor!.resolve({}), accent);
