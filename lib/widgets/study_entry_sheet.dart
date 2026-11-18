@@ -5,17 +5,16 @@ import '../utils/url_helper.dart';
 
 Future<void> showStudyEntry(BuildContext context, Map<String, dynamic> entry, {
   required bool lecture,
-  bool edit = false,
 }) => showModalBottomSheet<void>(
   context: context,
   isScrollControlled: true,
   useSafeArea: true,
   showDragHandle: true,
-  builder: (_) => _StudyEntrySheet(entry: entry, lecture: lecture, edit: edit),
+  builder: (_) => _StudyEntrySheet(entry: entry, lecture: lecture),
 );
 
-class StudyEntryMenu extends StatelessWidget {
-  const StudyEntryMenu({super.key, required this.onEdit, required this.onDelete, required this.kind});
+class _StudyEntryMenu extends StatelessWidget {
+  const _StudyEntryMenu({required this.onEdit, required this.onDelete, required this.kind});
   final VoidCallback onEdit, onDelete;
   final String kind;
 
@@ -64,9 +63,9 @@ Future<bool> confirmStudyEntryDeletion(BuildContext context, Map<String, dynamic
 }
 
 class _StudyEntrySheet extends StatefulWidget {
-  const _StudyEntrySheet({required this.entry, required this.lecture, required this.edit});
+  const _StudyEntrySheet({required this.entry, required this.lecture});
   final Map<String, dynamic> entry;
-  final bool lecture, edit;
+  final bool lecture;
   @override
   State<_StudyEntrySheet> createState() => _StudyEntrySheetState();
 }
@@ -74,7 +73,7 @@ class _StudyEntrySheet extends StatefulWidget {
 class _StudyEntrySheetState extends State<_StudyEntrySheet> {
   final _form = GlobalKey<FormState>();
   final _fields = <String, TextEditingController>{};
-  late bool _editing = widget.edit;
+  bool _editing = false;
   bool _busy = false;
   String? _error;
   late final DateTime? _originalDate = DatabaseService.parseStudyDate(_read('date_str'));
@@ -190,7 +189,7 @@ class _StudyEntrySheetState extends State<_StudyEntrySheet> {
           Row(children: [
             Expanded(child: Text(_editing ? 'Edit $_kind' : (_value('title').isEmpty ? 'Untitled $_kind' : _value('title')),
               style: theme.textTheme.headlineSmall)),
-            if (!_editing && !_busy) StudyEntryMenu(kind: _kind, onEdit: () => setState(() => _editing = true), onDelete: _delete),
+            if (!_editing && !_busy) _StudyEntryMenu(kind: _kind, onEdit: () => setState(() => _editing = true), onDelete: _delete),
           ]),
           const SizedBox(height: 16),
           if (_editing) ...[

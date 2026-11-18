@@ -443,6 +443,14 @@ void main() {
     await tester.tap(find.text('Quizzes').last);
     await tester.pumpAndSettle();
     expect(find.text('1 trap to review'), findsOneWidget);
+    expect(find.byTooltip('quiz options'), findsNothing);
+    await tester.tap(find.text('Next matrices quiz'));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('quiz options'), findsOneWidget);
+    await tester.tap(find.byTooltip('quiz options'));
+    await tester.pumpAndSettle();
+    expect(find.text('Edit quiz'), findsOneWidget);
+    expect(find.text('Delete quiz'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });
@@ -581,7 +589,7 @@ void main() {
     await tester.runAsync(() async {
       await dbService.setConfig('auto_check_updates', '0');
       await dbService.setConfig('auto_start_server', '0');
-      await dbService.setConfig('notification_accent_v20', AppearanceService.instance.accent.toARGB32().toString());
+      await dbService.setConfig('notification_accent_v22', AppearanceService.instance.accent.toARGB32().toString());
     });
     final preview = GlobalKey();
     final accent = AppearanceService.palette[3];
@@ -633,7 +641,7 @@ void main() {
       for (var i = 0; i < 60; i++) {
         await Future<void>.delayed(const Duration(milliseconds: 50));
         final appearance = AppearanceService.instance;
-        if (appearance.accent != before && await dbService.getConfig('notification_accent_v20') == appearance.accent.toARGB32().toString()) break;
+        if (appearance.accent != before && await dbService.getConfig('notification_accent_v22') == appearance.accent.toARGB32().toString()) break;
       }
     });
     await tester.pumpAndSettle();

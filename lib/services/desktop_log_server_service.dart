@@ -268,15 +268,17 @@ class DesktopLogServerService {
     }
     final isAuthenticated = isSessionValid(token);
 
-    const fontAssets = <String, String>{
+    const portalAssets = <String, String>{
+      '/assets/prepdesk.png': 'assets/images/prepdesk.png',
+      '/assets/prepdesk_mark.png': 'assets/images/prepdesk_mark.png',
       '/assets/material-icons.otf': 'fonts/MaterialIcons-Regular.otf',
       '/assets/studio-regular.ttf': 'assets/google_fonts/NotoSans-Regular.ttf',
       '/assets/studio-bold.ttf': 'assets/google_fonts/NotoSans-Bold.ttf',
     };
-    if (request.method == 'GET' && fontAssets.containsKey(path)) {
+    if (request.method == 'GET' && portalAssets.containsKey(path)) {
       try {
-        final data = await rootBundle.load(fontAssets[path]!);
-        request.response.headers.set('Content-Type', path.endsWith('.otf') ? 'font/otf' : 'font/ttf');
+        final data = await rootBundle.load(portalAssets[path]!);
+        request.response.headers.set('Content-Type', path.endsWith('.png') ? 'image/png' : (path.endsWith('.otf') ? 'font/otf' : 'font/ttf'));
         request.response.headers.set('Cache-Control', 'public, max-age=86400');
         request.response.add(data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes));
       } catch (_) {
@@ -324,7 +326,7 @@ class DesktopLogServerService {
     if (request.method == 'GET' && path == '/api/status') {
       final data = {
         'status': 'online',
-        'app': 'NYRO Tasks Copilot',
+        'app': 'Prepdesk',
         'version': AppUpdateService.currentVersion,
         'ip': _localIp,
         'port': _port,
@@ -633,7 +635,7 @@ class DesktopLogServerService {
       request.response.headers.contentType = ContentType.json;
       request.response.write(jsonEncode({
         'success': true,
-        'message': 'Mistake record successfully logged into NYRO Tasks app!',
+        'message': 'Mistake record successfully logged into Prepdesk app!',
         'id': id,
         'saved_image': savedFileName != null ? '/api/images/$savedFileName' : null,
       }));

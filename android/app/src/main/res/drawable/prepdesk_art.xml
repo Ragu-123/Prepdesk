@@ -1,0 +1,32 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="288dp" android:height="288dp"
+    android:viewportWidth="1254" android:viewportHeight="1254">
+    <group android:pivotX="627" android:pivotY="627" android:scaleX="0.88" android:scaleY="0.88">
+        <path android:pathData="M296,548 C296,467 337,412 409,382 L676,276 C761,242 848,303 848,386 L848,809 C848,907 770,983 674,983 L476,983 C377,983 296,902 296,803 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient android:startX="720" android:startY="274" android:endX="425" android:endY="966"
+                    android:startColor="#6497F8" android:centerColor="#6847F4" android:endColor="#2434B8" />
+            </aapt:attr>
+        </path>
+        <path android:pathData="M554,428 L823,428 C903,428 960,484 960,559 L960,847 C960,925 905,986 829,986 L548,986 C472,986 415,929 415,851 L415,567 C415,489 474,428 554,428 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient android:startX="499" android:startY="428" android:endX="836" android:endY="986"
+                    android:startColor="#FFFFFF" android:endColor="#D3D5F9" />
+            </aapt:attr>
+        </path>
+        <path android:pathData="M718,408 L849,408 Q876,408 876,436 L876,598 Q876,623 853,610 L791,567 Q784,562 777,567 L716,611 Q692,623 692,598 L692,435 Q692,408 718,408 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient android:startX="708" android:startY="408" android:endX="823" android:endY="592"
+                    android:startColor="#9CF9BC" android:centerColor="#44D48D" android:endColor="#08AD99" />
+            </aapt:attr>
+        </path>
+        <path android:pathData="M699,810 L752,862 L863,751" android:strokeWidth="54"
+            android:strokeLineCap="round" android:strokeLineJoin="round" android:fillColor="#00000000">
+            <aapt:attr name="android:strokeColor">
+                <gradient android:startX="695" android:startY="779" android:endX="838" android:endY="862"
+                    android:startColor="#51DA80" android:endColor="#00AA98" />
+            </aapt:attr>
+        </path>
+    </group>
+</vector>

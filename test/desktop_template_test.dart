@@ -9,6 +9,8 @@ void main() {
     final html = DesktopWebTemplate.render(localIp: '192.168.1.8', port: 8080, version: '1.0.18');
     expect(html, contains('window.NYRO_ICONS'));
     expect(html, contains('/assets/material-icons.otf'));
+    expect(html, contains('Prepdesk Desktop Companion'));
+    expect(html, contains('/assets/prepdesk.png'));
     expect(html, isNot(contains('fonts.googleapis.com')));
     expect(html, isNot(contains('localStorage.setItem')));
     expect(html, contains('aria-labelledby="pair-title"'));
@@ -16,6 +18,8 @@ void main() {
     await directory.create(recursive: true);
     await File('build/desktop-preview/index.html').writeAsString(html);
     for (final entry in {
+      'prepdesk.png': 'assets/images/prepdesk.png',
+      'prepdesk_mark.png': 'assets/images/prepdesk_mark.png',
       'material-icons.otf': 'fonts/MaterialIcons-Regular.otf',
       'studio-regular.ttf': 'assets/google_fonts/NotoSans-Regular.ttf',
       'studio-bold.ttf': 'assets/google_fonts/NotoSans-Bold.ttf',

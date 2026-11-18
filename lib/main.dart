@@ -44,7 +44,7 @@ class MyApp extends StatelessWidget {
       value: systemUiOverlayStyleLight,
       child: ListenableBuilder(listenable: AppearanceService.instance, builder: (context, _) => MaterialApp(
         debugShowCheckedModeBanner: false,
-        title: 'NYRO Tasks',
+        title: 'Prepdesk',
         theme: AppearanceService.instance.theme,
         themeAnimationDuration: MediaQuery.disableAnimationsOf(context) ? Duration.zero : const Duration(milliseconds: 350),
         home: const HomePage(),

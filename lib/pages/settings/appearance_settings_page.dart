@@ -43,7 +43,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                 contentPadding: const EdgeInsets.fromLTRB(20, 12, 16, 12),
                 secondary: Icon(Icons.palette_outlined, color: colors.primary),
                 title: const Text('Adaptive colors'),
-                subtitle: const Text('A different accent each time you open NYRO.'),
+                subtitle: const Text('A different accent each time you open Prepdesk.'),
                 value: appearance.enabled, onChanged: _saving ? null : _change),
               Divider(height: 1, indent: 20, endIndent: 20, color: colors.outlineVariant),
               ListTile(contentPadding: const EdgeInsets.all(20),

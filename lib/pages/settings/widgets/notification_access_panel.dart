@@ -87,7 +87,7 @@ class _NotificationAccessPanelState extends State<NotificationAccessPanel> with 
           OutlinedButton.icon(
             onPressed: _access?['notifications'] == true && !_busy ? () async {
               await NotificationService.instance.showInstantNotification(
-                title: 'NYRO Tasks', body: 'Your notification test is ready.');
+                title: 'Prepdesk', body: 'Your notification test is ready.');
               if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Test sent. Check your notification shade.')));
             } : null,

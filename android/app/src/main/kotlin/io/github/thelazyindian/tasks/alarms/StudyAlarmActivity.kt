@@ -59,7 +59,7 @@ class StudyAlarmActivity : Activity() {
             setPadding(0, dp(12), 0, dp(12))
         }
         val symbol = android.widget.ImageView(this).apply {
-            setImageResource(io.github.thelazyindian.tasks.R.drawable.ic_alarm_notification)
+            setImageResource(io.github.thelazyindian.tasks.R.drawable.ic_nyro_notification)
             imageTintList = android.content.res.ColorStateList.valueOf(accent)
             contentDescription = null
         }
@@ -67,7 +67,7 @@ class StudyAlarmActivity : Activity() {
         layout.addView(label("Study alarm", 16f))
         layout.addView(label(DateFormat.getTimeInstance(DateFormat.SHORT).format(Date()), 58f))
         layout.addView(label(alarm.optString("title", "Study reminder"), 26f, true))
-        layout.addView(label("NYRO Tasks", 14f))
+        layout.addView(label(getString(io.github.thelazyindian.tasks.R.string.app_name), 14f))
         fun button(title: String, action: String, minutes: Int = 0) {
             val control = Button(this).apply {
                 text = title; isAllCaps = false; textSize = 16f; minimumHeight = dp(56)

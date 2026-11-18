@@ -12,5 +12,14 @@ class DesktopWebStyles {
 #note-reader{width:min(1000px,calc(100vw - 48px));height:min(860px,calc(100dvh - 48px))}#note-reader[open]{display:flex;flex-direction:column}#note-reader .dialog-body{flex:1;overflow:auto;padding:28px 40px}.reader-text{white-space:pre-wrap;overflow-wrap:anywhere;font-size:18px;line-height:1.8;margin-bottom:24px}.reader-code{font:15px/1.7 monospace}.reader-check{display:flex;align-items:flex-start;gap:12px;margin:12px 0;font-size:17px}.reader-check .mi{color:var(--primary)}.note-reader-body .note-meta{margin-top:24px}
 @media(max-width:600px){#note-reader{width:100vw;height:100dvh;max-width:none;max-height:none;border-radius:0;margin:0}#note-reader .dialog-body{padding:24px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+.brand-mark::before {
+  content: '';
+  display: block;
+  width: 26px;
+  height: 26px;
+  background: currentColor;
+  mask: url('/assets/prepdesk_mark.png') center / contain no-repeat;
+}
+.pair-mark.brand-mark::before { width: 36px; height: 36px; }
 ''';
 }

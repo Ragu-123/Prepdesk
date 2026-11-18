@@ -696,7 +696,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'NYRO App Preferences',
+                        'Prepdesk preferences',
                         style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: googleTextPrimary),
                       ),
                       SizedBox(height: 2),
@@ -1541,7 +1541,7 @@ class _SettingsPageState extends State<SettingsPage> {
       children: [
         _buildCardContainer(
           children: [
-            const Text('NYRO Tasks for GATE 2027', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+            const Text('Prepdesk for GATE 2027', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
             const SizedBox(height: 6),
             const Text(
               'A Google Tasks inspired study pacing, spaced retention, and blunder inoculation copilot for GATE aspirants.',

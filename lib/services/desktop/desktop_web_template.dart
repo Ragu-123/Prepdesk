@@ -27,20 +27,21 @@ class DesktopWebTemplate {
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="page-type" content="software"><meta name="site-kind" content="software">
-<meta name="theme-color" content="#f7f8fc"><meta name="description" content="Your NYRO notes and mistakes, connected to your phone.">
-<title>NYRO Study Studio</title>
+<link rel="icon" type="image/png" href="/assets/prepdesk.png">
+<meta name="theme-color" content="#f7f8fc"><meta name="description" content="Your Prepdesk notes and mistakes, connected to your phone.">
+<title>Prepdesk Desktop Companion</title>
 <style>${DesktopWebStyles.value}</style>
 </head><body>
 <a class="skip-link" href="#main-content">Skip to workspace</a>
 <div class="app" id="app" inert>
 <aside class="sidebar" aria-label="Workspace navigation">
-  <div class="brand"><div class="brand-mark">${icon('check')}</div><div><div class="wordmark">NYRO</div><small>STUDY STUDIO</small></div></div>
+  <div class="brand"><div class="brand-mark" aria-hidden="true"></div><div><div class="wordmark">Prepdesk</div><small>DESKTOP COMPANION</small></div></div>
   <nav class="nav" aria-label="Main navigation">
     <button type="button" data-tab="keep" aria-current="page">${icon('note')}<span>Keep notes</span><span id="note-count" class="count">0</span></button>
     <button type="button" data-tab="mistakes">${icon('mistake')}<span>Mistakes</span><span id="mistake-count" class="count">0</span></button>
     <button type="button" data-tab="status">${icon('status')}<span>Connection</span></button>
   </nav>
-  <div class="sidebar-footer"><strong>Your phone. A bigger workspace.</strong>Keep NYRO open on the same Wi-Fi network.<br><br>NYRO Tasks v$version</div>
+  <div class="sidebar-footer"><strong>Your phone. A bigger workspace.</strong>Keep Prepdesk open on the same Wi-Fi network.<br><br>Prepdesk v$version</div>
 </aside>
 <div class="workspace">
 <header class="topbar"><span class="topbar-label">DESKTOP COMPANION</span><div class="topbar-actions"><span id="connection" class="connection">Checking connection</span><button class="btn" id="lock-button" type="button">${icon('lock')}<span>Lock</span></button></div></header>
@@ -59,12 +60,12 @@ class DesktopWebTemplate {
   <div class="mistakes-list" id="mistakes-container"></div>
 </section>
 <section class="panel" id="panel-status" aria-labelledby="status-title" hidden>
-  <div class="page-head"><div><h1 id="status-title">Connected to your phone.</h1><p>This workspace reads and saves directly to NYRO Tasks on your local network.</p></div><button class="btn" id="refresh-status" type="button">${icon('refresh')}Check connection</button></div>
+  <div class="page-head"><div><h1 id="status-title">Connected to your phone.</h1><p>This workspace reads and saves directly to Prepdesk on your local network.</p></div><button class="btn" id="refresh-status" type="button">${icon('refresh')}Check connection</button></div>
   <div class="status-grid"><article class="status-card">${icon('connection')}<h2>Local connection</h2><p id="status-description">Checking your phone connection.</p><dl class="status-data"><dt>Phone address</dt><dd>$localIp:$port</dd><dt>App version</dt><dd>$version</dd><dt>Session</dt><dd id="session-status">Checking</dd></dl></article><article class="status-card">${icon('lock')}<h2>Your private workspace</h2><p>Pair using the six-digit code shown in your phone's Desktop Companion settings. Lock this workspace when you step away.</p><p>Protected Keep notes can only be opened and changed on your phone.</p><p>This connection is local HTTP. Use it on a trusted Wi-Fi network.</p></article></div>
 </section>
 </main></div></div>
 <dialog id="pair-dialog" class="pair-dialog" aria-labelledby="pair-title">
-<form id="pair-form" class="pair-content"><div class="pair-mark">${icon('status')}</div><h1 id="pair-title">Open your study space</h1><p>Open Desktop Companion in NYRO Tasks on your phone, then enter the six-digit pairing code.</p><label class="sr-only" for="pair-pin">Six-digit pairing code</label><input id="pair-pin" type="password" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" autocomplete="off" required placeholder="000000"><button class="btn btn-primary" type="submit">Connect to phone</button><p id="pair-error" class="form-error" role="alert"></p><small>Same Wi-Fi network. No cloud sign-in required.</small></form>
+<form id="pair-form" class="pair-content"><div class="pair-mark brand-mark" aria-hidden="true"></div><h1 id="pair-title">Open your study space</h1><p>Open Desktop Companion in Prepdesk on your phone, then enter the six-digit pairing code.</p><label class="sr-only" for="pair-pin">Six-digit pairing code</label><input id="pair-pin" type="password" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" autocomplete="off" required placeholder="000000"><button class="btn btn-primary" type="submit">Connect to phone</button><p id="pair-error" class="form-error" role="alert"></p><small>Same Wi-Fi network. No cloud sign-in required.</small></form>
 </dialog>
 <dialog id="note-reader" aria-labelledby="reader-title">
 <div class="dialog-head"><h2 id="reader-title">Note</h2><button class="btn icon-button" type="button" data-close="note-reader" aria-label="Close note">${icon('close')}</button></div>

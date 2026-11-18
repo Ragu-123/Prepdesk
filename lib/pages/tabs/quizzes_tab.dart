@@ -547,155 +547,155 @@ class _QuizzesTabState extends State<QuizzesTab> {
 
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 20, 12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              GoogleCheckbox(
-                value: isCompleted,
-                onChanged: (val) => _toggleQuizStatus(q, val),
-              ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Wrap(
-                      spacing: 6, runSpacing: 4,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        if (subject.isNotEmpty)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            margin: const EdgeInsets.only(right: 6),
-                            decoration: BoxDecoration(
-                              color: isCompleted ? googleHairline : Theme.of(context).colorScheme.primary.withOpacity(0.08),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              subject.toUpperCase(),
-                              style: TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.bold,
-                                color: isCompleted ? googleTextSecondary : Theme.of(context).colorScheme.primary,
+        InkWell(
+          onTap: () => showStudyEntry(context, q, lecture: false),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 20, 12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                GoogleCheckbox(
+                  value: isCompleted,
+                  onChanged: (val) => _toggleQuizStatus(q, val),
+                ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Wrap(
+                        spacing: 6, runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          if (subject.isNotEmpty)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              margin: const EdgeInsets.only(right: 6),
+                              decoration: BoxDecoration(
+                                color: isCompleted ? googleHairline : Theme.of(context).colorScheme.primary.withOpacity(0.08),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                subject.toUpperCase(),
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                  color: isCompleted ? googleTextSecondary : Theme.of(context).colorScheme.primary,
+                                ),
                               ),
                             ),
-                          ),
-                        if (date.isNotEmpty)
+                          if (date.isNotEmpty)
+                            Text(
+                              date,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: isCompleted ? googleBorder : googleTextSecondary,
+                                decoration: isCompleted ? TextDecoration.lineThrough : null,
+                              ),
+                            ),
                           Text(
-                            date,
+                            '${dur}m • $marks M',
                             style: TextStyle(
                               fontSize: 11,
                               color: isCompleted ? googleBorder : googleTextSecondary,
-                              decoration: isCompleted ? TextDecoration.lineThrough : null,
                             ),
                           ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: isCompleted ? googleTextSecondary : googleTextPrimary,
+                          decoration: isCompleted ? TextDecoration.lineThrough : null,
+                        ),
+                      ),
+                      if (module.isNotEmpty) ...[
+                        const SizedBox(height: 2),
                         Text(
-                          '${dur}m • $marks M',
+                          module,
                           style: TextStyle(
                             fontSize: 11,
                             color: isCompleted ? googleBorder : googleTextSecondary,
                           ),
                         ),
                       ],
-                    ),
-                    const SizedBox(height: 4),
-                    InkWell(onTap: () => showStudyEntry(context, q, lecture: false), child: Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: isCompleted ? googleTextSecondary : googleTextPrimary,
-                        decoration: isCompleted ? TextDecoration.lineThrough : null,
-                      ),
-                    )),
-                    if (module.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        module,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: isCompleted ? googleBorder : googleTextSecondary,
+                      if (syllabus.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          syllabus,
+                          style: TextStyle(fontSize: 11, color: googleTextSecondary.withOpacity(0.8)),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                    ],
-                    if (syllabus.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        syllabus,
-                        style: TextStyle(fontSize: 11, color: googleTextSecondary.withOpacity(0.8)),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                    const SizedBox(height: 8),
+                      ],
+                      const SizedBox(height: 8),
 
-                    Wrap(spacing: 8, runSpacing: 8,
-                      children: [
-                        if (url != null && url.isNotEmpty)
+                      Wrap(spacing: 8, runSpacing: 8,
+                        children: [
+                          if (url != null && url.isNotEmpty)
+                            InkWell(
+                              onTap: () => UrlHelper.launchURL(url),
+                              borderRadius: BorderRadius.circular(6),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: Theme.of(context).colorScheme.primary),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.open_in_new, size: 12, color: Theme.of(context).colorScheme.primary),
+                                    SizedBox(width: 4),
+                                    Text(
+                                      'Take Test',
+                                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+
+                          // Mistake Traps Pill
                           InkWell(
-                            onTap: () => UrlHelper.launchURL(url),
+                            onTap: () => _showQuizTrapsSheet(q),
                             borderRadius: BorderRadius.circular(6),
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                               decoration: BoxDecoration(
-                                border: Border.all(color: Theme.of(context).colorScheme.primary),
+                                color: trapCount > 0 ? severityHigh.withOpacity(0.12) : googleHairline,
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.open_in_new, size: 12, color: Theme.of(context).colorScheme.primary),
-                                  SizedBox(width: 4),
+                                  Icon(
+                                    Icons.warning_amber_rounded,
+                                    size: 13,
+                                    color: trapCount > 0 ? severityHigh : googleTextSecondary,
+                                  ),
+                                  const SizedBox(width: 4),
                                   Text(
-                                    'Take Test',
-                                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
+                                    trapCount > 0 ? '$trapCount Blunders' : '0 Traps',
+                                    style: TextStyle(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.bold,
+                                      color: trapCount > 0 ? severityHigh : googleTextSecondary,
+                                    ),
                                   ),
                                 ],
                               ),
                             ),
                           ),
-
-                        // Mistake Traps Pill
-                        InkWell(
-                          onTap: () => _showQuizTrapsSheet(q),
-                          borderRadius: BorderRadius.circular(6),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: trapCount > 0 ? severityHigh.withOpacity(0.12) : googleHairline,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.warning_amber_rounded,
-                                  size: 13,
-                                  color: trapCount > 0 ? severityHigh : googleTextSecondary,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  trapCount > 0 ? '$trapCount Blunders' : '0 Traps',
-                                  style: TextStyle(
-                                    fontSize: 10.5,
-                                    fontWeight: FontWeight.bold,
-                                    color: trapCount > 0 ? severityHigh : googleTextSecondary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              StudyEntryMenu(kind: 'quiz',
-                onEdit: () => showStudyEntry(context, q, lecture: false, edit: true),
-                onDelete: () => confirmStudyEntryDeletion(context, q, lecture: false)),
-            ],
+              ],
+            ),
           ),
         ),
         const Padding(

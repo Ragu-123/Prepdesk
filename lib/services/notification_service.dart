@@ -26,7 +26,7 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
 
   static const String studyChannelId = 'nyro_study_channel';
-  static const String studyChannelName = 'NYRO Study Notifications';
+  static const String studyChannelName = 'Prepdesk study notifications';
   static const String dailyChannelId = 'nyro_daily_channel';
   static const String dailyChannelName = 'Daily Study Routine';
   static const String alarmChannelId = 'nyro_alarm_channel_v2';
@@ -270,7 +270,7 @@ class NotificationService {
     bool requestPermission = true,
     bool recordHistory = true,
   }) async {
-    if ((title == 'Study Reminder' || title == 'NYRO Study Task') && body.trim().isNotEmpty) title = body.trim();
+    if ((title == 'Study Reminder' || title == 'Prepdesk study task' || title == 'NYRO Study Task') && body.trim().isNotEmpty) title = body.trim();
     if (requestPermission) await _requestNotificationsIfNeeded();
     final isAlarm = alertType.toLowerCase() == 'alarm';
     if (isAlarm && requestPermission) await prepareAlarmAccess();
@@ -621,9 +621,9 @@ class NotificationService {
 
   Future<void> refreshAppearanceForSession() async {
     final accent = AppearanceService.instance.accent.toARGB32().toString();
-    if (await DatabaseService.instance.getConfig('notification_accent_v20') == accent) return;
+    if (await DatabaseService.instance.getConfig('notification_accent_v22') == accent) return;
     await refreshNotificationAppearance();
-    await DatabaseService.instance.setConfig('notification_accent_v20', accent);
+    await DatabaseService.instance.setConfig('notification_accent_v22', accent);
   }
 
   Future<void> refreshKeepNotePrivacy(String noteId) async {

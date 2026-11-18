@@ -70,7 +70,7 @@ class AppReleaseInfo {
 
   factory AppReleaseInfo.fromJson(Map<String, dynamic> json) {
     final tagName = json['tag_name'] as String? ?? 'v1.0.0';
-    final name = json['name'] as String? ?? 'NYRO Tasks Update';
+    final name = json['name'] as String? ?? 'Prepdesk Update';
     final body = json['body'] as String? ?? 'No release notes provided.';
     final publishedAtStr = json['published_at'] as String?;
     final publishedAt = publishedAtStr != null ? DateTime.tryParse(publishedAtStr) ?? DateTime.now() : DateTime.now();
@@ -129,7 +129,7 @@ class AppUpdateProgress {
 
 class AppUpdateService {
   static const isPlayStore = bool.fromEnvironment('NYRO_PLAY_STORE');
-  static const String currentVersion = '1.0.21';
+  static const String currentVersion = '1.0.22';
   static const String defaultGithubRepo = 'Ragu-123/nyro-tasks';
   static const MethodChannel _nativeChannel = MethodChannel('io.github.thelazyindian.tasks/native');
 

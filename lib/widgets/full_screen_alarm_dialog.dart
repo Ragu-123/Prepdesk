@@ -167,13 +167,8 @@ class _FullScreenAlarmDialogState extends State<FullScreenAlarmDialog>
                           ),
                         ],
                       ),
-                      child: const Center(
-                        child: Icon(
-                          Icons.notifications_active_rounded,
-                          color: googleTextPrimary,
-                          size: 60,
-                        ),
-                      ),
+                      child: Center(child: Image.asset('assets/images/prepdesk_mark.png',
+                        width: 60, height: 60, color: Theme.of(context).colorScheme.onPrimaryContainer)),
                     ),
                   ),
                   const SizedBox(height: 36),
@@ -201,7 +196,7 @@ class _FullScreenAlarmDialogState extends State<FullScreenAlarmDialog>
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'NYRO GATE Study Reminder',
+                    'Prepdesk study reminder',
                     style: TextStyle(
                       fontSize: 14,
                       color: googleTextSecondary,

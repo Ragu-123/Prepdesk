@@ -537,9 +537,6 @@ class _TodayTabState extends State<TodayTab> {
                 ),
                 Padding(padding: const EdgeInsets.only(top: 10),
                   child: Text('${dur.toStringAsFixed(1)}h', style: const TextStyle(fontSize: 11))),
-                StudyEntryMenu(kind: 'lecture',
-                  onEdit: () => showStudyEntry(context, lec, lecture: true, edit: true),
-                  onDelete: () => confirmStudyEntryDeletion(context, lec, lecture: true)),
               ],
             ),
           ),
@@ -742,70 +739,70 @@ class _TodayTabState extends State<TodayTab> {
 
               return Column(
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 20, 12),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        GoogleCheckbox(
-                          value: isDone,
-                          onChanged: (val) => _toggleQuiz(q, val),
-                        ),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              InkWell(onTap: () => showStudyEntry(context, q, lecture: false), child: Text(
-                                title,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: isDone ? googleTextSecondary : googleTextPrimary,
-                                  decoration: isDone ? TextDecoration.lineThrough : null,
-                                  height: 1.25,
-                                ),
-                              )),
-                              const SizedBox(height: 4),
-                              Text(
-                                '$dur mins • $marks Marks ${syllabus.isNotEmpty ? "• $syllabus" : ""}',
-                                style: const TextStyle(fontSize: 11, color: googleTextSecondary),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 8),
-                              TextButton.icon(
-                                onPressed: () => showQuizTrapsModalSheet(context,
-                                  quizTitle: title.toString(), subject: q['subject']?.toString(),
-                                  module: q['module_name']?.toString(), syllabus: q['syllabus_topics']?.toString(),
-                                  onDataChanged: () { _loadData(); widget.onDataChanged(); }),
-                                icon: const Icon(Icons.warning_amber_rounded, size: 18),
-                                label: Text(_trapCounts[q['id']] == 1
-                                  ? '1 trap to review' : '${_trapCounts[q['id']] ?? 0} traps to review'),
-                              ),
-                              if (actionUrl != null && actionUrl.isNotEmpty) ...[
-                                const SizedBox(height: 6),
-                                InkWell(
-                                  onTap: () => openExternalUrl(actionUrl),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        'Start Quiz',
-                                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
-                                      ),
-                                      SizedBox(width: 3),
-                                      Icon(Icons.open_in_new, size: 12, color: Theme.of(context).colorScheme.primary),
-                                    ],
+                  InkWell(
+                    onTap: () => showStudyEntry(context, q, lecture: false),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 20, 12),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          GoogleCheckbox(
+                            value: isDone,
+                            onChanged: (val) => _toggleQuiz(q, val),
+                          ),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  title,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: isDone ? googleTextSecondary : googleTextPrimary,
+                                    decoration: isDone ? TextDecoration.lineThrough : null,
+                                    height: 1.25,
                                   ),
                                 ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '$dur mins • $marks Marks ${syllabus.isNotEmpty ? "• $syllabus" : ""}',
+                                  style: const TextStyle(fontSize: 11, color: googleTextSecondary),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 8),
+                                TextButton.icon(
+                                  onPressed: () => showQuizTrapsModalSheet(context,
+                                    quizTitle: title.toString(), subject: q['subject']?.toString(),
+                                    module: q['module_name']?.toString(), syllabus: q['syllabus_topics']?.toString(),
+                                    onDataChanged: () { _loadData(); widget.onDataChanged(); }),
+                                  icon: const Icon(Icons.warning_amber_rounded, size: 18),
+                                  label: Text(_trapCounts[q['id']] == 1
+                                    ? '1 trap to review' : '${_trapCounts[q['id']] ?? 0} traps to review'),
+                                ),
+                                if (actionUrl != null && actionUrl.isNotEmpty) ...[
+                                  const SizedBox(height: 6),
+                                  InkWell(
+                                    onTap: () => openExternalUrl(actionUrl),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          'Start Quiz',
+                                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
+                                        ),
+                                        SizedBox(width: 3),
+                                        Icon(Icons.open_in_new, size: 12, color: Theme.of(context).colorScheme.primary),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ],
-                            ],
+                            ),
                           ),
-                        ),
-                        StudyEntryMenu(kind: 'quiz',
-                          onEdit: () => showStudyEntry(context, q, lecture: false, edit: true),
-                          onDelete: () => confirmStudyEntryDeletion(context, q, lecture: false)),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                   const Padding(

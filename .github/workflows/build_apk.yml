@@ -52,18 +52,18 @@ jobs:
         run: |
           mkdir -p release
           cp build/app/outputs/flutter-apk/app-github-release.apk release/app-release.apk
-          cp build/app/outputs/bundle/playRelease/app-play-release.aab release/nyro-tasks-play.aab
+          cp build/app/outputs/bundle/playRelease/app-play-release.aab release/prepdesk-play.aab
           sha256sum release/* > release/SHA256SUMS.txt
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: NYRO-Tasks-Release
+          name: Prepdesk-Android-Release
           path: release/*
       - name: Upload UI previews
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: NYRO-UI-Previews
+          name: Prepdesk-UI-Previews
           path: |
             build/ui-previews/*.png
             build/desktop-preview/**
@@ -73,6 +73,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: release/*
+          name: Prepdesk ${{ github.ref_name }}
           draft: false
           prerelease: false
           body_path: RELEASE_NOTES.md

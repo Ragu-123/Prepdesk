@@ -83,7 +83,7 @@ class _AlertsModalSheetState extends State<AlertsModalSheet> {
 
   Future<void> _sendTestNotification() async {
     await NotificationService.instance.showInstantNotification(
-      title: 'NYRO Study Alert',
+      title: 'Prepdesk study alert',
       body: 'Notifications are working! Alarms and channels are active.',
     );
     if (mounted) {

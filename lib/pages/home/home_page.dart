@@ -1051,7 +1051,7 @@ class _HomePageState extends State<HomePage> {
                                 final id = await DatabaseService.instance.addCustomReminder(text, scheduled);
                                 await NotificationService.instance.scheduleReminder(
                                   id: id,
-                                  title: 'NYRO Study Task',
+                                  title: 'Prepdesk study task',
                                   body: text,
                                   scheduledDate: scheduled,
                                 );
@@ -1296,7 +1296,8 @@ class _HomePageState extends State<HomePage> {
                       color: Theme.of(context).colorScheme.primary.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Icon(Icons.check_rounded, color: Theme.of(context).colorScheme.primary, size: 24),
+                    child: Center(child: Image.asset('assets/images/prepdesk_mark.png',
+                      width: 27, height: 27, color: Theme.of(context).colorScheme.primary)),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -1304,7 +1305,7 @@ class _HomePageState extends State<HomePage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          'NYRO Tasks',
+                          'Prepdesk',
                           style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: googleTextPrimary),
                         ),
                         Text(

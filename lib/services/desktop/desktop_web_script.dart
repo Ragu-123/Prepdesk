@@ -17,7 +17,7 @@ let privacyRevision;
 let toastTimer;
 function toast(message) { $('toast').textContent = message; $('toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').hidden = true, 4500); }
 function report(error) { $('workspace-error').textContent = error.message || 'Unable to reach your phone. Check the connection and retry.'; $('workspace-error').hidden = false; }
-function connected(value) { $('connection').textContent = value ? 'Phone connected' : 'Connection interrupted'; $('connection').classList.toggle('offline', !value); $('session-status').textContent = value ? 'Paired' : 'Not connected'; $('status-description').textContent = value ? 'Your phone is reachable. Changes save directly to NYRO Tasks.' : 'Keep NYRO open and check that both devices are on the same Wi-Fi network.'; }
+function connected(value) { $('connection').textContent = value ? 'Phone connected' : 'Connection interrupted'; $('connection').classList.toggle('offline', !value); $('session-status').textContent = value ? 'Paired' : 'Not connected'; $('status-description').textContent = value ? 'Your phone is reachable. Changes save directly to Prepdesk.' : 'Keep Prepdesk open and check that both devices are on the same Wi-Fi network.'; }
 function applyAppearance(accent) {
   if (!/^#[0-9a-fA-F]{6}$/.test(accent || '')) return;
   const style = document.documentElement.style;

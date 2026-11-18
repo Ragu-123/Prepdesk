@@ -49,3 +49,6 @@ app.*.map.json
 .fvm/flutter_sdk
 # Local browser verification profiles
 .taste-skill/
+
+# Local demo originals. Publish only the reviewed copies in images/demo.
+/images/*.jpeg
