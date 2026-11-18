@@ -1,14 +1,11 @@
-NYRO Tasks v1.0.19
+NYRO Tasks v1.0.20
 
-- Today opens with a study progress ring and three metric cards using saved watched hours, lectures, revisits, and quizzes. Schedule, Revisits, and Quizzes stay pinned while scrolling.
-- Subject traps carry into the next quiz, weekly quizzes, and test series, even when titles change. Counts refresh after logging or resolving mistakes.
-- Existing Keep notes open in a full-screen reading view. Tap the pencil to edit. Desktop notes also open in a reading view.
-- Protected notes stay phone-only. Protection changes revoke paired desktop sessions, clear open browser content, and reject stale desktop edits and deletes. Legacy lock markers fail closed.
-- Notifications use the NYRO brand silhouette and a full-color logo, with expanded bold titles. Adaptive colors apply to the app, desktop, and task notifications. Settings > Adaptive colors restores fixed blue when disabled.
-- Native ringing alarms, multi-checkpoint reminders, explicit biometric activation, and the previous vault safeguards are retained.
+- Adaptive colors is grouped under Settings > Appearance, with the current accent shown on its own settings page.
+- A fresh random accent is chosen whenever you launch NYRO or return from the background. It excludes the previous accent and stays consistent while you use the app. Turn it off for fixed blue.
+- Shared theme colors now reach reminder and schedule forms, calendars, quizzes, revisits, Keep controls, filters, settings, vault dialogs, banners, buttons and input fields.
+- App, desktop, scheduled notifications and native ringing alarms follow the same session accent. Existing schedules refresh without extra permission prompts or duplicate history entries.
+- Task checkboxes have larger touch targets and checked-state accessibility. App bar typography is consistent with the bundled app font.
 
-Reload existing desktop browser tabs after upgrading, then pair again to load the new privacy controls. Already copied or downloaded data cannot be recalled.
+Prior Today, quiz-trap, reminder and protected-note fixes remain included. Hub transfer behavior and BitChat are unchanged.
 
-Hub upload behavior and BitChat are unchanged. Flutter verification and both release builds run only in GitHub Actions. Android controls the final notification layout and full-screen alarm access; verify ringing on your device using the built-in test.
-
-Assets include the GitHub APK, Play-distribution AAB, and SHA-256 checksums. Play Protect classification and Google Play approval require their own review; this release does not claim approval.
+Flutter checks, APK builds and Play bundle builds run only in GitHub Actions. Android controls the final notification layout. Google Play and Play Protect approval require their own review.

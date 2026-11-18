@@ -6,6 +6,7 @@ import 'package:tasks/pages/home/home_page.dart';
 import 'package:tasks/services/notification_service.dart';
 import 'package:tasks/utils/theme.dart';
 import 'services/appearance_service.dart';
+import 'widgets/app_appearance_lifecycle.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,7 +19,7 @@ void main() async {
   }
 
   try {
-    await AppearanceService.instance.load();
+    await AppearanceService.instance.load(newSession: true);
     await NotificationService.instance.init();
   } catch (e) {
     debugPrint('Notification service initialization error: $e');
@@ -39,7 +40,7 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AnnotatedRegion<SystemUiOverlayStyle>(
+    return AppAppearanceLifecycle(child: AnnotatedRegion<SystemUiOverlayStyle>(
       value: systemUiOverlayStyleLight,
       child: ListenableBuilder(listenable: AppearanceService.instance, builder: (context, _) => MaterialApp(
         debugShowCheckedModeBanner: false,
@@ -48,6 +49,6 @@ class MyApp extends StatelessWidget {
         themeAnimationDuration: MediaQuery.disableAnimationsOf(context) ? Duration.zero : const Duration(milliseconds: 350),
         home: const HomePage(),
       )),
-    );
+    ));
   }
 }

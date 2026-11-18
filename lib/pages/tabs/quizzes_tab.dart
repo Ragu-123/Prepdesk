@@ -199,8 +199,8 @@ class _QuizzesTabState extends State<QuizzesTab> {
                               Navigator.pop(context);
                               widget.onOpenFilter!();
                             },
-                            icon: const Icon(Icons.filter_list_rounded, size: 16, color: googleBlue),
-                            label: const Text('Subject Filter', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: googleBlue)),
+                            icon: Icon(Icons.filter_list_rounded, size: 16, color: Theme.of(context).colorScheme.primary),
+                            label: Text('Subject Filter', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary)),
                           ),
                       ],
                     ),
@@ -278,12 +278,12 @@ class _QuizzesTabState extends State<QuizzesTab> {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         margin: const EdgeInsets.only(bottom: 4),
         decoration: BoxDecoration(
-          color: isSelected ? googleBlue.withOpacity(0.08) : Colors.transparent,
+          color: isSelected ? Theme.of(context).colorScheme.primary.withOpacity(0.08) : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
           children: [
-            Icon(icon, size: 20, color: isSelected ? googleBlue : googleTextSecondary),
+            Icon(icon, size: 20, color: isSelected ? Theme.of(context).colorScheme.primary : googleTextSecondary),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
@@ -294,7 +294,7 @@ class _QuizzesTabState extends State<QuizzesTab> {
                     style: TextStyle(
                       fontSize: 13.5,
                       fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                      color: isSelected ? googleBlue : googleTextPrimary,
+                      color: isSelected ? Theme.of(context).colorScheme.primary : googleTextPrimary,
                     ),
                   ),
                   Text(
@@ -304,7 +304,7 @@ class _QuizzesTabState extends State<QuizzesTab> {
                 ],
               ),
             ),
-            if (isSelected) const Icon(Icons.check_rounded, size: 20, color: googleBlue),
+            if (isSelected) Icon(Icons.check_rounded, size: 20, color: Theme.of(context).colorScheme.primary),
           ],
         ),
       ),
@@ -363,7 +363,7 @@ class _QuizzesTabState extends State<QuizzesTab> {
 
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator(color: googleBlue))
+                ? Center(child: CircularProgressIndicator(color: Theme.of(context).colorScheme.primary))
                 : ListView(
                     padding: EdgeInsets.zero,
                     children: [
@@ -512,12 +512,12 @@ class _QuizzesTabState extends State<QuizzesTab> {
       floatingActionButton: FloatingActionButton.small(
         heroTag: 'quizzes_filter_fab',
         elevation: 2,
-        backgroundColor: widget.selectedSubject != 'All Subjects' ? googleBlue : Colors.white,
+        backgroundColor: widget.selectedSubject != 'All Subjects' ? Theme.of(context).colorScheme.primary : Colors.white,
         foregroundColor: widget.selectedSubject != 'All Subjects' ? Colors.white : googleTextPrimary,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),
           side: BorderSide(
-            color: widget.selectedSubject != 'All Subjects' ? googleBlue : googleBorder,
+            color: widget.selectedSubject != 'All Subjects' ? Theme.of(context).colorScheme.primary : googleBorder,
           ),
         ),
         tooltip: 'Sort & Filter Options',
@@ -560,7 +560,7 @@ class _QuizzesTabState extends State<QuizzesTab> {
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             margin: const EdgeInsets.only(right: 6),
                             decoration: BoxDecoration(
-                              color: isCompleted ? googleHairline : googleBlue.withOpacity(0.08),
+                              color: isCompleted ? googleHairline : Theme.of(context).colorScheme.primary.withOpacity(0.08),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
@@ -568,7 +568,7 @@ class _QuizzesTabState extends State<QuizzesTab> {
                               style: TextStyle(
                                 fontSize: 9,
                                 fontWeight: FontWeight.bold,
-                                color: isCompleted ? googleTextSecondary : googleBlue,
+                                color: isCompleted ? googleTextSecondary : Theme.of(context).colorScheme.primary,
                               ),
                             ),
                           ),
@@ -632,17 +632,17 @@ class _QuizzesTabState extends State<QuizzesTab> {
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                               decoration: BoxDecoration(
-                                border: Border.all(color: googleBlue),
+                                border: Border.all(color: Theme.of(context).colorScheme.primary),
                                 borderRadius: BorderRadius.circular(6),
                               ),
-                              child: const Row(
+                              child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.open_in_new, size: 12, color: googleBlue),
+                                  Icon(Icons.open_in_new, size: 12, color: Theme.of(context).colorScheme.primary),
                                   SizedBox(width: 4),
                                   Text(
                                     'Take Test',
-                                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: googleBlue),
+                                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
                                   ),
                                 ],
                               ),
@@ -728,7 +728,7 @@ class _QuizzesTabState extends State<QuizzesTab> {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                color: isSelected ? googleBlue : googleTextSecondary,
+                color: isSelected ? Theme.of(context).colorScheme.primary : googleTextSecondary,
               ),
             ),
           ),
@@ -808,11 +808,11 @@ Future<void> showQuizTrapsModalSheet(
                       },
                     );
                   },
-                  icon: const Icon(Icons.add, size: 16, color: googleBlue),
-                  label: const Text('Log Trap', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: googleBlue)),
+                  icon: Icon(Icons.add, size: 16, color: Theme.of(context).colorScheme.primary),
+                  label: Text('Log Trap', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary)),
                   style: TextButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    backgroundColor: googleBlue.withOpacity(0.08),
+                    backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.08),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                 ),
@@ -845,7 +845,7 @@ Future<void> showQuizTrapsModalSheet(
                                 },
                               );
                             },
-                            icon: const Icon(Icons.add, size: 16, color: googleBlue),
+                            icon: Icon(Icons.add, size: 16, color: Theme.of(context).colorScheme.primary),
                             label: const Text('Add First Mistake Trap'),
                           ),
                         ],

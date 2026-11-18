@@ -196,7 +196,7 @@ class _TodayTabState extends State<TodayTab> {
               if (topic.isNotEmpty) ...[
                 Row(
                   children: [
-                    const Icon(Icons.bookmark_border, size: 18, color: googleBlue),
+                    Icon(Icons.bookmark_border, size: 18, color: Theme.of(context).colorScheme.primary),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -210,7 +210,7 @@ class _TodayTabState extends State<TodayTab> {
               ],
               Row(
                 children: [
-                  const Icon(Icons.schedule, size: 18, color: googleBlue),
+                  Icon(Icons.schedule, size: 18, color: Theme.of(context).colorScheme.primary),
                   const SizedBox(width: 8),
                   Text(
                     '$session • ${dur.toStringAsFixed(1)} hours',
@@ -237,7 +237,7 @@ class _TodayTabState extends State<TodayTab> {
                 child: OutlinedButton(
                   onPressed: () => Navigator.pop(context),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: googleBlue,
+                    foregroundColor: Theme.of(context).colorScheme.primary,
                     side: const BorderSide(color: googleBorder),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
@@ -254,7 +254,7 @@ class _TodayTabState extends State<TodayTab> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator(color: googleBlue));
+      return Center(child: CircularProgressIndicator(color: Theme.of(context).colorScheme.primary));
     }
 
     final target = (_pacing['target_hours'] as num?)?.toDouble() ?? 8.0;
@@ -292,17 +292,17 @@ class _TodayTabState extends State<TodayTab> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFE8F0FE),
+                          color: Theme.of(context).colorScheme.primaryContainer,
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Row(
+                        child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.today_rounded, size: 14, color: googleBlue),
+                            Icon(Icons.today_rounded, size: 14, color: Theme.of(context).colorScheme.primary),
                             SizedBox(width: 4),
                             Text(
                               'Today',
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: googleBlue),
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
                             ),
                           ],
                         ),
@@ -311,7 +311,7 @@ class _TodayTabState extends State<TodayTab> {
                   if (widget.onJumpToDate != null || widget.onOpenTimetable != null) ...[
                     const SizedBox(width: 8),
                     IconButton(
-                      icon: const Icon(Icons.calendar_month_outlined, size: 20, color: googleBlue),
+                      icon: Icon(Icons.calendar_month_outlined, size: 20, color: Theme.of(context).colorScheme.primary),
                       tooltip: 'Jump to Date',
                       visualDensity: VisualDensity.compact,
                       onPressed: widget.onJumpToDate ?? widget.onOpenTimetable,
@@ -459,8 +459,8 @@ class _TodayTabState extends State<TodayTab> {
                     icon: const Icon(Icons.schema_outlined, size: 14),
                     label: const Text('DB Schema Guide ↗', style: TextStyle(fontSize: 11)),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: googleBlue,
-                      side: const BorderSide(color: googleBlue),
+                      foregroundColor: Theme.of(context).colorScheme.primary,
+                      side: BorderSide(color: Theme.of(context).colorScheme.primary),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                       visualDensity: VisualDensity.compact,
                     ),
@@ -468,7 +468,7 @@ class _TodayTabState extends State<TodayTab> {
                   if (widget.onOpenCloudSync != null)
                     OutlinedButton.icon(
                       onPressed: widget.onOpenCloudSync,
-                      icon: const Icon(Icons.cloud_sync_rounded, size: 14, color: googleBlue),
+                      icon: Icon(Icons.cloud_sync_rounded, size: 14, color: Theme.of(context).colorScheme.primary),
                       label: const Text('Cloud Sync', style: TextStyle(fontSize: 11)),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: googleTextPrimary,
@@ -669,7 +669,7 @@ class _TodayTabState extends State<TodayTab> {
             color: const Color(0xFFF8FAFD),
             child: Row(
               children: [
-                const Icon(Icons.psychology_outlined, size: 18, color: googleBlue),
+                Icon(Icons.psychology_outlined, size: 18, color: Theme.of(context).colorScheme.primary),
                 const SizedBox(width: 8),
                 const Expanded(
                   child: Text(
@@ -679,15 +679,15 @@ class _TodayTabState extends State<TodayTab> {
                 ),
                 InkWell(
                   onTap: () => openExternalUrl('https://gateoverflow.in'),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
                         'GateOverflow',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: googleBlue),
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
                       ),
                       SizedBox(width: 3),
-                      Icon(Icons.open_in_new, size: 13, color: googleBlue),
+                      Icon(Icons.open_in_new, size: 13, color: Theme.of(context).colorScheme.primary),
                     ],
                   ),
                 ),
@@ -888,15 +888,15 @@ class _TodayTabState extends State<TodayTab> {
                                 const SizedBox(height: 6),
                                 InkWell(
                                   onTap: () => openExternalUrl(actionUrl),
-                                  child: const Row(
+                                  child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Text(
                                         'Start Quiz',
-                                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: googleBlue),
+                                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
                                       ),
                                       SizedBox(width: 3),
-                                      Icon(Icons.open_in_new, size: 12, color: googleBlue),
+                                      Icon(Icons.open_in_new, size: 12, color: Theme.of(context).colorScheme.primary),
                                     ],
                                   ),
                                 ),

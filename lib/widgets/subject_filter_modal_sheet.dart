@@ -48,10 +48,10 @@ class SubjectFilterModalSheet extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE8F0FE),
+                    color: Theme.of(context).colorScheme.primaryContainer,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.tune_rounded, color: googleBlue, size: 20),
+                  child: Icon(Icons.tune_rounded, color: Theme.of(context).colorScheme.primary, size: 20),
                 ),
                 const SizedBox(width: 12),
                 const Expanded(
@@ -70,7 +70,7 @@ class SubjectFilterModalSheet extends StatelessWidget {
                       onSubjectSelected('All Subjects');
                       Navigator.pop(context);
                     },
-                    child: const Text('Reset', style: TextStyle(color: googleBlue, fontWeight: FontWeight.w600)),
+                    child: Text('Reset', style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.w600)),
                   ),
                 IconButton(
                   icon: const Icon(Icons.close_rounded, size: 20, color: googleTextSecondary),
@@ -99,7 +99,7 @@ class SubjectFilterModalSheet extends StatelessWidget {
                     Navigator.pop(context);
                   },
                   child: Container(
-                    color: isSelected ? const Color(0xFFE8F0FE).withOpacity(0.5) : Colors.transparent,
+                    color: isSelected ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5) : Colors.transparent,
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                     child: Row(
                       children: [
@@ -107,7 +107,7 @@ class SubjectFilterModalSheet extends StatelessWidget {
                           width: 36,
                           height: 36,
                           decoration: BoxDecoration(
-                            color: isSelected ? googleBlue : const Color(0xFFF1F3F4),
+                            color: isSelected ? Theme.of(context).colorScheme.primary : const Color(0xFFF1F3F4),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
@@ -123,12 +123,12 @@ class SubjectFilterModalSheet extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                              color: isSelected ? googleBlue : googleTextPrimary,
+                              color: isSelected ? Theme.of(context).colorScheme.primary : googleTextPrimary,
                             ),
                           ),
                         ),
                         if (isSelected)
-                          const Icon(Icons.check_circle_rounded, color: googleBlue, size: 20),
+                          Icon(Icons.check_circle_rounded, color: Theme.of(context).colorScheme.primary, size: 20),
                       ],
                     ),
                   ),

@@ -163,9 +163,9 @@ class _CloudSyncPageState extends State<CloudSyncPage> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.tune_rounded, color: googleBlue, size: 22),
+            Icon(Icons.tune_rounded, color: Theme.of(context).colorScheme.primary, size: 22),
             SizedBox(width: 8),
             Text('Edit Bucket & Token', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           ],
@@ -246,7 +246,7 @@ class _CloudSyncPageState extends State<CloudSyncPage> {
               }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: googleBlue,
+              backgroundColor: Theme.of(context).colorScheme.primary,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
@@ -324,7 +324,7 @@ class _CloudSyncPageState extends State<CloudSyncPage> {
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: googleBlue,
+              backgroundColor: Theme.of(context).colorScheme.primary,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
@@ -412,7 +412,7 @@ class _CloudSyncPageState extends State<CloudSyncPage> {
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: googleBlue))
+          ? Center(child: CircularProgressIndicator(color: Theme.of(context).colorScheme.primary))
           : ListView(
               padding: const EdgeInsets.all(20),
               children: [
@@ -446,11 +446,11 @@ class _CloudSyncPageState extends State<CloudSyncPage> {
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      color: googleBlue.withOpacity(0.12),
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     alignment: Alignment.center,
-                    child: const Icon(Icons.cloud_done_rounded, size: 24, color: googleBlue),
+                    child: Icon(Icons.cloud_done_rounded, size: 24, color: Theme.of(context).colorScheme.primary),
                   ),
                   const SizedBox(width: 14),
                   const Expanded(
@@ -477,20 +477,20 @@ class _CloudSyncPageState extends State<CloudSyncPage> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEFF6FF),
+                  color: Theme.of(context).colorScheme.primaryContainer,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFBFDBFE)),
+                  border: Border.all(color: Theme.of(context).colorScheme.primaryContainer),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Row(
+                    Row(
                       children: [
-                        Icon(Icons.info_outline_rounded, size: 16, color: googleBlue),
+                        Icon(Icons.info_outline_rounded, size: 16, color: Theme.of(context).colorScheme.primary),
                         SizedBox(width: 6),
                         Text(
                           'How to set up your Bucket:',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: googleBlue),
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
                         ),
                       ],
                     ),
@@ -506,9 +506,9 @@ class _CloudSyncPageState extends State<CloudSyncPage> {
                       children: [
                         InkWell(
                           onTap: () => openExternalUrl('https://huggingface.co/new-bucket'),
-                          child: const Text(
+                          child: Text(
                             'Create Bucket on Hugging Face ↗',
-                            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: googleBlue, decoration: TextDecoration.underline),
+                            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary, decoration: TextDecoration.underline),
                           ),
                         ),
                       ],
@@ -544,7 +544,7 @@ class _CloudSyncPageState extends State<CloudSyncPage> {
                 child: TextButton(
                   onPressed: () => openExternalUrl('https://huggingface.co/settings/tokens'),
                   style: TextButton.styleFrom(visualDensity: VisualDensity.compact, padding: EdgeInsets.zero),
-                  child: const Text('Get Hugging Face Write Token ↗', style: TextStyle(fontSize: 11, color: googleBlue)),
+                  child: Text('Get Hugging Face Write Token ↗', style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.primary)),
                 ),
               ),
 
@@ -596,7 +596,7 @@ class _CloudSyncPageState extends State<CloudSyncPage> {
                 children: [
                   Checkbox(
                     value: _createBucketInApp,
-                    activeColor: googleBlue,
+                    activeColor: Theme.of(context).colorScheme.primary,
                     onChanged: (val) => setState(() => _createBucketInApp = val ?? false),
                   ),
                   const Expanded(
@@ -615,7 +615,7 @@ class _CloudSyncPageState extends State<CloudSyncPage> {
                 child: ElevatedButton(
                   onPressed: _isSettingUp ? null : _saveFirstTimeSetup,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: googleBlue,
+                    backgroundColor: Theme.of(context).colorScheme.primary,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
@@ -640,8 +640,8 @@ class _CloudSyncPageState extends State<CloudSyncPage> {
                       await _loadConfig();
                     }
                   },
-                  icon: const Icon(Icons.tune_rounded, size: 16, color: googleBlue),
-                  label: const Text('Configure Token & Bucket in Settings', style: TextStyle(fontSize: 12.5, color: googleBlue)),
+                  icon: Icon(Icons.tune_rounded, size: 16, color: Theme.of(context).colorScheme.primary),
+                  label: Text('Configure Token & Bucket in Settings', style: TextStyle(fontSize: 12.5, color: Theme.of(context).colorScheme.primary)),
                 ),
               ),
             ],
@@ -684,11 +684,11 @@ class _CloudSyncPageState extends State<CloudSyncPage> {
               Container(
                 width: 44,
                 height: 44,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFE8F0FE),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primaryContainer,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.cloud_done_rounded, color: googleBlue, size: 24),
+                child: Icon(Icons.cloud_done_rounded, color: Theme.of(context).colorScheme.primary, size: 24),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -726,7 +726,7 @@ class _CloudSyncPageState extends State<CloudSyncPage> {
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.edit_outlined, size: 20, color: googleBlue),
+                icon: Icon(Icons.edit_outlined, size: 20, color: Theme.of(context).colorScheme.primary),
                 tooltip: 'Edit Token / Bucket',
                 onPressed: _showQuickEditDialog,
               ),
@@ -748,8 +748,8 @@ class _CloudSyncPageState extends State<CloudSyncPage> {
                 await _loadConfig();
               }
             },
-            icon: const Icon(Icons.tune_rounded, size: 16, color: googleBlue),
-            label: const Text('Change Token / Bucket in Settings', style: TextStyle(fontSize: 12, color: googleBlue)),
+            icon: Icon(Icons.tune_rounded, size: 16, color: Theme.of(context).colorScheme.primary),
+            label: Text('Change Token / Bucket in Settings', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.primary)),
           ),
         ),
         const SizedBox(height: 16),
@@ -790,7 +790,7 @@ class _CloudSyncPageState extends State<CloudSyncPage> {
         // Action 1: Upload Backup to Hub
         _buildActionCard(
           icon: Icons.cloud_upload_outlined,
-          iconColor: googleBlue,
+          iconColor: Theme.of(context).colorScheme.primary,
           title: 'Upload Backup to Hub',
           description: 'Upload your current study ticks, completed checkboxes, mistake notebook, and custom reminders to your private Hugging Face bucket as cloud backup.',
           buttonLabel: 'Upload Backup Now',

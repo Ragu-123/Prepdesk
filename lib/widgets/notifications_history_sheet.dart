@@ -102,9 +102,9 @@ class _NotificationsHistorySheetState extends State<NotificationsHistorySheet> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Row(
+                Row(
                   children: [
-                    Icon(Icons.notifications_active_outlined, color: googleBlue, size: 22),
+                    Icon(Icons.notifications_active_outlined, color: Theme.of(context).colorScheme.primary, size: 22),
                     SizedBox(width: 10),
                     Text(
                       'Notifications History',
@@ -129,7 +129,7 @@ class _NotificationsHistorySheetState extends State<NotificationsHistorySheet> {
           // Content
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator(color: googleBlue))
+                ? Center(child: CircularProgressIndicator(color: Theme.of(context).colorScheme.primary))
                 : _notifications.isEmpty
                     ? Center(
                         child: Column(
@@ -168,7 +168,7 @@ class _NotificationsHistorySheetState extends State<NotificationsHistorySheet> {
                           final timeDisplay = dt != null ? DateFormat('d MMM • hh:mm a').format(dt) : '';
 
                           IconData icon = Icons.info_outline_rounded;
-                          Color color = googleBlue;
+                          Color color = Theme.of(context).colorScheme.primary;
 
                           if (type.contains('mistake')) {
                             icon = Icons.laptop_chromebook_rounded;
@@ -181,7 +181,7 @@ class _NotificationsHistorySheetState extends State<NotificationsHistorySheet> {
                             color = googleRed;
                           } else if (type.contains('reminder')) {
                             icon = Icons.alarm_on_rounded;
-                            color = googleBlue;
+                            color = Theme.of(context).colorScheme.primary;
                           } else if (type.contains('keep')) {
                             icon = Icons.lightbulb_outline_rounded;
                             color = const Color(0xFFFBBC04);

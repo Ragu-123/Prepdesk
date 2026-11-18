@@ -124,7 +124,7 @@ class _FullScreenAlarmDialogState extends State<FullScreenAlarmDialog>
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                     decoration: BoxDecoration(
-                      color: googleBlueContainer,
+                      color: Theme.of(context).colorScheme.primaryContainer,
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: const Row(
@@ -157,7 +157,7 @@ class _FullScreenAlarmDialogState extends State<FullScreenAlarmDialog>
                       width: 120,
                       height: 120,
                       decoration: BoxDecoration(
-                        color: googleBlueContainer,
+                        color: Theme.of(context).colorScheme.primaryContainer,
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
@@ -224,7 +224,7 @@ class _FullScreenAlarmDialogState extends State<FullScreenAlarmDialog>
                         },
                         style: OutlinedButton.styleFrom(
                           side: BorderSide(color: googleBorder),
-                          foregroundColor: googleBlue,
+                          foregroundColor: Theme.of(context).colorScheme.primary,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                         ),
@@ -239,7 +239,7 @@ class _FullScreenAlarmDialogState extends State<FullScreenAlarmDialog>
                         },
                         style: OutlinedButton.styleFrom(
                           side: BorderSide(color: googleBorder),
-                          foregroundColor: googleBlue,
+                          foregroundColor: Theme.of(context).colorScheme.primary,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                         ),

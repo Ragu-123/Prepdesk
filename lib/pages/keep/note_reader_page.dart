@@ -102,7 +102,7 @@ class _NoteReaderPageState extends State<NoteReaderPage> {
           if (_note.isTodoList) ..._note.todoItems.map((item) => Padding(
             padding: const EdgeInsets.symmetric(vertical: 8), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Icon(item.checked ? Icons.check_box_rounded : Icons.check_box_outline_blank_rounded,
-                color: item.checked ? googleBlue : googleTextSecondary),
+                color: item.checked ? Theme.of(context).colorScheme.primary : googleTextSecondary),
               const SizedBox(width: 12), Expanded(child: SelectableText(item.text,
                 style: TextStyle(fontSize: 17, height: 1.5,
                   decoration: item.checked ? TextDecoration.lineThrough : null))),

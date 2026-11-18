@@ -345,10 +345,10 @@ class _VaultPinAuthSheetState extends State<_VaultPinAuthSheet> {
                 width: 52,
                 height: 52,
                 decoration: BoxDecoration(
-                  color: googleBlue.withOpacity(0.1),
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.lock_rounded, color: googleBlue, size: 26),
+                child: Icon(Icons.lock_rounded, color: Theme.of(context).colorScheme.primary, size: 26),
               ),
               const SizedBox(height: 12),
 
@@ -383,7 +383,7 @@ class _VaultPinAuthSheetState extends State<_VaultPinAuthSheet> {
                       color: _errorMessage != null
                           ? googleRed
                           : filled
-                              ? googleBlue
+                              ? Theme.of(context).colorScheme.primary
                               : const Color(0xFFE0E2EC),
                     ),
                   );
@@ -436,7 +436,7 @@ class _VaultPinAuthSheetState extends State<_VaultPinAuthSheet> {
               _canBio
                   ? IconButton(
                       iconSize: 28,
-                      icon: const Icon(Icons.fingerprint_rounded, color: googleBlue),
+                      icon: Icon(Icons.fingerprint_rounded, color: Theme.of(context).colorScheme.primary),
                       tooltip: 'Use Biometrics',
                       onPressed: _checkAndPromptBiometrics,
                     )
@@ -596,10 +596,10 @@ class _VaultSetPinSheetState extends State<_VaultSetPinSheet> {
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      color: googleBlue.withOpacity(0.1),
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.shield_outlined, color: googleBlue, size: 24),
+                    child: Icon(Icons.shield_outlined, color: Theme.of(context).colorScheme.primary, size: 24),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -636,7 +636,7 @@ class _VaultSetPinSheetState extends State<_VaultSetPinSheet> {
                 decoration: InputDecoration(
                   labelText: 'Enter 4 to 6 Digit PIN',
                   counterText: '',
-                  prefixIcon: const Icon(Icons.lock_outline_rounded, color: googleBlue, size: 20),
+                  prefixIcon: Icon(Icons.lock_outline_rounded, color: Theme.of(context).colorScheme.primary, size: 20),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 ),
@@ -653,7 +653,7 @@ class _VaultSetPinSheetState extends State<_VaultSetPinSheet> {
                 decoration: InputDecoration(
                   labelText: 'Confirm PIN',
                   counterText: '',
-                  prefixIcon: const Icon(Icons.lock_rounded, color: googleBlue, size: 20),
+                  prefixIcon: Icon(Icons.lock_rounded, color: Theme.of(context).colorScheme.primary, size: 20),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 ),
@@ -670,7 +670,7 @@ class _VaultSetPinSheetState extends State<_VaultSetPinSheet> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.fingerprint_rounded, color: googleBlue, size: 22),
+                      Icon(Icons.fingerprint_rounded, color: Theme.of(context).colorScheme.primary, size: 22),
                       const SizedBox(width: 12),
                       const Expanded(
                         child: Text(
@@ -680,7 +680,7 @@ class _VaultSetPinSheetState extends State<_VaultSetPinSheet> {
                       ),
                       Switch(
                         value: _enableBiometrics,
-                        activeColor: googleBlue,
+                        activeColor: Theme.of(context).colorScheme.primary,
                         onChanged: (val) => setState(() => _enableBiometrics = val),
                       ),
                     ],
@@ -709,7 +709,7 @@ class _VaultSetPinSheetState extends State<_VaultSetPinSheet> {
                   ElevatedButton(
                     onPressed: _isSaving ? null : _handleSave,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: googleBlue,
+                      backgroundColor: Theme.of(context).colorScheme.primary,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),

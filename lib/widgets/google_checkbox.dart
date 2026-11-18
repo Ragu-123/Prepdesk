@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:tasks/utils/theme.dart';
 
 class GoogleCheckbox extends StatelessWidget {
   final bool value;
@@ -13,20 +12,18 @@ class GoogleCheckbox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () => onChanged(!value),
-      child: Padding(
-        padding: const EdgeInsets.only(right: 12.0, top: 2.0),
+    return Semantics(checked: value, enabled: true, child: InkResponse(
+      onTap: () => onChanged(!value), radius: 24,
+      child: SizedBox(width: 48, height: 48, child: Center(
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
+          duration: MediaQuery.disableAnimationsOf(context) ? Duration.zero : const Duration(milliseconds: 180),
           width: 22,
           height: 22,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: value ? googleBlue : Colors.white,
+            color: value ? Theme.of(context).colorScheme.primary : Colors.white,
             border: Border.all(
-              color: value ? googleBlue : const Color(0xFF747775),
+              color: value ? Theme.of(context).colorScheme.primary : const Color(0xFF747775),
               width: 1.75,
             ),
           ),
@@ -38,7 +35,7 @@ class GoogleCheckbox extends StatelessWidget {
                 )
               : null,
         ),
-      ),
-    );
+      )),
+    ));
   }
 }

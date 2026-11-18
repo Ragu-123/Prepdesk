@@ -619,10 +619,11 @@ class NotificationService {
     await syncDailyRoutineFromSettings();
   }
 
-  Future<void> refreshBrandingAfterUpgrade() async {
-    if (await DatabaseService.instance.getConfig('notification_brand_v19') == '1') return;
+  Future<void> refreshAppearanceForSession() async {
+    final accent = AppearanceService.instance.accent.toARGB32().toString();
+    if (await DatabaseService.instance.getConfig('notification_accent_v20') == accent) return;
     await refreshNotificationAppearance();
-    await DatabaseService.instance.setConfig('notification_brand_v19', '1');
+    await DatabaseService.instance.setConfig('notification_accent_v20', accent);
   }
 
   Future<void> refreshKeepNotePrivacy(String noteId) async {
@@ -717,7 +718,7 @@ class NotificationService {
     await _native.invokeMethod('scheduleStudyAlarms', {'alarms': [{
       'id': id, 'group': id, 'at': DateTime.now().add(const Duration(seconds: 2)).millisecondsSinceEpoch,
       'title': title, 'body': 'Test alarm', 'intervalDays': 0,
-      'accent': AppearanceService.seedColor(title).toARGB32(),
+      'accent': AppearanceService.instance.accent.toARGB32(),
     }]});
   }
 
@@ -747,7 +748,7 @@ class NotificationService {
       if (!time.isAfter(now)) return;
       alarms.add({'id': _childId(id, index), 'group': id, 'at': time.millisecondsSinceEpoch,
         'title': label, 'body': body, 'intervalDays': intervalDays,
-        'accent': AppearanceService.seedColor(title).toARGB32()});
+        'accent': AppearanceService.instance.accent.toARGB32()});
     }
     if (days.isEmpty) {
       add(scheduledDate, 0, 0, title);

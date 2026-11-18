@@ -23,6 +23,11 @@ import 'dart:async';
 import 'dart:ui' as ui;
 import 'package:flutter/rendering.dart';
 import 'package:timezone/data/latest.dart' as tz_data;
+import 'package:tasks/pages/settings/settings_page.dart';
+import 'package:tasks/pages/settings/appearance_settings_page.dart';
+import 'package:tasks/pages/alerts/alerts_page.dart';
+import 'package:tasks/pages/home/home_page.dart';
+import 'package:tasks/widgets/app_appearance_lifecycle.dart';
 
 class _Paths extends PathProviderPlatform {
   final String path;
@@ -43,6 +48,12 @@ void main() {
   late Directory temp;
   final dbService = DatabaseService.instance;
   setUpAll(() async {
+    final text = FontLoader('NotoSans')
+      ..addFont(rootBundle.load('assets/google_fonts/NotoSans-Regular.ttf'))
+      ..addFont(rootBundle.load('assets/google_fonts/NotoSans-Bold.ttf'));
+    final icons = FontLoader('MaterialIcons')..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
+    await text.load();
+    await icons.load();
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
     temp = await Directory.systemTemp.createTemp('nyro-regression-');
@@ -245,7 +256,7 @@ void main() {
     expect(nativeAdaptive, isFalse);
     await appearance.setEnabled(true);
     await NotificationService.instance.showInstantNotification(title: 'Linear Algebra', body: 'Review rank');
-    final adaptive = AppearanceService.seedColor('Linear Algebra').toARGB32();
+    final adaptive = appearance.accent.toARGB32();
     final next = delivered!['platformSpecifics'] as Map;
     expect([next['colorRed'], next['colorGreen'], next['colorBlue']],
       [(adaptive >> 16) & 255, (adaptive >> 8) & 255, adaptive & 255]);
@@ -268,6 +279,27 @@ void main() {
     expect(scheduled, isNotNull);
     expect(DateTime.parse(scheduled!['scheduledDateTime'] as String).isAfter(DateTime.now().toUtc().subtract(const Duration(seconds: 1))), isTrue);
     expect(scheduled!['matchDateTimeComponents'], isNotNull);
+  });
+
+  test('Opening a new session rotates once, reloads preserve it and fixed mode stays blue', () async {
+    final appearance = AppearanceService.instance;
+    await dbService.setConfig('adaptive_colors', '1');
+    await dbService.setConfig('appearance_accent_index', '2');
+    await appearance.load(newSession: true);
+    final first = appearance.accent;
+    expect(first, isNot(googleBlue));
+    for (var i = 0; i < 3; i++) {
+      await appearance.load();
+      expect(appearance.accent, first);
+    }
+    await appearance.load(newSession: true);
+    expect(appearance.accent, isNot(first));
+    final saved = await dbService.getConfig('appearance_accent_index');
+    await appearance.setEnabled(false);
+    await appearance.load(newSession: true);
+    expect(appearance.accent, googleBlue);
+    expect(await dbService.getConfig('appearance_accent_index'), saved);
+    await appearance.setEnabled(true);
   });
 
   test('Protecting a note immediately revokes the paired desktop and emits a privacy event', () async {
@@ -412,6 +444,125 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('1 traps to review'), findsOneWidget);
     expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  Future<void> savePreview(WidgetTester tester, GlobalKey key, String name) async {
+    await tester.runAsync(() async {
+      final image = await (key.currentContext!.findRenderObject()! as RenderRepaintBoundary).toImage();
+      final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+      final file = File('build/ui-previews/$name.png');
+      await file.parent.create(recursive: true);
+      await file.writeAsBytes(bytes!.buffer.asUint8List());
+      image.dispose();
+    });
+  }
+
+  testWidgets('Adaptive colors is grouped under Appearance and opens its own settings page', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.runAsync(() async {
+      await dbService.setConfig('adaptive_colors', '1');
+      await dbService.setConfig('appearance_accent_index', '1');
+      await AppearanceService.instance.load();
+    });
+    final preview = GlobalKey();
+    await tester.pumpWidget(MaterialApp(theme: AppearanceService.instance.theme,
+      builder: (context, child) => RepaintBoundary(key: preview, child: child!), home: const SettingsPage()));
+    await settleDatabase(tester, find.text('Appearance'));
+    expect(find.byType(SwitchListTile), findsNothing);
+    await tester.ensureVisible(find.text('Appearance'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Appearance'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AppearanceSettingsPage), findsOneWidget);
+    expect(find.text('Adaptive colors'), findsOneWidget);
+    expect(find.text('Current accent'), findsOneWidget);
+    expect(find.text('Iris'), findsOneWidget);
+    await savePreview(tester, preview, 'appearance-settings');
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('Reminder editor and calendar follow the active theme, including a live theme change', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final accent = ValueNotifier<Color>(AppearanceService.palette[1]);
+    addTearDown(accent.dispose);
+    final preview = GlobalKey();
+    await tester.pumpWidget(ValueListenableBuilder<Color>(valueListenable: accent,
+      builder: (_, color, __) => MaterialApp(theme: buildLightTheme(color),
+        builder: (context, child) => RepaintBoundary(key: preview, child: child!),
+        home: AlertsPage(onDataChanged: () {}, onOpenAddReminder: () {}))));
+    await settleDatabase(tester, find.text('No Reminders Scheduled'));
+    await tester.tap(find.byType(FloatingActionButton));
+    await tester.pumpAndSettle();
+    final save = find.widgetWithText(ElevatedButton, 'Save');
+    expect(tester.widget<ElevatedButton>(save).style!.backgroundColor!.resolve({}), accent.value);
+    accent.value = AppearanceService.palette[4];
+    await tester.pumpAndSettle();
+    expect(tester.widget<ElevatedButton>(save).style!.backgroundColor!.resolve({}), accent.value);
+    await savePreview(tester, preview, 'reminder-themed');
+    await tester.ensureVisible(find.text('Schedule Date'));
+    await tester.tap(find.text('Schedule Date'));
+    await tester.pumpAndSettle();
+    expect(Theme.of(tester.element(find.byType(DatePickerDialog))).colorScheme.primary, accent.value);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('Schedule quick-add form uses the shared accent instead of fixed blue', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.runAsync(() async {
+      await dbService.setConfig('auto_check_updates', '0');
+      await dbService.setConfig('auto_start_server', '0');
+      await dbService.setConfig('notification_accent_v20', AppearanceService.instance.accent.toARGB32().toString());
+    });
+    final preview = GlobalKey();
+    final accent = AppearanceService.palette[3];
+    await tester.pumpWidget(MaterialApp(theme: buildLightTheme(accent),
+      builder: (context, child) => RepaintBoundary(key: preview, child: child!), home: const HomePage()));
+    await settleDatabase(tester, find.byType(TodayProgressSummary));
+    await tester.tap(find.byTooltip('Create task, schedule, quiz or reminder'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Schedule').last);
+    await tester.pumpAndSettle();
+    final save = find.widgetWithText(ElevatedButton, 'Save');
+    expect(tester.widget<ElevatedButton>(save).style!.backgroundColor!.resolve({}), accent);
+    await savePreview(tester, preview, 'schedule-themed');
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 200)));
+  });
+
+  testWidgets('Reopening from the background chooses a fresh shared accent', (tester) async {
+    await tester.runAsync(() async {
+      tz_data.initializeTimeZones();
+      await dbService.setConfig('adaptive_colors', '1');
+      await dbService.setConfig('appearance_accent_index', '1');
+      await AppearanceService.instance.load();
+    });
+    final before = AppearanceService.instance.accent;
+    await tester.pumpWidget(const AppAppearanceLifecycle(child: MaterialApp(home: SizedBox())));
+    await tester.runAsync(() async {
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      for (var i = 0; i < 60; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        final appearance = AppearanceService.instance;
+        if (appearance.accent != before && await dbService.getConfig('notification_accent_v20') == appearance.accent.toARGB32().toString()) break;
+      }
+    });
+    await tester.pumpAndSettle();
+    expect(AppearanceService.instance.accent, isNot(before));
+    expect(AppearanceService.instance.colorFor('Reminder'), AppearanceService.instance.accent);
     await tester.pumpWidget(const SizedBox());
   });
 }

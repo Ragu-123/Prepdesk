@@ -322,24 +322,24 @@ class _RevisitTabState extends State<RevisitTab> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     decoration: BoxDecoration(
-                      color: googleBlue.withOpacity(0.08),
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.08),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: googleBlue.withOpacity(0.2)),
+                      border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.2)),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.warning_amber_rounded, size: 16, color: googleBlue),
+                        Icon(Icons.warning_amber_rounded, size: 16, color: Theme.of(context).colorScheme.primary),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text('QUIZ TRAPS • TAP TO VIEW ALL', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: googleBlue)),
+                              Text('QUIZ TRAPS • TAP TO VIEW ALL', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary)),
                               Text(quiz, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: googleTextPrimary)),
                             ],
                           ),
                         ),
-                        const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: googleBlue),
+                        Icon(Icons.arrow_forward_ios_rounded, size: 12, color: Theme.of(context).colorScheme.primary),
                       ],
                     ),
                   ),
@@ -398,7 +398,7 @@ class _RevisitTabState extends State<RevisitTab> {
                       const SizedBox(height: 16),
                     ],
                     if (takeaway.isNotEmpty) ...[
-                      const Text('KEY TAKEAWAYS & FORMULAS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: googleBlue)),
+                      Text('KEY TAKEAWAYS & FORMULAS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.primary)),
                       const SizedBox(height: 8),
                       Container(
                         padding: const EdgeInsets.all(12),
@@ -582,7 +582,7 @@ class _RevisitTabState extends State<RevisitTab> {
 
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator(color: googleBlue))
+                ? Center(child: CircularProgressIndicator(color: Theme.of(context).colorScheme.primary))
                 : IndexedStack(
                     index: _activeSubIndex,
                     children: [
@@ -602,12 +602,12 @@ class _RevisitTabState extends State<RevisitTab> {
             FloatingActionButton.small(
               heroTag: 'revisit_filter_fab',
               elevation: 2,
-              backgroundColor: widget.selectedSubject != 'All Subjects' ? googleBlue : Colors.white,
+              backgroundColor: widget.selectedSubject != 'All Subjects' ? Theme.of(context).colorScheme.primary : Colors.white,
               foregroundColor: widget.selectedSubject != 'All Subjects' ? Colors.white : googleTextPrimary,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14),
                 side: BorderSide(
-                  color: widget.selectedSubject != 'All Subjects' ? googleBlue : googleBorder,
+                  color: widget.selectedSubject != 'All Subjects' ? Theme.of(context).colorScheme.primary : googleBorder,
                 ),
               ),
               tooltip: 'Filter by Subject',
@@ -649,7 +649,7 @@ class _RevisitTabState extends State<RevisitTab> {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                  color: isSelected ? googleBlue : googleTextSecondary,
+                  color: isSelected ? Theme.of(context).colorScheme.primary : googleTextSecondary,
                 ),
               ),
               if (count > 0) ...[
@@ -657,7 +657,7 @@ class _RevisitTabState extends State<RevisitTab> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                   decoration: BoxDecoration(
-                    color: isSelected ? googleBlue : const Color(0xFFDADCE0),
+                    color: isSelected ? Theme.of(context).colorScheme.primary : const Color(0xFFDADCE0),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
@@ -701,11 +701,11 @@ class _RevisitTabState extends State<RevisitTab> {
               ),
               InkWell(
                 onTap: () => openExternalUrl('https://gateoverflow.in'),
-                child: const Row(
+                child: Row(
                   children: [
-                    Text('GateOverflow', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: googleBlue)),
+                    Text('GateOverflow', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary)),
                     SizedBox(width: 4),
-                    Icon(Icons.open_in_new_rounded, size: 14, color: googleBlue),
+                    Icon(Icons.open_in_new_rounded, size: 14, color: Theme.of(context).colorScheme.primary),
                   ],
                 ),
               ),
@@ -745,7 +745,7 @@ class _RevisitTabState extends State<RevisitTab> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: isSelected ? googleBlue : googleHairline,
+          color: isSelected ? Theme.of(context).colorScheme.primary : googleHairline,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Text(
@@ -908,11 +908,11 @@ class _RevisitTabState extends State<RevisitTab> {
                             if (url != null && url.isNotEmpty)
                               InkWell(
                                 onTap: () => openExternalUrl(url),
-                                child: const Row(
+                                child: Row(
                                   children: [
-                                    Text('Start Quiz', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: googleBlue)),
+                                    Text('Start Quiz', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary)),
                                     SizedBox(width: 2),
-                                    Icon(Icons.open_in_new, size: 12, color: googleBlue),
+                                    Icon(Icons.open_in_new, size: 12, color: Theme.of(context).colorScheme.primary),
                                   ],
                                 ),
                               ),
@@ -1069,11 +1069,11 @@ class _RevisitTabState extends State<RevisitTab> {
                     Color textCol = googleTextSecondary;
                     if (total > 0) {
                       if (pct == 1.0) {
-                        bg = googleBlue;
+                        bg = Theme.of(context).colorScheme.primary;
                         textCol = Colors.white;
                       } else if (pct > 0.0) {
-                        bg = const Color(0xFFD3E3FD);
-                        textCol = googleOnBlueContainer;
+                        bg = Theme.of(context).colorScheme.primaryContainer;
+                        textCol = Theme.of(context).colorScheme.onPrimaryContainer;
                       }
                     }
 
@@ -1242,21 +1242,21 @@ class _RevisitTabState extends State<RevisitTab> {
                                       child: Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                         decoration: BoxDecoration(
-                                          color: googleBlue.withOpacity(0.08),
+                                          color: Theme.of(context).colorScheme.primary.withOpacity(0.08),
                                           borderRadius: BorderRadius.circular(4),
-                                          border: Border.all(color: googleBlue.withOpacity(0.2)),
+                                          border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.2)),
                                         ),
                                         child: Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            const Icon(Icons.warning_amber_rounded, size: 11, color: googleBlue),
+                                            Icon(Icons.warning_amber_rounded, size: 11, color: Theme.of(context).colorScheme.primary),
                                             const SizedBox(width: 3),
                                             Text(
                                               quiz,
-                                              style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: googleBlue),
+                                              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
                                             ),
                                             const SizedBox(width: 2),
-                                            const Icon(Icons.arrow_forward_ios_rounded, size: 8, color: googleBlue),
+                                            Icon(Icons.arrow_forward_ios_rounded, size: 8, color: Theme.of(context).colorScheme.primary),
                                           ],
                                         ),
                                       ),
@@ -1299,10 +1299,10 @@ class _RevisitTabState extends State<RevisitTab> {
       labelStyle: TextStyle(
         fontSize: 12,
         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-        color: isSelected ? googleBlue : googleTextSecondary,
+        color: isSelected ? Theme.of(context).colorScheme.primary : googleTextSecondary,
       ),
       backgroundColor: googleHairline,
-      selectedColor: const Color(0xFFD3E3FD),
+      selectedColor: Theme.of(context).colorScheme.primaryContainer,
       side: BorderSide.none,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       onSelected: onSelected,

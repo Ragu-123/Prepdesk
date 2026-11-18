@@ -129,7 +129,7 @@ class _KeepPageState extends State<KeepPage> {
           title: 'Note Protected',
           message: 'Note is now locked behind Vault PIN.',
           icon: Icons.lock_rounded,
-          color: googleBlue,
+          color: Theme.of(context).colorScheme.primary,
         );
       }
     } else {
@@ -181,10 +181,10 @@ class _KeepPageState extends State<KeepPage> {
             Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: googleBlue.withOpacity(0.1),
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.lightbulb_outline_rounded, color: googleBlue, size: 20),
+              child: Icon(Icons.lightbulb_outline_rounded, color: Theme.of(context).colorScheme.primary, size: 20),
             ),
             const SizedBox(width: 10),
             Text(
@@ -202,7 +202,7 @@ class _KeepPageState extends State<KeepPage> {
           IconButton(
             icon: Icon(
               _showArchived ? Icons.unarchive_outlined : Icons.archive_outlined,
-              color: _showArchived ? googleBlue : googleTextSecondary,
+              color: _showArchived ? Theme.of(context).colorScheme.primary : googleTextSecondary,
             ),
             tooltip: _showArchived ? 'Show Active Notes' : 'Show Archive',
             onPressed: () {
@@ -254,7 +254,7 @@ class _KeepPageState extends State<KeepPage> {
           // 2. Notes Stream / List
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator(color: googleBlue))
+                ? Center(child: CircularProgressIndicator(color: Theme.of(context).colorScheme.primary))
                 : _allNotes.isEmpty
                     ? KeepEmptyState(
                         isFiltered: isFiltered,
@@ -269,7 +269,7 @@ class _KeepPageState extends State<KeepPage> {
                       )
                     : RefreshIndicator(
                         onRefresh: _loadNotes,
-                        color: googleBlue,
+                        color: Theme.of(context).colorScheme.primary,
                         child: ListView(
                           padding: const EdgeInsets.fromLTRB(14, 8, 14, 90),
                           children: [
@@ -293,7 +293,7 @@ class _KeepPageState extends State<KeepPage> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: googleBlue,
+        backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Colors.white,
         elevation: 2,
         icon: const Icon(Icons.add_rounded, size: 22),

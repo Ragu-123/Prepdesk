@@ -86,7 +86,7 @@ void showAddMistakeModalSheet(
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: modeTab == 0 ? FontWeight.bold : FontWeight.normal,
-                                  color: modeTab == 0 ? googleBlue : googleTextSecondary,
+                                  color: modeTab == 0 ? Theme.of(context).colorScheme.primary : googleTextSecondary,
                                 ),
                               ),
                             ),
@@ -104,7 +104,7 @@ void showAddMistakeModalSheet(
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: modeTab == 1 ? FontWeight.bold : FontWeight.normal,
-                                  color: modeTab == 1 ? googleBlue : googleTextSecondary,
+                                  color: modeTab == 1 ? Theme.of(context).colorScheme.primary : googleTextSecondary,
                                 ),
                               ),
                             ),
@@ -163,7 +163,7 @@ void showAddMistakeModalSheet(
                               Text(reasonController.text, style: const TextStyle(fontSize: 13)),
                               const SizedBox(height: 12),
                             ],
-                            const Text('TAKEAWAYS & FORMULAS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: googleBlue)),
+                            Text('TAKEAWAYS & FORMULAS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary)),
                             const SizedBox(height: 6),
                             Container(
                               padding: const EdgeInsets.all(12),
@@ -218,7 +218,7 @@ void showAddMistakeModalSheet(
                                           child: DropdownButton<String>(
                                             value: subjs.contains(selectedSubject) ? selectedSubject : (subjs.isNotEmpty ? subjs.first : null),
                                             isExpanded: true,
-                                            icon: const Icon(Icons.arrow_drop_down_rounded, color: googleBlue),
+                                            icon: Icon(Icons.arrow_drop_down_rounded, color: Theme.of(context).colorScheme.primary),
                                             style: const TextStyle(
                                               fontSize: 12,
                                               color: googleTextPrimary,
@@ -348,7 +348,7 @@ void showAddMistakeModalSheet(
                       Navigator.pop(context);
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: googleBlue,
+                      backgroundColor: Theme.of(context).colorScheme.primary,
                       foregroundColor: Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),

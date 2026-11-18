@@ -150,7 +150,7 @@ class _CloudSyncModalSheetState extends State<CloudSyncModalSheet> {
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: googleBlue, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.primary, foregroundColor: Colors.white),
             child: const Text('Restore'),
           ),
         ],
@@ -220,10 +220,10 @@ class _CloudSyncModalSheetState extends State<CloudSyncModalSheet> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE8F0FE),
+                    color: Theme.of(context).colorScheme.primaryContainer,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.cloud_sync_outlined, color: googleBlue, size: 22),
+                  child: Icon(Icons.cloud_sync_outlined, color: Theme.of(context).colorScheme.primary, size: 22),
                 ),
                 const SizedBox(width: 12),
                 const Expanded(
@@ -258,7 +258,7 @@ class _CloudSyncModalSheetState extends State<CloudSyncModalSheet> {
           // Body
           Expanded(
             child: _isLoadingToken
-                ? const Center(child: CircularProgressIndicator(color: googleBlue))
+                ? Center(child: CircularProgressIndicator(color: Theme.of(context).colorScheme.primary))
                 : ListView(
                     padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
                     children: [
@@ -267,21 +267,21 @@ class _CloudSyncModalSheetState extends State<CloudSyncModalSheet> {
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFE8F0FE),
+                            color: Theme.of(context).colorScheme.primaryContainer,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Row(
                             children: [
-                              const SizedBox(
+                              SizedBox(
                                 width: 16,
                                 height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: googleBlue),
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Theme.of(context).colorScheme.primary),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Text(
                                   _syncStatusMessage!,
-                                  style: const TextStyle(fontSize: 13, color: googleBlue, fontWeight: FontWeight.w500),
+                                  style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.w500),
                                 ),
                               ),
                             ],
@@ -349,11 +349,11 @@ class _CloudSyncModalSheetState extends State<CloudSyncModalSheet> {
                                   Container(
                                     width: 38,
                                     height: 38,
-                                    decoration: const BoxDecoration(
-                                      color: Color(0xFFE8F0FE),
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(context).colorScheme.primaryContainer,
                                       shape: BoxShape.circle,
                                     ),
-                                    child: const Icon(Icons.shield_outlined, color: googleBlue, size: 20),
+                                    child: Icon(Icons.shield_outlined, color: Theme.of(context).colorScheme.primary, size: 20),
                                   ),
                                   const SizedBox(width: 12),
                                   Expanded(
@@ -405,16 +405,16 @@ class _CloudSyncModalSheetState extends State<CloudSyncModalSheet> {
                                       side: const BorderSide(color: Color(0xFFDADCE0)),
                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                                     ),
-                                    child: const Text('Change', style: TextStyle(fontSize: 12, color: googleBlue, fontWeight: FontWeight.w600)),
+                                    child: Text('Change', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.w600)),
                                   ),
                                 ],
                               )
                             : Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Row(
+                                  Row(
                                     children: [
-                                      Icon(Icons.vpn_key_outlined, size: 18, color: googleBlue),
+                                      Icon(Icons.vpn_key_outlined, size: 18, color: Theme.of(context).colorScheme.primary),
                                       SizedBox(width: 8),
                                       Text(
                                         'Hugging Face Access Token',
@@ -462,7 +462,7 @@ class _CloudSyncModalSheetState extends State<CloudSyncModalSheet> {
                                       ),
                                       focusedBorder: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(12),
-                                        borderSide: const BorderSide(color: googleBlue, width: 1.5),
+                                        borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 1.5),
                                       ),
                                     ),
                                   ),
@@ -475,7 +475,7 @@ class _CloudSyncModalSheetState extends State<CloudSyncModalSheet> {
                                         icon: const Icon(Icons.check_rounded, size: 16),
                                         label: const Text('Save Token', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                                         style: FilledButton.styleFrom(
-                                          backgroundColor: googleBlue,
+                                          backgroundColor: Theme.of(context).colorScheme.primary,
                                           foregroundColor: Colors.white,
                                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                                           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
@@ -504,7 +504,7 @@ class _CloudSyncModalSheetState extends State<CloudSyncModalSheet> {
                       // Action 1: Download & Sync Master nyro.db
                       _buildSyncCard(
                         icon: Icons.cloud_download_rounded,
-                        iconColor: googleBlue,
+                        iconColor: Theme.of(context).colorScheme.primary,
                         title: 'Sync Master Database (nyro.db)',
                         subtitle:
                             'Download updated lectures, timetable dates, and quizzes from your Hugging Face storage bucket.',
@@ -516,7 +516,7 @@ class _CloudSyncModalSheetState extends State<CloudSyncModalSheet> {
                             icon: const Icon(Icons.merge_type_rounded, size: 16),
                             label: const Text('Smart Merge (Safe)'),
                             style: FilledButton.styleFrom(
-                              backgroundColor: googleBlue,
+                              backgroundColor: Theme.of(context).colorScheme.primary,
                               foregroundColor: Colors.white,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),

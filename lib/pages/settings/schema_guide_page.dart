@@ -38,14 +38,14 @@ class DatabaseSchemaGuidePage extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFFE8F0FE),
+              color: Theme.of(context).colorScheme.primaryContainer,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: googleBlue.withOpacity(0.3)),
+              border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.3)),
             ),
-            child: const Row(
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.schema_outlined, color: googleBlue, size: 24),
+                Icon(Icons.schema_outlined, color: Theme.of(context).colorScheme.primary, size: 24),
                 SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -53,7 +53,7 @@ class DatabaseSchemaGuidePage extends StatelessWidget {
                     children: [
                       Text(
                         'Mass DB Preparation & Import Guide',
-                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: googleBlue),
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
                       ),
                       SizedBox(height: 4),
                       Text(
@@ -228,7 +228,7 @@ class DatabaseSchemaGuidePage extends StatelessWidget {
                 style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: googleTextPrimary),
               ),
               IconButton(
-                icon: const Icon(Icons.copy_rounded, size: 18, color: googleBlue),
+                icon: Icon(Icons.copy_rounded, size: 18, color: Theme.of(context).colorScheme.primary),
                 tooltip: 'Copy JSON Template',
                 onPressed: () => _copyToClipboard(context, tableName, jsonExample),
               ),

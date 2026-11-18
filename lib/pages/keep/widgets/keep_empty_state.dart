@@ -23,13 +23,13 @@ class KeepEmptyState extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: googleBlue.withOpacity(0.08),
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.08),
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 isFiltered ? Icons.search_off_rounded : Icons.lightbulb_outline_rounded,
                 size: 48,
-                color: googleBlue,
+                color: Theme.of(context).colorScheme.primary,
               ),
             ),
             const SizedBox(height: 18),
@@ -58,8 +58,8 @@ class KeepEmptyState extends StatelessWidget {
               const SizedBox(height: 16),
               OutlinedButton.icon(
                 onPressed: onClearFilter,
-                icon: const Icon(Icons.clear_all_rounded, size: 16, color: googleBlue),
-                label: const Text('Clear Filters', style: TextStyle(color: googleBlue, fontWeight: FontWeight.bold)),
+                icon: Icon(Icons.clear_all_rounded, size: 16, color: Theme.of(context).colorScheme.primary),
+                label: Text('Clear Filters', style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold)),
                 style: OutlinedButton.styleFrom(
                   side: const BorderSide(color: googleBorder),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

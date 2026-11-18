@@ -17,22 +17,20 @@ const googleRed = Color(0xFFB3261E);
 const googleAmber = Color(0xFFF29900);
 const googleGreen = Color(0xFF137333);
 
-final lightTheme = ThemeData(
+final lightTheme = buildLightTheme(googleBlue);
+
+/// One light color system for controls, forms, pickers and navigation.
+ThemeData buildLightTheme(Color accent) {
+  final scheme = ColorScheme.fromSeed(seedColor: accent, brightness: Brightness.light).copyWith(
+    primary: accent, onPrimary: Colors.white, surface: googleSurface,
+    onSurface: googleTextPrimary, outline: const Color(0xFF747775), outlineVariant: googleBorder);
+  return ThemeData(
   useMaterial3: true,
   brightness: Brightness.light,
   fontFamily: 'NotoSans',
   splashFactory: InkSparkle.splashFactory,
   visualDensity: VisualDensity.standard,
-  colorScheme: const ColorScheme.light(
-    primary: googleBlue,
-    onPrimary: Colors.white,
-    primaryContainer: googleBlueContainer,
-    onPrimaryContainer: googleOnBlueContainer,
-    surface: googleSurface,
-    onSurface: googleTextPrimary,
-    outline: Color(0xFF747775),
-    outlineVariant: googleBorder,
-  ),
+  colorScheme: scheme,
   scaffoldBackgroundColor: googleBackground,
   cardColor: googleSurface,
   dividerColor: googleBorder,
@@ -42,6 +40,7 @@ final lightTheme = ThemeData(
     elevation: 0,
     iconTheme: IconThemeData(color: googleTextPrimary),
     titleTextStyle: TextStyle(
+      fontFamily: 'NotoSans',
       color: googleTextPrimary,
       fontSize: 20,
       fontWeight: FontWeight.w600,
@@ -64,11 +63,11 @@ final lightTheme = ThemeData(
   ).apply(bodyColor: googleTextPrimary, displayColor: googleTextPrimary),
   inputDecorationTheme: InputDecorationTheme(
     filled: true,
-    fillColor: const Color(0xFFF0F3F9),
+    fillColor: scheme.surfaceContainerLow,
     contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
     border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
     enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: googleBlue, width: 2)),
+    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: scheme.primary, width: 2)),
   ),
   elevatedButtonTheme: ElevatedButtonThemeData(style: ElevatedButton.styleFrom(
     elevation: 0, minimumSize: const Size(48, 48),
@@ -79,10 +78,19 @@ final lightTheme = ThemeData(
     minimumSize: const Size(48, 48),
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
   )),
+  filledButtonTheme: FilledButtonThemeData(style: FilledButton.styleFrom(
+    minimumSize: const Size(48, 48),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)))),
+  textButtonTheme: TextButtonThemeData(style: TextButton.styleFrom(
+    minimumSize: const Size(48, 48), foregroundColor: scheme.primary)),
+  progressIndicatorTheme: ProgressIndicatorThemeData(color: scheme.primary,
+    linearTrackColor: scheme.primaryContainer, circularTrackColor: scheme.surfaceContainerHighest),
+  textSelectionTheme: TextSelectionThemeData(cursorColor: scheme.primary,
+    selectionColor: scheme.primary.withValues(alpha: 0.2), selectionHandleColor: scheme.primary),
   floatingActionButtonTheme: FloatingActionButtonThemeData(
     elevation: 0,
-    backgroundColor: googleBlueContainer,
-    foregroundColor: googleOnBlueContainer,
+    backgroundColor: scheme.primaryContainer,
+    foregroundColor: scheme.onPrimaryContainer,
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
   ),
   listTileTheme: const ListTileThemeData(
@@ -95,7 +103,8 @@ final lightTheme = ThemeData(
     TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
   }),
 
-);
+  );
+}
 
 const systemUiOverlayStyleLight = SystemUiOverlayStyle(
   statusBarColor: Colors.transparent,

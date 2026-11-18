@@ -47,20 +47,20 @@ class NoteColorPicker extends StatelessWidget {
                     color: item.lightColor,
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: isSelected ? googleBlue : const Color(0xFFCCCCCC),
+                      color: isSelected ? Theme.of(context).colorScheme.primary : const Color(0xFFCCCCCC),
                       width: isSelected ? 2.5 : 1.0,
                     ),
                     boxShadow: [
                       if (isSelected)
                         BoxShadow(
-                          color: googleBlue.withOpacity(0.3),
+                          color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
                           blurRadius: 4,
                           spreadRadius: 1,
                         ),
                     ],
                   ),
                   child: isSelected
-                      ? const Icon(Icons.check_rounded, size: 18, color: googleBlue)
+                      ? Icon(Icons.check_rounded, size: 18, color: Theme.of(context).colorScheme.primary)
                       : null,
                 ),
               );

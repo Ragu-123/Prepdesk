@@ -42,6 +42,10 @@ class StudyAlarmActivity : Activity() {
         currentId = alarm.getInt("id")
         handler.removeCallbacksAndMessages(null)
         handler.postDelayed(checkRinging, 1000)
+        val appearance = getSharedPreferences("nyro_appearance", MODE_PRIVATE)
+        val accent = if (appearance.getBoolean("adaptive", true))
+            appearance.getInt("accent", 0xFF315DA8.toInt()) else 0xFF315DA8.toInt()
+        val container = androidx.core.graphics.ColorUtils.blendARGB(Color.WHITE, accent, 0.15f)
         val density = resources.displayMetrics.density
         fun dp(value: Int) = (value * density).toInt()
         val layout = LinearLayout(this).apply {
@@ -56,7 +60,7 @@ class StudyAlarmActivity : Activity() {
         }
         val symbol = android.widget.ImageView(this).apply {
             setImageResource(io.github.thelazyindian.tasks.R.drawable.ic_alarm_notification)
-            imageTintList = android.content.res.ColorStateList.valueOf(Color.rgb(49, 93, 168))
+            imageTintList = android.content.res.ColorStateList.valueOf(accent)
             contentDescription = null
         }
         layout.addView(symbol, LinearLayout.LayoutParams(dp(48), dp(48)))
@@ -67,8 +71,8 @@ class StudyAlarmActivity : Activity() {
         fun button(title: String, action: String, minutes: Int = 0) {
             val control = Button(this).apply {
                 text = title; isAllCaps = false; textSize = 16f; minimumHeight = dp(56)
-                setTextColor(if (action == StudyAlarmService.DISMISS) Color.WHITE else Color.rgb(21, 51, 95))
-                background = GradientDrawable().apply { cornerRadius = dp(28).toFloat(); setColor(if (action == StudyAlarmService.DISMISS) Color.rgb(49, 93, 168) else Color.rgb(220, 231, 253)) }
+                setTextColor(if (action == StudyAlarmService.DISMISS) Color.WHITE else accent)
+                background = GradientDrawable().apply { cornerRadius = dp(28).toFloat(); setColor(if (action == StudyAlarmService.DISMISS) accent else container) }
                 setOnClickListener {
                     startService(Intent(this@StudyAlarmActivity, StudyAlarmService::class.java)
                         .setAction(action).putExtra("alarm", raw).putExtra("minutes", minutes))

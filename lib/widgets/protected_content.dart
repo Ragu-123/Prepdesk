@@ -62,7 +62,7 @@ class _ProtectedContentState extends State<ProtectedContent> with WidgetsBinding
       child: SafeArea(child: Padding(
         padding: const EdgeInsets.all(28),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.lock_outline_rounded, size: 40, color: googleBlue),
+          Icon(Icons.lock_outline_rounded, size: 40, color: Theme.of(context).colorScheme.primary),
           const SizedBox(height: 16),
           const Text('Your note is locked', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),

@@ -70,7 +70,7 @@ class _NoteTagsEditorState extends State<NoteTagsEditor> {
             runSpacing: 4,
             children: _tags.map((tag) {
               return Chip(
-                label: Text('#$tag', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: googleBlue)),
+                label: Text('#$tag', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary)),
                 backgroundColor: Colors.black.withOpacity(0.05),
                 visualDensity: VisualDensity.compact,
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -106,7 +106,7 @@ class _NoteTagsEditorState extends State<NoteTagsEditor> {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 visualDensity: VisualDensity.compact,
               ),
-              child: const Text('Add', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: googleBlue)),
+              child: Text('Add', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary)),
             ),
           ],
         ),

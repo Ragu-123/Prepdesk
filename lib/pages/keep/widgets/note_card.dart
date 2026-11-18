@@ -77,10 +77,10 @@ class NoteCard extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
-                          color: googleBlue.withOpacity(0.12),
+                          color: Theme.of(context).colorScheme.primary.withOpacity(0.12),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.lock_rounded, size: 16, color: googleBlue),
+                        child: Icon(Icons.lock_rounded, size: 16, color: Theme.of(context).colorScheme.primary),
                       ),
                       const SizedBox(width: 8),
                       const Expanded(
@@ -101,7 +101,7 @@ class NoteCard extends StatelessWidget {
                           child: Icon(
                             note.isPinned ? Icons.push_pin_rounded : Icons.push_pin_outlined,
                             size: 18,
-                            color: note.isPinned ? googleBlue : googleTextSecondary,
+                            color: note.isPinned ? Theme.of(context).colorScheme.primary : googleTextSecondary,
                           ),
                         ),
                       ),
@@ -140,7 +140,7 @@ class NoteCard extends StatelessWidget {
                           child: Icon(
                             note.isPinned ? Icons.push_pin_rounded : Icons.push_pin_outlined,
                             size: 18,
-                            color: note.isPinned ? googleBlue : googleTextSecondary,
+                            color: note.isPinned ? Theme.of(context).colorScheme.primary : googleTextSecondary,
                           ),
                         ),
                       ),
@@ -160,7 +160,7 @@ class NoteCard extends StatelessWidget {
                             Icon(
                               item.checked ? Icons.check_box_rounded : Icons.check_box_outline_blank_rounded,
                               size: 15,
-                              color: item.checked ? googleBlue : googleTextSecondary,
+                              color: item.checked ? Theme.of(context).colorScheme.primary : googleTextSecondary,
                             ),
                             const SizedBox(width: 6),
                             Expanded(
@@ -234,22 +234,22 @@ class NoteCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: googleBlue.withOpacity(0.08),
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.08),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.alarm_rounded, size: 12, color: googleBlue),
+                        Icon(Icons.alarm_rounded, size: 12, color: Theme.of(context).colorScheme.primary),
                         const SizedBox(width: 4),
                         Text(
                           DateFormat('EEE, d MMM • h:mm a').format(
                             DateTime.fromMillisecondsSinceEpoch(note.reminderAt!),
                           ),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 10.5,
                             fontWeight: FontWeight.w600,
-                            color: googleBlue,
+                            color: Theme.of(context).colorScheme.primary,
                           ),
                         ),
                       ],
@@ -276,7 +276,7 @@ class NoteCard extends StatelessWidget {
           children: [
             if (onToggleLock != null)
               ListTile(
-                leading: Icon(note.isLocked ? Icons.lock_open_rounded : Icons.lock_outline_rounded, color: googleBlue),
+                leading: Icon(note.isLocked ? Icons.lock_open_rounded : Icons.lock_outline_rounded, color: Theme.of(context).colorScheme.primary),
                 title: Text(note.isLocked ? 'Unlock / Unprotect Note' : 'Protect Note with Vault PIN'),
                 onTap: () {
                   Navigator.pop(ctx);
@@ -284,7 +284,7 @@ class NoteCard extends StatelessWidget {
                 },
               ),
             ListTile(
-              leading: Icon(note.isPinned ? Icons.push_pin_outlined : Icons.push_pin_rounded, color: googleBlue),
+              leading: Icon(note.isPinned ? Icons.push_pin_outlined : Icons.push_pin_rounded, color: Theme.of(context).colorScheme.primary),
               title: Text(note.isPinned ? 'Unpin Note' : 'Pin Note to Top'),
               onTap: () {
                 Navigator.pop(ctx);

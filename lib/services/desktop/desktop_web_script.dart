@@ -24,6 +24,7 @@ function applyAppearance(accent) {
   style.setProperty('--primary', accent);
   style.setProperty('--primary-hover', 'color-mix(in srgb, ' + accent + ' 85%, black)');
   style.setProperty('--tonal', 'color-mix(in srgb, ' + accent + ' 15%, white)');
+  style.setProperty('--canvas', 'color-mix(in srgb, ' + accent + ' 3%, white)');
 }
 async function api(path, options = {}) {
   const requestToken = state.token;

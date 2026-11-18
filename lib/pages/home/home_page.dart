@@ -1,5 +1,4 @@
 import 'dart:async';
-import '../../services/appearance_service.dart';
 import '../../widgets/content_transition.dart';
 import '../../services/notification_route.dart';
 import '../../widgets/task_navigation_bar.dart';
@@ -86,7 +85,7 @@ class _HomePageState extends State<HomePage> {
       });
     }
 
-    try { await NotificationService.instance.refreshBrandingAfterUpgrade(); } catch (_) {}
+    try { await NotificationService.instance.refreshAppearanceForSession(); } catch (_) {}
 
     // Listen for incoming mistake logs from laptop over LAN
     _serverSubscription = DesktopLogServerService.instance.onMistakeReceived.listen((data) {
@@ -164,7 +163,7 @@ class _HomePageState extends State<HomePage> {
               title: 'Alarm Snoozed',
               message: 'Alarm will ring in 5 minutes.',
               icon: Icons.snooze_rounded,
-              color: googleBlue,
+              color: Theme.of(context).colorScheme.primary,
             );
           }
         },
@@ -257,7 +256,6 @@ class _HomePageState extends State<HomePage> {
     );
     if (picked != null) {
       setState(() => _currentDate = picked);
-      if (_selectedSubject == 'All Subjects') AppearanceService.instance.focus(picked.toIso8601String().substring(0, 10));
       _loadGlobalData();
     }
   }
@@ -352,12 +350,12 @@ class _HomePageState extends State<HomePage> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF0F4F9),
+                            color: Theme.of(context).colorScheme.primaryContainer,
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
                             selectedType.toUpperCase(),
-                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: googleBlue),
+                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
                           ),
                         ),
                       ],
@@ -397,11 +395,11 @@ class _HomePageState extends State<HomePage> {
                             child: DropdownButton<String>(
                               value: selectedDropdownSubject ?? availableExistingSubjects.first,
                               isExpanded: true,
-                              icon: const Icon(Icons.arrow_drop_down_rounded, color: googleBlue),
+                              icon: Icon(Icons.arrow_drop_down_rounded, color: Theme.of(context).colorScheme.primary),
                               style: const TextStyle(fontSize: 13, color: googleTextPrimary, fontWeight: FontWeight.w600),
                               items: [
                                 ...availableExistingSubjects.map((s) => DropdownMenuItem(value: s, child: Text(s))),
-                                const DropdownMenuItem(value: '__NEW__', child: Text('+ Enter New Subject...', style: TextStyle(color: googleBlue))),
+                                DropdownMenuItem(value: '__NEW__', child: Text('+ Enter New Subject...', style: TextStyle(color: Theme.of(context).colorScheme.primary))),
                               ],
                               onChanged: (val) {
                                 if (val == '__NEW__') {
@@ -421,7 +419,7 @@ class _HomePageState extends State<HomePage> {
                             if (availableExistingSubjects.isNotEmpty)
                               InkWell(
                                 onTap: () => setSheetState(() => isAddingNewSubject = false),
-                                child: const Text('Pick from existing', style: TextStyle(fontSize: 10, color: googleBlue)),
+                                child: Text('Pick from existing', style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.primary)),
                               ),
                           ],
                         ),
@@ -525,7 +523,7 @@ class _HomePageState extends State<HomePage> {
                                     ),
                                     Text(
                                       '${scheduleDurationHours.toStringAsFixed(1)}h',
-                                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: googleBlue),
+                                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
                                     ),
                                     IconButton(
                                       icon: const Icon(Icons.add_rounded, size: 16),
@@ -557,14 +555,14 @@ class _HomePageState extends State<HomePage> {
                             label: const Text('Weekly Quiz', style: TextStyle(fontSize: 11)),
                             selected: quizType == 'WEEKLY_QUIZ',
                             onSelected: (v) => setSheetState(() => quizType = 'WEEKLY_QUIZ'),
-                            selectedColor: const Color(0xFFE8F0FE),
+                            selectedColor: Theme.of(context).colorScheme.primaryContainer,
                           ),
                           const SizedBox(width: 8),
                           ChoiceChip(
                             label: const Text('Test Series Mocks', style: TextStyle(fontSize: 11)),
                             selected: quizType == 'TEST_SERIES',
                             onSelected: (v) => setSheetState(() => quizType = 'TEST_SERIES'),
-                            selectedColor: const Color(0xFFE8F0FE),
+                            selectedColor: Theme.of(context).colorScheme.primaryContainer,
                           ),
                         ],
                       ),
@@ -604,11 +602,11 @@ class _HomePageState extends State<HomePage> {
                             child: DropdownButton<String>(
                               value: selectedQuizDropdownSubject ?? availableExistingSubjects.first,
                               isExpanded: true,
-                              icon: const Icon(Icons.arrow_drop_down_rounded, color: googleBlue),
+                              icon: Icon(Icons.arrow_drop_down_rounded, color: Theme.of(context).colorScheme.primary),
                               style: const TextStyle(fontSize: 13, color: googleTextPrimary, fontWeight: FontWeight.w600),
                               items: [
                                 ...availableExistingSubjects.map((s) => DropdownMenuItem(value: s, child: Text(s))),
-                                const DropdownMenuItem(value: '__NEW__', child: Text('+ Enter New Subject...', style: TextStyle(color: googleBlue))),
+                                DropdownMenuItem(value: '__NEW__', child: Text('+ Enter New Subject...', style: TextStyle(color: Theme.of(context).colorScheme.primary))),
                               ],
                               onChanged: (val) {
                                 if (val == '__NEW__') {
@@ -628,7 +626,7 @@ class _HomePageState extends State<HomePage> {
                             if (availableExistingSubjects.isNotEmpty)
                               InkWell(
                                 onTap: () => setSheetState(() => isAddingNewQuizSubject = false),
-                                child: const Text('Pick from existing', style: TextStyle(fontSize: 10, color: googleBlue)),
+                                child: Text('Pick from existing', style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.primary)),
                               ),
                           ],
                         ),
@@ -810,9 +808,9 @@ class _HomePageState extends State<HomePage> {
                       children: [
                         // Date Chip
                         ActionChip(
-                          avatar: const Icon(Icons.calendar_today_rounded, size: 14, color: googleBlue),
-                          label: Text(formattedDate, style: const TextStyle(fontSize: 12, color: googleBlue)),
-                          backgroundColor: const Color(0xFFF0F4F9),
+                          avatar: Icon(Icons.calendar_today_rounded, size: 14, color: Theme.of(context).colorScheme.primary),
+                          label: Text(formattedDate, style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.primary)),
+                          backgroundColor: Theme.of(context).colorScheme.primaryContainer,
                           side: BorderSide.none,
                           onPressed: () async {
                             final pDate = await showDatePicker(
@@ -831,9 +829,9 @@ class _HomePageState extends State<HomePage> {
                         // Time Chip (for Reminders)
                         if (selectedType == 'Reminder') ...[
                           ActionChip(
-                            avatar: const Icon(Icons.access_time_rounded, size: 14, color: googleBlue),
-                            label: Text(hasTime ? formattedTime : 'Set time', style: const TextStyle(fontSize: 12, color: googleBlue)),
-                            backgroundColor: const Color(0xFFF0F4F9),
+                            avatar: Icon(Icons.access_time_rounded, size: 14, color: Theme.of(context).colorScheme.primary),
+                            label: Text(hasTime ? formattedTime : 'Set time', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.primary)),
+                            backgroundColor: Theme.of(context).colorScheme.primaryContainer,
                             side: BorderSide.none,
                             onPressed: () async {
                               final pTime = await showTimePicker(
@@ -874,11 +872,11 @@ class _HomePageState extends State<HomePage> {
                             }
                           },
                           itemBuilder: (context) => [
-                            const PopupMenuItem(
+                            PopupMenuItem(
                               value: 'Reminder',
                               child: Row(
                                 children: [
-                                  Icon(Icons.check_circle_outline_rounded, size: 16, color: googleBlue),
+                                  Icon(Icons.check_circle_outline_rounded, size: 16, color: Theme.of(context).colorScheme.primary),
                                   SizedBox(width: 8),
                                   Text('Task / Reminder', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                                 ],
@@ -904,11 +902,11 @@ class _HomePageState extends State<HomePage> {
                                 ],
                               ),
                             ),
-                            const PopupMenuItem(
+                            PopupMenuItem(
                               value: 'Revisit',
                               child: Row(
                                 children: [
-                                  Icon(Icons.replay_rounded, size: 16, color: googleBlue),
+                                  Icon(Icons.replay_rounded, size: 16, color: Theme.of(context).colorScheme.primary),
                                   SizedBox(width: 8),
                                   Text('Revisit Checkpoint', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                                 ],
@@ -938,19 +936,19 @@ class _HomePageState extends State<HomePage> {
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF0F4F9),
+                              color: Theme.of(context).colorScheme.primaryContainer,
                               borderRadius: BorderRadius.circular(16),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.add_circle_outline_rounded, size: 14, color: googleBlue),
+                                Icon(Icons.add_circle_outline_rounded, size: 14, color: Theme.of(context).colorScheme.primary),
                                 const SizedBox(width: 4),
                                 Text(
                                   selectedType,
-                                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: googleBlue),
+                                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
                                 ),
-                                const Icon(Icons.arrow_drop_down_rounded, size: 16, color: googleBlue),
+                                Icon(Icons.arrow_drop_down_rounded, size: 16, color: Theme.of(context).colorScheme.primary),
                               ],
                             ),
                           ),
@@ -1015,7 +1013,7 @@ class _HomePageState extends State<HomePage> {
                                     title: 'Reminder Scheduled',
                                     message: 'Set for $formattedAlertTime',
                                     icon: Icons.check_circle_outline_rounded,
-                                    color: googleBlue,
+                                    color: Theme.of(context).colorScheme.primary,
                                   );
                                 }
                               }
@@ -1102,7 +1100,7 @@ class _HomePageState extends State<HomePage> {
                                     title: 'Revisit Added',
                                     message: '$top scheduled for recall.',
                                     icon: Icons.replay_rounded,
-                                    color: googleBlue,
+                                    color: Theme.of(context).colorScheme.primary,
                                   );
                                 }
                               }
@@ -1111,7 +1109,7 @@ class _HomePageState extends State<HomePage> {
                             Navigator.pop(context);
                           },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: googleBlue,
+                            backgroundColor: Theme.of(context).colorScheme.primary,
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
@@ -1215,7 +1213,6 @@ class _HomePageState extends State<HomePage> {
         selectedSubject: _selectedSubject,
         onSubjectSelected: (subj) {
           setState(() => _selectedSubject = subj);
-          AppearanceService.instance.focus(subj == 'All Subjects' ? _currentDate.toIso8601String().substring(0, 10) : subj);
         },
       ),
     );
@@ -1245,10 +1242,10 @@ class _HomePageState extends State<HomePage> {
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      color: googleBlue.withOpacity(0.12),
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.check_rounded, color: googleBlue, size: 24),
+                    child: Icon(Icons.check_rounded, color: Theme.of(context).colorScheme.primary, size: 24),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -1288,7 +1285,7 @@ class _HomePageState extends State<HomePage> {
                   ),
                   // 2. Cloud Sync
                   ListTile(
-                    leading: const Icon(Icons.cloud_sync_outlined, color: googleBlue, size: 22),
+                    leading: Icon(Icons.cloud_sync_outlined, color: Theme.of(context).colorScheme.primary, size: 22),
                     title: const Text('Cloud Sync', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: googleTextPrimary)),
                     subtitle: const Text('Backup & restore DB to Hugging Face', style: TextStyle(fontSize: 11, color: googleTextSecondary)),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -1310,7 +1307,7 @@ class _HomePageState extends State<HomePage> {
                   ),
                   // 4. Jump to Date
                   ListTile(
-                    leading: const Icon(Icons.event_outlined, color: googleBlue, size: 22),
+                    leading: Icon(Icons.event_outlined, color: Theme.of(context).colorScheme.primary, size: 22),
                     title: const Text('Jump to Date', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: googleTextPrimary)),
                     subtitle: const Text('Quick calendar date navigation', style: TextStyle(fontSize: 11, color: googleTextSecondary)),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -1326,7 +1323,7 @@ class _HomePageState extends State<HomePage> {
                       return ListTile(
                         leading: Icon(
                           Icons.hub_outlined,
-                          color: isOnline ? googleBlue : googleTextSecondary,
+                          color: isOnline ? Theme.of(context).colorScheme.primary : googleTextSecondary,
                           size: 22,
                         ),
                         title: Row(
@@ -1399,7 +1396,7 @@ class _HomePageState extends State<HomePage> {
         titleSpacing: 8,
         toolbarHeight: 72,
         leading: IconButton(
-          icon: const Icon(Icons.calendar_month_outlined, color: googleBlue, size: 22),
+          icon: Icon(Icons.calendar_month_outlined, color: Theme.of(context).colorScheme.primary, size: 22),
           tooltip: 'Jump to Date',
           onPressed: _pickDate,
         ),
@@ -1423,7 +1420,7 @@ class _HomePageState extends State<HomePage> {
                   value: _todayProgress,
                   strokeWidth: 2.5,
                   backgroundColor: const Color(0xFFF1F3F4),
-                  valueColor: const AlwaysStoppedAnimation<Color>(googleBlue),
+                  valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.primary),
                 ),
               ),
             ],
@@ -1441,17 +1438,17 @@ class _HomePageState extends State<HomePage> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE8F0FE),
+                  color: Theme.of(context).colorScheme.primaryContainer,
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.today_rounded, size: 14, color: googleBlue),
+                    Icon(Icons.today_rounded, size: 14, color: Theme.of(context).colorScheme.primary),
                     SizedBox(width: 4),
                     Text(
                       'Today',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: googleBlue),
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
                     ),
                   ],
                 ),

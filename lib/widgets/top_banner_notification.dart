@@ -24,7 +24,7 @@ class TopBanner {
     required String title,
     required String message,
     IconData icon = Icons.info_outline_rounded,
-    Color color = googleBlue,
+    Color? color,
     Duration duration = const Duration(milliseconds: 3500),
     String type = 'INFO',
     List<TopBannerAction>? actions,
@@ -52,7 +52,7 @@ class TopBanner {
         title: title,
         message: message,
         icon: icon,
-        color: color,
+        color: color ?? Theme.of(context).colorScheme.primary,
         duration: duration,
         actions: actions,
         onTap: onTap,
@@ -78,7 +78,7 @@ class TopBanner {
       title: title,
       message: message,
       icon: Icons.alarm_on_rounded,
-      color: googleBlue,
+      color: Theme.of(context).colorScheme.primary,
       duration: const Duration(seconds: 8),
       type: 'reminder',
       onTap: onTap,
@@ -86,7 +86,7 @@ class TopBanner {
         TopBannerAction(
           label: 'Snooze 5m',
           icon: Icons.snooze_rounded,
-          color: googleBlue,
+          color: Theme.of(context).colorScheme.primary,
           onPressed: () {
             onSnooze5?.call();
           },
@@ -132,7 +132,7 @@ class TopBanner {
           TopBannerAction(
             label: 'View Schedule',
             icon: Icons.calendar_today_rounded,
-            color: googleBlue,
+            color: Theme.of(context).colorScheme.primary,
             onPressed: onView,
           ),
         TopBannerAction(

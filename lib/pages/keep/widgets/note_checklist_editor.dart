@@ -86,7 +86,7 @@ class _NoteChecklistEditorState extends State<NoteChecklistEditor> {
               children: [
                 Checkbox(
                   value: item.checked,
-                  activeColor: googleBlue,
+                  activeColor: Theme.of(context).colorScheme.primary,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                   onChanged: (val) => _toggleItem(idx, val),
                 ),
@@ -132,7 +132,7 @@ class _NoteChecklistEditorState extends State<NoteChecklistEditor> {
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.check_rounded, color: googleBlue, size: 20),
+                icon: Icon(Icons.check_rounded, color: Theme.of(context).colorScheme.primary, size: 20),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
                 onPressed: _addItem,

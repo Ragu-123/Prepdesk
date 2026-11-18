@@ -88,9 +88,9 @@ class _AlertsModalSheetState extends State<AlertsModalSheet> {
     );
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('Test notification sent! Check your notification shade.'),
-          backgroundColor: googleBlue,
+          backgroundColor: Theme.of(context).colorScheme.primary,
           duration: Duration(seconds: 3),
         ),
       );
@@ -167,7 +167,7 @@ class _AlertsModalSheetState extends State<AlertsModalSheet> {
           // Content PageView
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator(color: googleBlue))
+                ? Center(child: CircularProgressIndicator(color: Theme.of(context).colorScheme.primary))
                 : PageView(
                     controller: _pageController,
                     onPageChanged: (idx) => setState(() => _activeSubTab = idx),
@@ -219,7 +219,7 @@ class _AlertsModalSheetState extends State<AlertsModalSheet> {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                  color: isSelected ? googleBlue : googleTextSecondary,
+                  color: isSelected ? Theme.of(context).colorScheme.primary : googleTextSecondary,
                 ),
               ),
               if (count > 0) ...[
@@ -227,7 +227,7 @@ class _AlertsModalSheetState extends State<AlertsModalSheet> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                   decoration: BoxDecoration(
-                    color: isSelected ? googleBlue : const Color(0xFFDADCE0),
+                    color: isSelected ? Theme.of(context).colorScheme.primary : const Color(0xFFDADCE0),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
@@ -268,8 +268,8 @@ class _AlertsModalSheetState extends State<AlertsModalSheet> {
                 ),
               ),
               TextButton.icon(
-                icon: const Icon(Icons.add, size: 16, color: googleBlue),
-                label: const Text('Add Reminder', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: googleBlue)),
+                icon: Icon(Icons.add, size: 16, color: Theme.of(context).colorScheme.primary),
+                label: Text('Add Reminder', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary)),
                 onPressed: () {
                   Navigator.pop(context);
                   widget.onOpenAddReminder();
@@ -307,9 +307,9 @@ class _AlertsModalSheetState extends State<AlertsModalSheet> {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Padding(
+                      Padding(
                         padding: EdgeInsets.only(top: 2),
-                        child: Icon(Icons.schedule, size: 18, color: googleBlue),
+                        child: Icon(Icons.schedule, size: 18, color: Theme.of(context).colorScheme.primary),
                       ),
                       const SizedBox(width: 14),
                       Expanded(
@@ -369,9 +369,9 @@ class _AlertsModalSheetState extends State<AlertsModalSheet> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Row(
+              Row(
                 children: [
-                  Icon(Icons.notifications_active_outlined, size: 20, color: googleBlue),
+                  Icon(Icons.notifications_active_outlined, size: 20, color: Theme.of(context).colorScheme.primary),
                   SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -393,7 +393,7 @@ class _AlertsModalSheetState extends State<AlertsModalSheet> {
                     onPressed: _requestNotificationPermission,
                     icon: const Icon(Icons.security_rounded, size: 14),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: googleBlue,
+                      foregroundColor: Theme.of(context).colorScheme.primary,
                       side: const BorderSide(color: googleBorder),
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -405,7 +405,7 @@ class _AlertsModalSheetState extends State<AlertsModalSheet> {
                     onPressed: _sendTestNotification,
                     icon: const Icon(Icons.send_rounded, size: 14),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: googleBlue,
+                      backgroundColor: Theme.of(context).colorScheme.primary,
                       foregroundColor: Colors.white,
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -437,7 +437,7 @@ class _AlertsModalSheetState extends State<AlertsModalSheet> {
           title: const Text('Morning Brief (05:00 AM)', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
           subtitle: const Text('Daily wake-up prompt with today’s lecture targets & due recall drops', style: TextStyle(fontSize: 12, color: googleTextSecondary)),
           value: _morningBrief,
-          activeColor: googleBlue,
+          activeColor: Theme.of(context).colorScheme.primary,
           onChanged: (val) async {
             setState(() => _morningBrief = val);
             await DatabaseService.instance.updateAlertSettings(
@@ -460,7 +460,7 @@ class _AlertsModalSheetState extends State<AlertsModalSheet> {
           title: const Text('Afternoon Session (01:30 PM)', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
           subtitle: const Text('Afternoon & Aptitude block study reminder', style: TextStyle(fontSize: 12, color: googleTextSecondary)),
           value: _afternoonSession,
-          activeColor: googleBlue,
+          activeColor: Theme.of(context).colorScheme.primary,
           onChanged: (val) async {
             setState(() => _afternoonSession = val);
             await DatabaseService.instance.updateAlertSettings(
@@ -483,7 +483,7 @@ class _AlertsModalSheetState extends State<AlertsModalSheet> {
           title: const Text('Evening Review (07:00 PM)', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
           subtitle: const Text('Wrap up today’s lectures, log tricky quiz mistakes, and clear recall checkpoints', style: TextStyle(fontSize: 12, color: googleTextSecondary)),
           value: _eveningReview,
-          activeColor: googleBlue,
+          activeColor: Theme.of(context).colorScheme.primary,
           onChanged: (val) async {
             setState(() => _eveningReview = val);
             await DatabaseService.instance.updateAlertSettings(

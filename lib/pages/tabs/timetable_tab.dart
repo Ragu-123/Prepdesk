@@ -196,14 +196,14 @@ class _TimetableTabState extends State<TimetableTab> {
                       height: 44,
                       decoration: BoxDecoration(
                         color: _isSearchVisible || _searchController.text.isNotEmpty
-                            ? googleBlue.withOpacity(0.12)
+                            ? Theme.of(context).colorScheme.primary.withOpacity(0.12)
                             : googleHairline,
                         borderRadius: BorderRadius.circular(22),
                       ),
                       child: IconButton(
                         icon: Icon(
                           _isSearchVisible ? Icons.search_off_rounded : Icons.search_rounded,
-                          color: _isSearchVisible || _searchController.text.isNotEmpty ? googleBlue : googleTextSecondary,
+                          color: _isSearchVisible || _searchController.text.isNotEmpty ? Theme.of(context).colorScheme.primary : googleTextSecondary,
                           size: 20,
                         ),
                         tooltip: 'Search lectures in this subject',
@@ -230,11 +230,11 @@ class _TimetableTabState extends State<TimetableTab> {
                     decoration: BoxDecoration(
                       color: googleBackground,
                       borderRadius: BorderRadius.circular(21),
-                      border: Border.all(color: googleBlue.withOpacity(0.3)),
+                      border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.3)),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.search, size: 18, color: googleBlue),
+                        Icon(Icons.search, size: 18, color: Theme.of(context).colorScheme.primary),
                         const SizedBox(width: 10),
                         Expanded(
                           child: TextField(
@@ -295,7 +295,7 @@ class _TimetableTabState extends State<TimetableTab> {
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
-                          color: pct == 1.0 ? googleGreen : googleBlue,
+                          color: pct == 1.0 ? googleGreen : Theme.of(context).colorScheme.primary,
                         ),
                       ),
                     ],
@@ -308,7 +308,7 @@ class _TimetableTabState extends State<TimetableTab> {
                       minHeight: 5,
                       backgroundColor: const Color(0xFFE8EAED),
                       valueColor: AlwaysStoppedAnimation<Color>(
-                        pct == 1.0 ? googleGreen : googleBlue,
+                        pct == 1.0 ? googleGreen : Theme.of(context).colorScheme.primary,
                       ),
                     ),
                   ),
@@ -319,7 +319,7 @@ class _TimetableTabState extends State<TimetableTab> {
           // 3. Lectures List: Pending first, followed by Completed Accordion Toggle
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator(color: googleBlue))
+                ? Center(child: CircularProgressIndicator(color: Theme.of(context).colorScheme.primary))
                 : _lectures.isEmpty
                     ? Center(
                         child: Column(
@@ -456,7 +456,7 @@ class _TimetableTabState extends State<TimetableTab> {
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
-                              color: isCompleted ? googleTextSecondary : googleBlue,
+                              color: isCompleted ? googleTextSecondary : Theme.of(context).colorScheme.primary,
                             ),
                           ),
                           const Text(' • ', style: TextStyle(fontSize: 11, color: googleTextSecondary)),

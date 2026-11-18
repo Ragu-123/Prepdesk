@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../services/appearance_service.dart';
+import 'appearance_settings_page.dart';
 import 'widgets/notification_access_panel.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
@@ -24,7 +24,6 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  bool _changingAppearance = false;
   // Cloud Sync
   final _tokenController = TextEditingController();
   final _usernameController = TextEditingController();
@@ -163,6 +162,9 @@ class _SettingsPageState extends State<SettingsPage> {
 
   void _navigateToSection(String section) {
     switch (section.toLowerCase()) {
+      case 'appearance':
+        Navigator.push(context, MaterialPageRoute<void>(builder: (_) => const AppearanceSettingsPage()));
+        break;
       case 'cloud':
         _openSubPage(
           title: 'Cloud Sync & Hugging Face',
@@ -172,7 +174,7 @@ class _SettingsPageState extends State<SettingsPage> {
         break;
       case 'server':
         _openSubPage(
-          title: 'Laptop Mistake Log Server',
+          title: 'Desktop Companion Studio',
           icon: Icons.laptop_chromebook_rounded,
           builder: (ctx) => _buildLogServerDetail(),
         );
@@ -484,8 +486,8 @@ class _SettingsPageState extends State<SettingsPage> {
                               h1: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: googleTextPrimary),
                               h2: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: googleTextPrimary),
                               h3: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: googleTextPrimary),
-                              listBullet: const TextStyle(fontSize: 13, color: googleBlue),
-                              a: const TextStyle(fontSize: 12.5, color: googleBlue, decoration: TextDecoration.underline),
+                              listBullet: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.primary),
+                              a: TextStyle(fontSize: 12.5, color: Theme.of(context).colorScheme.primary, decoration: TextDecoration.underline),
                               code: TextStyle(
                                 fontSize: 11.5,
                                 color: Colors.purple.shade700,
@@ -503,19 +505,19 @@ class _SettingsPageState extends State<SettingsPage> {
                               UrlHelper.launchURL('https://github.com/${AppUpdateService.defaultGithubRepo}/releases/tag/$tag');
                             },
                             borderRadius: BorderRadius.circular(6),
-                            child: const Padding(
+                            child: Padding(
                               padding: EdgeInsets.symmetric(vertical: 4, horizontal: 2),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.open_in_new_rounded, size: 14, color: googleBlue),
+                                  Icon(Icons.open_in_new_rounded, size: 14, color: Theme.of(context).colorScheme.primary),
                                   SizedBox(width: 6),
                                   Text(
                                     'View Full Release Notes on GitHub',
                                     style: TextStyle(
                                       fontSize: 11.5,
                                       fontWeight: FontWeight.w600,
-                                      color: googleBlue,
+                                      color: Theme.of(context).colorScheme.primary,
                                       decoration: TextDecoration.underline,
                                     ),
                                   ),
@@ -529,7 +531,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   const SizedBox(height: 20),
                   if (isDownloading) ...[
-                    LinearProgressIndicator(value: downloadProgress > 0 ? downloadProgress : null, color: googleBlue),
+                    LinearProgressIndicator(value: downloadProgress > 0 ? downloadProgress : null, color: Theme.of(context).colorScheme.primary),
                     const SizedBox(height: 8),
                     Center(child: Text(downloadText, style: const TextStyle(fontSize: 11, color: googleTextSecondary))),
                     const SizedBox(height: 16),
@@ -569,7 +571,7 @@ class _SettingsPageState extends State<SettingsPage> {
                               });
                             },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: googleBlue,
+                        backgroundColor: Theme.of(context).colorScheme.primary,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
@@ -670,12 +672,12 @@ class _SettingsPageState extends State<SettingsPage> {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [googleBlue.withOpacity(0.08), googleBlue.withOpacity(0.02)],
+                colors: [Theme.of(context).colorScheme.primary.withOpacity(0.08), Theme.of(context).colorScheme.primary.withOpacity(0.02)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: googleBlue.withOpacity(0.15)),
+              border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.15)),
             ),
             child: Row(
               children: [
@@ -683,10 +685,10 @@ class _SettingsPageState extends State<SettingsPage> {
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: googleBlue.withOpacity(0.12),
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.tune_rounded, color: googleBlue, size: 24),
+                  child: Icon(Icons.tune_rounded, color: Theme.of(context).colorScheme.primary, size: 24),
                 ),
                 const SizedBox(width: 14),
                 const Expanded(
@@ -699,7 +701,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                       SizedBox(height: 2),
                       Text(
-                        'Cloud tokens, LAN log server, and routine alerts',
+                        'Appearance, privacy, reminders and connected devices',
                         style: TextStyle(fontSize: 11, color: googleTextSecondary),
                       ),
                     ],
@@ -710,20 +712,10 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           const SizedBox(height: 18),
 
-          // 1. Cloud Sync Tile
-          _buildCategoryTile(
-            icon: Icons.cloud_sync_outlined,
-            iconColor: googleBlue,
-            title: 'Cloud Sync & Hugging Face',
-            subtitle: cloudRepoSubtitle,
-            onTap: () => _navigateToSection('cloud'),
-          ),
-
           // 2. Laptop Log Server Tile
           _buildCategoryTile(
             icon: Icons.laptop_chromebook_rounded,
-            iconColor: Colors.teal,
-            title: 'Laptop Mistake Log Server',
+            title: 'Desktop Companion Studio',
             subtitle: serverSubtitle,
             badgeWidget: _serverRunning
                 ? Container(
@@ -738,7 +730,6 @@ class _SettingsPageState extends State<SettingsPage> {
           // 3. In-App Updates Tile
           _buildCategoryTile(
             icon: Icons.system_update_rounded,
-            iconColor: googleGreen,
             title: 'In-App Updates',
             subtitle: 'v${AppUpdateService.currentVersion} • GitHub releases channel',
             onTap: () => _navigateToSection('updates'),
@@ -747,7 +738,6 @@ class _SettingsPageState extends State<SettingsPage> {
           // 4. Keep Vault & Note Security Tile (under In-App Updates)
           _buildCategoryTile(
             icon: Icons.lock_outline_rounded,
-            iconColor: const Color(0xFFF29900),
             title: 'Keep Vault & Note Security',
             subtitle: _hasVaultPin ? 'PIN configured • Biometrics & privacy' : 'Set Master PIN & biometric protection',
             badgeWidget: _hasVaultPin
@@ -763,36 +753,29 @@ class _SettingsPageState extends State<SettingsPage> {
           // 5. Reminders & Routine Tile
           _buildCategoryTile(
             icon: Icons.notifications_none_rounded,
-            iconColor: googleAmber,
             title: 'Reminders & Routine',
             subtitle: 'Morning Brief ($_morningBriefTime), Spaced Recall, custom alerts',
             onTap: () => _navigateToSection('alerts'),
           ),
 
-          Card(child: ListenableBuilder(listenable: AppearanceService.instance,
-            builder: (context, _) => SwitchListTile.adaptive(
-              secondary: Icon(Icons.palette_outlined, color: Theme.of(context).colorScheme.primary),
-              title: const Text('Adaptive colors'),
-              subtitle: const Text('Match app accents to your study context and notification accents to each task. Turn off for the fixed blue theme.'),
-              value: AppearanceService.instance.enabled,
-              onChanged: _changingAppearance ? null : (enabled) async {
-                setState(() => _changingAppearance = true);
-                try {
-                  await AppearanceService.instance.setEnabled(enabled);
-                  await NotificationService.instance.refreshNotificationAppearance();
-                } catch (_) {
-                  if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Could not finish applying the theme. Please retry.')));
-                } finally {
-                  if (mounted) setState(() => _changingAppearance = false);
-                }
-              },
-            ))),
+          _buildCategoryTile(
+            icon: Icons.palette_outlined,
+            title: 'Appearance',
+            subtitle: 'Adaptive colors for the app and notifications',
+            onTap: () => _navigateToSection('appearance'),
+          ),
+
+          // 1. Cloud Sync Tile
+          _buildCategoryTile(
+            icon: Icons.cloud_sync_outlined,
+            title: 'Cloud Sync & Hugging Face',
+            subtitle: cloudRepoSubtitle,
+            onTap: () => _navigateToSection('cloud'),
+          ),
 
           // 5. Database Schema & Mass Import Guide Tile
           _buildCategoryTile(
             icon: Icons.storage_rounded,
-            iconColor: Colors.deepPurple,
             title: 'Database Schema & Mass Import Guide',
             subtitle: 'SQLite DDL structure & copyable JSON templates',
             onTap: () => _navigateToSection('schema'),
@@ -801,7 +784,6 @@ class _SettingsPageState extends State<SettingsPage> {
           // 6. About App & Diagnostics Tile
           _buildCategoryTile(
             icon: Icons.info_outline_rounded,
-            iconColor: Colors.blueGrey,
             title: 'About & Diagnostics',
             subtitle: 'DB statistics, curriculum loader & reset',
             onTap: () => _navigateToSection('about'),
@@ -815,7 +797,6 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Widget _buildCategoryTile({
     required IconData icon,
-    required Color iconColor,
     required String title,
     required String subtitle,
     Widget? badgeWidget,
@@ -834,10 +815,10 @@ class _SettingsPageState extends State<SettingsPage> {
           width: 44,
           height: 44,
           decoration: BoxDecoration(
-            color: iconColor.withOpacity(0.1),
+            color: Theme.of(context).colorScheme.primaryContainer,
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(icon, color: iconColor, size: 22),
+          child: Icon(icon, color: Theme.of(context).colorScheme.onPrimaryContainer, size: 22),
         ),
         title: Row(
           children: [
@@ -917,7 +898,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 const Text('Hugging Face Storage Bucket / Dataset', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                 InkWell(
                   onTap: () => openExternalUrl('https://huggingface.co/new-bucket'),
-                  child: const Text('Create Bucket ↗', style: TextStyle(fontSize: 11, color: googleBlue, decoration: TextDecoration.underline)),
+                  child: Text('Create Bucket ↗', style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.primary, decoration: TextDecoration.underline)),
                 ),
               ],
             ),
@@ -950,8 +931,8 @@ class _SettingsPageState extends State<SettingsPage> {
                         : const Icon(Icons.wifi_tethering_rounded, size: 16),
                     label: const Text('Test Token'),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: googleBlue,
-                      side: const BorderSide(color: googleBlue),
+                      foregroundColor: Theme.of(context).colorScheme.primary,
+                      side: BorderSide(color: Theme.of(context).colorScheme.primary),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
                   ),
@@ -963,7 +944,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     icon: const Icon(Icons.save_rounded, size: 16),
                     label: const Text('Save Settings'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: googleBlue,
+                      backgroundColor: Theme.of(context).colorScheme.primary,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
@@ -999,7 +980,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
                 Switch(
                   value: _serverRunning,
-                  activeColor: googleBlue,
+                  activeColor: Theme.of(context).colorScheme.primary,
                   onChanged: (val) => _toggleLogServer(val),
                 ),
               ],
@@ -1120,7 +1101,7 @@ class _SettingsPageState extends State<SettingsPage> {
                           ),
                           const SizedBox(width: 8),
                           IconButton(
-                            icon: const Icon(Icons.refresh_rounded, size: 22, color: googleBlue),
+                            icon: Icon(Icons.refresh_rounded, size: 22, color: Theme.of(context).colorScheme.primary),
                             tooltip: 'Regenerate PIN',
                             onPressed: () {
                               setState(() {
@@ -1131,7 +1112,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                 title: 'New PIN Generated',
                                 message: 'Existing desktop connections revoked. Enter this new PIN on laptop.',
                                 icon: Icons.vpn_key_rounded,
-                                color: googleBlue,
+                                color: Theme.of(context).colorScheme.primary,
                               );
                             },
                           ),
@@ -1149,7 +1130,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 const Text('Auto-start server on app launch', style: TextStyle(fontSize: 13)),
                 Switch(
                   value: _autoStartServer,
-                  activeColor: googleBlue,
+                  activeColor: Theme.of(context).colorScheme.primary,
                   onChanged: (val) async {
                     setState(() => _autoStartServer = val);
                     await DatabaseService.instance.setAutoStartServer(val);
@@ -1225,7 +1206,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     }
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: googleBlue,
+                    backgroundColor: Theme.of(context).colorScheme.primary,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -1298,10 +1279,10 @@ class _SettingsPageState extends State<SettingsPage> {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: googleBlue.withOpacity(0.1),
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.fingerprint_rounded, color: googleBlue, size: 22),
+                  child: Icon(Icons.fingerprint_rounded, color: Theme.of(context).colorScheme.primary, size: 22),
                 ),
                 const SizedBox(width: 14),
                 const Expanded(
@@ -1322,7 +1303,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
                 Switch(
                   value: _biometricsEnabled,
-                  activeColor: googleBlue,
+                  activeColor: Theme.of(context).colorScheme.primary,
                   onChanged: (val) async {
                     if (await VaultService.instance.setBiometricsEnabled(val, context)) {
                       if (mounted) setState(() => _biometricsEnabled = val);
@@ -1386,7 +1367,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 ElevatedButton(
                   onPressed: _isCheckingUpdates ? null : _checkForUpdates,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: googleBlue,
+                    backgroundColor: Theme.of(context).colorScheme.primary,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
@@ -1403,7 +1384,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 const Expanded(child: Text('Check for updates on app launch', style: TextStyle(fontSize: 13))),
                 Switch(
                   value: _autoCheckUpdates,
-                  activeColor: googleBlue,
+                  activeColor: Theme.of(context).colorScheme.primary,
                   onChanged: (val) async {
                     setState(() => _autoCheckUpdates = val);
                     await DatabaseService.instance.setAutoCheckUpdates(val);
@@ -1452,7 +1433,7 @@ class _SettingsPageState extends State<SettingsPage> {
                           children: [
                             Text('Scheduled at $_morningBriefTime', style: const TextStyle(fontSize: 11, color: googleTextSecondary)),
                             const SizedBox(width: 6),
-                            const Icon(Icons.edit_outlined, size: 13, color: googleBlue),
+                            Icon(Icons.edit_outlined, size: 13, color: Theme.of(context).colorScheme.primary),
                           ],
                         ),
                       ],
@@ -1461,7 +1442,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
                 Switch(
                   value: _morningBrief,
-                  activeColor: googleBlue,
+                  activeColor: Theme.of(context).colorScheme.primary,
                   onChanged: (val) {
                     setState(() => _morningBrief = val);
                     _saveAlertSettings();
@@ -1503,7 +1484,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
                 Switch(
                   value: _revisitAlerts,
-                  activeColor: googleBlue,
+                  activeColor: Theme.of(context).colorScheme.primary,
                   onChanged: (val) {
                     setState(() => _revisitAlerts = val);
                     _saveAlertSettings();
@@ -1530,7 +1511,7 @@ class _SettingsPageState extends State<SettingsPage> {
                           children: [
                             Text('Scheduled at $_shieldTime', style: const TextStyle(fontSize: 11, color: googleTextSecondary)),
                             const SizedBox(width: 6),
-                            const Icon(Icons.edit_outlined, size: 13, color: googleBlue),
+                            Icon(Icons.edit_outlined, size: 13, color: Theme.of(context).colorScheme.primary),
                           ],
                         ),
                       ],
@@ -1539,7 +1520,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
                 Switch(
                   value: _backlogShield,
-                  activeColor: googleBlue,
+                  activeColor: Theme.of(context).colorScheme.primary,
                   onChanged: (val) {
                     setState(() => _backlogShield = val);
                     _saveAlertSettings();
@@ -1569,13 +1550,13 @@ class _SettingsPageState extends State<SettingsPage> {
             const SizedBox(height: 12),
             InkWell(
               onTap: () => openExternalUrl('https://github.com/Ragu-123/nyro-tasks'),
-              child: const Row(
+              child: Row(
                 children: [
-                  Icon(Icons.code_rounded, size: 16, color: googleBlue),
+                  Icon(Icons.code_rounded, size: 16, color: Theme.of(context).colorScheme.primary),
                   SizedBox(width: 6),
                   Text(
                     'https://github.com/Ragu-123/nyro-tasks ↗',
-                    style: TextStyle(fontSize: 12, color: googleBlue, fontWeight: FontWeight.w600),
+                    style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.w600),
                   ),
                 ],
               ),
@@ -1609,8 +1590,8 @@ class _SettingsPageState extends State<SettingsPage> {
                       );
                     },
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: googleBlue,
-                      side: const BorderSide(color: googleBlue),
+                      foregroundColor: Theme.of(context).colorScheme.primary,
+                      side: BorderSide(color: Theme.of(context).colorScheme.primary),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
                     child: const Text('Load Sample DB', style: TextStyle(fontSize: 12)),

@@ -125,7 +125,7 @@ class _AlertsPageState extends State<AlertsPage> {
         title: advanced ? 'Checkpoint Completed' : (completed ? 'Reminder Completed' : 'Reminder Active'),
         message: advanced ? 'Your next checkpoint remains active.' : (completed ? 'Moved to completed schedule' : 'Restored to active reminders'),
         icon: completed ? Icons.task_alt_rounded : Icons.alarm_on_rounded,
-        color: completed ? googleGreen : googleBlue,
+        color: completed ? googleGreen : Theme.of(context).colorScheme.primary,
       );
     }
   }
@@ -184,7 +184,7 @@ class _AlertsPageState extends State<AlertsPage> {
                   title: 'Reminder Snoozed',
                   message: 'Will alert again in 5 minutes.',
                   icon: Icons.snooze_rounded,
-                  color: googleBlue,
+                  color: Theme.of(context).colorScheme.primary,
                 );
               },
               onSnooze10: () async {
@@ -305,7 +305,7 @@ class _AlertsPageState extends State<AlertsPage> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.add_alarm_rounded, color: googleBlue),
+            icon: Icon(Icons.add_alarm_rounded, color: Theme.of(context).colorScheme.primary),
             tooltip: 'Add Reminder',
             onPressed: _openNewReminderEditor,
           ),
@@ -326,7 +326,7 @@ class _AlertsPageState extends State<AlertsPage> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       decoration: BoxDecoration(
-                        color: _activeTab == 0 ? googleBlue.withOpacity(0.12) : const Color(0xFFF1F3F4),
+                        color: _activeTab == 0 ? Theme.of(context).colorScheme.primary.withOpacity(0.12) : const Color(0xFFF1F3F4),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       alignment: Alignment.center,
@@ -335,7 +335,7 @@ class _AlertsPageState extends State<AlertsPage> {
                         style: TextStyle(
                           fontSize: 12.5,
                           fontWeight: FontWeight.bold,
-                          color: _activeTab == 0 ? googleBlue : googleTextSecondary,
+                          color: _activeTab == 0 ? Theme.of(context).colorScheme.primary : googleTextSecondary,
                         ),
                       ),
                     ),
@@ -349,7 +349,7 @@ class _AlertsPageState extends State<AlertsPage> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       decoration: BoxDecoration(
-                        color: _activeTab == 1 ? googleBlue.withOpacity(0.12) : const Color(0xFFF1F3F4),
+                        color: _activeTab == 1 ? Theme.of(context).colorScheme.primary.withOpacity(0.12) : const Color(0xFFF1F3F4),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       alignment: Alignment.center,
@@ -358,7 +358,7 @@ class _AlertsPageState extends State<AlertsPage> {
                         style: TextStyle(
                           fontSize: 12.5,
                           fontWeight: FontWeight.bold,
-                          color: _activeTab == 1 ? googleBlue : googleTextSecondary,
+                          color: _activeTab == 1 ? Theme.of(context).colorScheme.primary : googleTextSecondary,
                         ),
                       ),
                     ),
@@ -372,7 +372,7 @@ class _AlertsPageState extends State<AlertsPage> {
           // Main Content
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator(color: googleBlue))
+                ? Center(child: CircularProgressIndicator(color: Theme.of(context).colorScheme.primary))
                 : _activeTab == 0
                     ? _buildStudyRemindersTab(pending, completed)
                     : _buildKeepRemindersTab(),
@@ -380,7 +380,7 @@ class _AlertsPageState extends State<AlertsPage> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: googleBlue,
+        backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Colors.white,
         elevation: 2,
         icon: const Icon(Icons.add, size: 20),
@@ -451,10 +451,10 @@ class _AlertsPageState extends State<AlertsPage> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: googleBlue.withOpacity(0.08),
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.08),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.lightbulb_outline_rounded, color: googleBlue, size: 36),
+                child: Icon(Icons.lightbulb_outline_rounded, color: Theme.of(context).colorScheme.primary, size: 36),
               ),
               const SizedBox(height: 16),
               const Text(
@@ -530,7 +530,7 @@ class _AlertsPageState extends State<AlertsPage> {
                                 ),
                               ),
                               if (note.isLocked)
-                                const Icon(Icons.lock_rounded, size: 16, color: googleBlue),
+                                Icon(Icons.lock_rounded, size: 16, color: Theme.of(context).colorScheme.primary),
                             ],
                           ),
                           const SizedBox(height: 4),
@@ -547,27 +547,27 @@ class _AlertsPageState extends State<AlertsPage> {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                 decoration: BoxDecoration(
-                                  color: googleBlue.withOpacity(0.08),
+                                  color: Theme.of(context).colorScheme.primary.withOpacity(0.08),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    const Icon(Icons.alarm_rounded, size: 13, color: googleBlue),
+                                    Icon(Icons.alarm_rounded, size: 13, color: Theme.of(context).colorScheme.primary),
                                     const SizedBox(width: 4),
                                     Text(
                                       '$dateFormatted • $timeFormatted',
-                                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: googleBlue),
+                                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.primary),
                                     ),
                                   ],
                                 ),
                               ),
                               const Spacer(),
-                              const Text(
+                              Text(
                                 'Open Note',
-                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: googleBlue),
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
                               ),
-                              const Icon(Icons.chevron_right_rounded, size: 16, color: googleBlue),
+                              Icon(Icons.chevron_right_rounded, size: 16, color: Theme.of(context).colorScheme.primary),
                             ],
                           ),
                         ],
@@ -605,15 +605,15 @@ class _AlertsPageState extends State<AlertsPage> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                   decoration: BoxDecoration(
-                    color: googleBlue.withOpacity(0.12),
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
                     '$count',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
-                      color: googleBlue,
+                      color: Theme.of(context).colorScheme.primary,
                     ),
                   ),
                 ),
@@ -626,10 +626,10 @@ class _AlertsPageState extends State<AlertsPage> {
               visualDensity: VisualDensity.compact,
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             ),
-            icon: const Icon(Icons.add, size: 16, color: googleBlue),
-            label: const Text(
+            icon: Icon(Icons.add, size: 16, color: Theme.of(context).colorScheme.primary),
+            label: Text(
               'New Reminder',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: googleBlue),
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
             ),
           ),
         ],
@@ -651,10 +651,10 @@ class _AlertsPageState extends State<AlertsPage> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: googleBlue.withOpacity(0.08),
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.08),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.alarm_off_outlined, color: googleBlue, size: 28),
+              child: Icon(Icons.alarm_off_outlined, color: Theme.of(context).colorScheme.primary, size: 28),
             ),
             const SizedBox(height: 12),
             const Text(
@@ -670,8 +670,8 @@ class _AlertsPageState extends State<AlertsPage> {
             const SizedBox(height: 16),
             OutlinedButton.icon(
               onPressed: _openNewReminderEditor,
-              icon: const Icon(Icons.add_alarm_rounded, size: 16, color: googleBlue),
-              label: const Text('Add Reminder', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: googleBlue)),
+              icon: Icon(Icons.add_alarm_rounded, size: 16, color: Theme.of(context).colorScheme.primary),
+              label: Text('Add Reminder', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Theme.of(context).colorScheme.primary)),
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: googleBorder),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -847,7 +847,7 @@ class _AlertsPageState extends State<AlertsPage> {
                               Icon(
                                 isAlarm ? Icons.alarm_rounded : Icons.access_time_rounded,
                                 size: 14,
-                                color: isCompleted ? googleBorder : (isAlarm ? googleRed : googleBlue),
+                                color: isCompleted ? googleBorder : (isAlarm ? googleRed : Theme.of(context).colorScheme.primary),
                               ),
                               const SizedBox(width: 4),
                               Text(
@@ -855,7 +855,7 @@ class _AlertsPageState extends State<AlertsPage> {
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
-                                  color: isCompleted ? googleTextSecondary : (isAlarm ? googleRed : googleBlue),
+                                  color: isCompleted ? googleTextSecondary : (isAlarm ? googleRed : Theme.of(context).colorScheme.primary),
                                   decoration: isCompleted ? TextDecoration.lineThrough : null,
                                 ),
                               ),
@@ -866,7 +866,7 @@ class _AlertsPageState extends State<AlertsPage> {
                             decoration: BoxDecoration(
                               color: isCompleted
                                   ? const Color(0xFFF1F3F4)
-                                  : googleBlue.withOpacity(0.08),
+                                  : Theme.of(context).colorScheme.primary.withOpacity(0.08),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
@@ -874,14 +874,14 @@ class _AlertsPageState extends State<AlertsPage> {
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
-                                color: isCompleted ? googleBorder : googleBlue,
+                                color: isCompleted ? googleBorder : Theme.of(context).colorScheme.primary,
                               ),
                             ),
                           ),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: isAlarm ? const Color(0xFFFEE2E2) : const Color(0xFFE0F2FE),
+                              color: isAlarm ? const Color(0xFFFEE2E2) : Theme.of(context).colorScheme.primaryContainer,
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
@@ -889,7 +889,7 @@ class _AlertsPageState extends State<AlertsPage> {
                               style: TextStyle(
                                 fontSize: 10.5,
                                 fontWeight: FontWeight.bold,
-                                color: isAlarm ? googleRed : googleBlue,
+                                color: isAlarm ? googleRed : Theme.of(context).colorScheme.primary,
                               ),
                             ),
                           ),
@@ -1030,12 +1030,7 @@ class __ReminderEditorSheetState extends State<_ReminderEditorSheet> {
           data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: false),
           child: Theme(
             data: Theme.of(context).copyWith(
-              colorScheme: const ColorScheme.light(
-                primary: googleBlue,
-                onPrimary: Colors.white,
-                surface: Colors.white,
-                onSurface: googleTextPrimary,
-              ),
+              colorScheme: Theme.of(context).colorScheme,
             ),
             child: child!,
           ),
@@ -1060,12 +1055,7 @@ class __ReminderEditorSheetState extends State<_ReminderEditorSheet> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: googleBlue,
-              onPrimary: Colors.white,
-              surface: Colors.white,
-              onSurface: googleTextPrimary,
-            ),
+            colorScheme: Theme.of(context).colorScheme,
           ),
           child: child!,
         );
@@ -1264,7 +1254,7 @@ class __ReminderEditorSheetState extends State<_ReminderEditorSheet> {
                       OutlinedButton(
                         onPressed: _pickTime,
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: googleBlue,
+                          foregroundColor: Theme.of(context).colorScheme.primary,
                           side: const BorderSide(color: googleBorder),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
@@ -1273,7 +1263,7 @@ class __ReminderEditorSheetState extends State<_ReminderEditorSheet> {
                       ),
                       const SizedBox(width: 8),
                       IconButton(
-                        icon: const Icon(Icons.play_circle_outline_rounded, color: googleBlue, size: 26),
+                        icon: Icon(Icons.play_circle_outline_rounded, color: Theme.of(context).colorScheme.primary, size: 26),
                         tooltip: 'Test a ringing alarm',
                         onPressed: _previewAlarm,
                       ),
@@ -1311,7 +1301,7 @@ class __ReminderEditorSheetState extends State<_ReminderEditorSheet> {
                               Icon(
                                 Icons.notifications_none_rounded,
                                 size: 16,
-                                color: _alertType == 'notification' ? googleBlue : googleTextSecondary,
+                                color: _alertType == 'notification' ? Theme.of(context).colorScheme.primary : googleTextSecondary,
                               ),
                               const SizedBox(width: 6),
                               Text(
@@ -1319,7 +1309,7 @@ class __ReminderEditorSheetState extends State<_ReminderEditorSheet> {
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
-                                  color: _alertType == 'notification' ? googleBlue : googleTextSecondary,
+                                  color: _alertType == 'notification' ? Theme.of(context).colorScheme.primary : googleTextSecondary,
                                 ),
                               ),
                             ],
@@ -1381,7 +1371,7 @@ class __ReminderEditorSheetState extends State<_ReminderEditorSheet> {
                       duration: const Duration(milliseconds: 180),
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                       decoration: BoxDecoration(
-                        color: _isOnce ? googleBlue : const Color(0xFFF1F3F4),
+                        color: _isOnce ? Theme.of(context).colorScheme.primary : const Color(0xFFF1F3F4),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
@@ -1419,7 +1409,7 @@ class __ReminderEditorSheetState extends State<_ReminderEditorSheet> {
                             width: 36,
                             height: 36,
                             decoration: BoxDecoration(
-                              color: isSelected ? googleBlue : const Color(0xFFF1F3F4),
+                              color: isSelected ? Theme.of(context).colorScheme.primary : const Color(0xFFF1F3F4),
                               shape: BoxShape.circle,
                             ),
                             alignment: Alignment.center,
@@ -1466,8 +1456,8 @@ class __ReminderEditorSheetState extends State<_ReminderEditorSheet> {
                   ),
                   TextButton.icon(
                     onPressed: _pickDate,
-                    icon: const Icon(Icons.calendar_today_rounded, size: 14, color: googleBlue),
-                    label: const Text('Schedule Date', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: googleBlue)),
+                    icon: Icon(Icons.calendar_today_rounded, size: 14, color: Theme.of(context).colorScheme.primary),
+                    label: Text('Schedule Date', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary)),
                   ),
                 ],
               ),
@@ -1487,9 +1477,9 @@ class __ReminderEditorSheetState extends State<_ReminderEditorSheet> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Row(
+                        Row(
                           children: [
-                            Icon(Icons.more_time_rounded, size: 18, color: googleBlue),
+                            Icon(Icons.more_time_rounded, size: 18, color: Theme.of(context).colorScheme.primary),
                             SizedBox(width: 8),
                             Text(
                               'Multiple Reminders for this Task',
@@ -1500,11 +1490,11 @@ class __ReminderEditorSheetState extends State<_ReminderEditorSheet> {
                         InkWell(
                           onTap: _addCheckpoint,
                           borderRadius: BorderRadius.circular(8),
-                          child: const Padding(
+                          child: Padding(
                             padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             child: Text(
                               '+ Add Time',
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: googleBlue),
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
                             ),
                           ),
                         ),
@@ -1588,7 +1578,7 @@ class __ReminderEditorSheetState extends State<_ReminderEditorSheet> {
                           const Spacer(),
                           Switch(
                             value: _vibrate,
-                            activeColor: googleBlue,
+                            activeColor: Theme.of(context).colorScheme.primary,
                             onChanged: (val) => setState(() => _vibrate = val),
                           ),
                         ],
@@ -1631,7 +1621,7 @@ class __ReminderEditorSheetState extends State<_ReminderEditorSheet> {
                   ElevatedButton(
                     onPressed: _isSaving ? null : _handleSave,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: googleBlue,
+                      backgroundColor: Theme.of(context).colorScheme.primary,
                       foregroundColor: Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),

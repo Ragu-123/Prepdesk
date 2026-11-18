@@ -97,10 +97,10 @@ class KeepSearchBar extends StatelessWidget {
                   return ChoiceChip(
                     label: const Text('All Notes', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                     selected: isAllSelected,
-                    selectedColor: googleBlue.withOpacity(0.15),
+                    selectedColor: Theme.of(context).colorScheme.primary.withOpacity(0.15),
                     backgroundColor: const Color(0xFFF1F3F4),
                     labelStyle: TextStyle(
-                      color: isAllSelected ? googleBlue : googleTextSecondary,
+                      color: isAllSelected ? Theme.of(context).colorScheme.primary : googleTextSecondary,
                       fontWeight: isAllSelected ? FontWeight.bold : FontWeight.w500,
                     ),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -113,10 +113,10 @@ class KeepSearchBar extends StatelessWidget {
                 return ChoiceChip(
                   label: Text('#$tag', style: const TextStyle(fontSize: 12)),
                   selected: isSelected,
-                  selectedColor: googleBlue.withOpacity(0.15),
+                  selectedColor: Theme.of(context).colorScheme.primary.withOpacity(0.15),
                   backgroundColor: const Color(0xFFF1F3F4),
                   labelStyle: TextStyle(
-                    color: isSelected ? googleBlue : googleTextSecondary,
+                    color: isSelected ? Theme.of(context).colorScheme.primary : googleTextSecondary,
                     fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                   ),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),

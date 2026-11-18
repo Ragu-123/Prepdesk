@@ -113,7 +113,7 @@ class _NoteEditorSheetState extends State<NoteEditorSheet> {
           title: 'Note Protected',
           message: 'Note will require PIN or biometrics to open.',
           icon: Icons.lock_rounded,
-          color: googleBlue,
+          color: Theme.of(context).colorScheme.primary,
         );
       }
     } else {
@@ -167,7 +167,7 @@ class _NoteEditorSheetState extends State<NoteEditorSheet> {
 
               // Preset 1: Later Today (6:00 PM)
               ListTile(
-                leading: const Icon(Icons.access_time_rounded, color: googleBlue),
+                leading: Icon(Icons.access_time_rounded, color: Theme.of(context).colorScheme.primary),
                 title: const Text('Later today', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
                 trailing: const Text('6:00 PM', style: TextStyle(color: googleTextSecondary, fontSize: 13)),
                 onTap: () {
@@ -450,7 +450,7 @@ class _NoteEditorSheetState extends State<NoteEditorSheet> {
                           IconButton(
                             icon: Icon(
                               _reminderAt != null ? Icons.alarm_on_rounded : Icons.alarm_add_rounded,
-                              color: _reminderAt != null ? googleBlue : googleTextSecondary,
+                              color: _reminderAt != null ? Theme.of(context).colorScheme.primary : googleTextSecondary,
                               size: 22,
                             ),
                             tooltip: _reminderAt != null ? 'Edit Reminder' : 'Add Reminder',
@@ -460,7 +460,7 @@ class _NoteEditorSheetState extends State<NoteEditorSheet> {
                           IconButton(
                             icon: Icon(
                               _isLocked ? Icons.lock_rounded : Icons.lock_outline_rounded,
-                              color: _isLocked ? googleBlue : googleTextSecondary,
+                              color: _isLocked ? Theme.of(context).colorScheme.primary : googleTextSecondary,
                               size: 22,
                             ),
                             tooltip: _isLocked ? 'Protected Note' : 'Protect Note',
@@ -470,7 +470,7 @@ class _NoteEditorSheetState extends State<NoteEditorSheet> {
                           IconButton(
                             icon: Icon(
                               _isTodoList ? Icons.check_box_rounded : Icons.check_box_outlined,
-                              color: _isTodoList ? googleBlue : googleTextSecondary,
+                              color: _isTodoList ? Theme.of(context).colorScheme.primary : googleTextSecondary,
                               size: 22,
                             ),
                             tooltip: 'Checklist Mode',
@@ -480,7 +480,7 @@ class _NoteEditorSheetState extends State<NoteEditorSheet> {
                           IconButton(
                             icon: Icon(
                               _isCode ? Icons.code_rounded : Icons.data_object_rounded,
-                              color: _isCode ? googleBlue : googleTextSecondary,
+                              color: _isCode ? Theme.of(context).colorScheme.primary : googleTextSecondary,
                               size: 22,
                             ),
                             tooltip: 'Monospace Code Note',
@@ -490,7 +490,7 @@ class _NoteEditorSheetState extends State<NoteEditorSheet> {
                           IconButton(
                             icon: Icon(
                               _isPinned ? Icons.push_pin_rounded : Icons.push_pin_outlined,
-                              color: _isPinned ? googleBlue : googleTextSecondary,
+                              color: _isPinned ? Theme.of(context).colorScheme.primary : googleTextSecondary,
                               size: 22,
                             ),
                             tooltip: _isPinned ? 'Unpin' : 'Pin to top',
@@ -500,7 +500,7 @@ class _NoteEditorSheetState extends State<NoteEditorSheet> {
                           IconButton(
                             icon: Icon(
                               _isArchived ? Icons.unarchive_outlined : Icons.archive_outlined,
-                              color: _isArchived ? googleBlue : googleTextSecondary,
+                              color: _isArchived ? Theme.of(context).colorScheme.primary : googleTextSecondary,
                               size: 22,
                             ),
                             tooltip: _isArchived ? 'Unarchive' : 'Archive',
@@ -520,7 +520,7 @@ class _NoteEditorSheetState extends State<NoteEditorSheet> {
                   ElevatedButton(
                     onPressed: _isSaving ? null : _handleSave,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: googleBlue,
+                      backgroundColor: Theme.of(context).colorScheme.primary,
                       foregroundColor: Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -548,18 +548,18 @@ class _NoteEditorSheetState extends State<NoteEditorSheet> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: googleBlue.withOpacity(0.1),
+                          color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: googleBlue.withOpacity(0.3)),
+                          border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.3)),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.alarm_rounded, size: 14, color: googleBlue),
+                            Icon(Icons.alarm_rounded, size: 14, color: Theme.of(context).colorScheme.primary),
                             const SizedBox(width: 6),
                             Text(
                               DateFormat('EEE, d MMM • h:mm a').format(DateTime.fromMillisecondsSinceEpoch(_reminderAt!)),
-                              style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: googleBlue),
+                              style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
                             ),
                             const SizedBox(width: 6),
                             InkWell(
@@ -567,7 +567,7 @@ class _NoteEditorSheetState extends State<NoteEditorSheet> {
                                 _reminderAt = null;
                                 _reminderRepeat = null;
                               }),
-                              child: const Icon(Icons.close_rounded, size: 14, color: googleBlue),
+                              child: Icon(Icons.close_rounded, size: 14, color: Theme.of(context).colorScheme.primary),
                             ),
                           ],
                         ),
