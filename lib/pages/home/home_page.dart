@@ -270,15 +270,36 @@ class _HomePageState extends State<HomePage> {
 
   // --- Multi-Type Quick Add Bottom Sheet (Reminder, Schedule, Quizzes, Revisit, Mistake) ---
 
-  String get _createType => switch (_currentNavIndex) {
-    1 => 'Schedule',
-    2 when _revisitSection == 2 => 'Mistake',
-    2 when _revisitSection == 0 && _dueCategory == 1 => 'Quizzes',
-    2 when _revisitSection == 0 && _dueCategory == 2 => 'Schedule',
-    2 => 'Revisit',
-    3 => 'Quizzes',
-    _ => ['Schedule', 'Revisit', 'Quizzes'][_todaySection],
-  };
+  String get _createType {
+    switch (_currentNavIndex) {
+      case 1:
+        return 'Schedule';
+      case 2:
+        if (_revisitSection == 2) return 'Mistake';
+        if (_revisitSection == 0 && _dueCategory == 1) return 'Quizzes';
+        if (_revisitSection == 0 && _dueCategory == 2) return 'Schedule';
+        return 'Revisit';
+      case 3:
+        return 'Quizzes';
+      default:
+        return ['Schedule', 'Revisit', 'Quizzes'][_todaySection];
+    }
+  }
+
+  bool get _creatingTestSeries => _currentNavIndex == 3 && _quizSection == 1;
+
+  String get _createLabel {
+    switch (_createType) {
+      case 'Schedule':
+        return 'Schedule a lecture';
+      case 'Mistake':
+        return 'Log a mistake';
+      case 'Quizzes':
+        return _creatingTestSeries ? 'Add a test series mock' : 'Add a weekly quiz';
+      default:
+        return 'Add a revisit';
+    }
+  }
 
   void _createInCurrentSection() {
     if (_createType == 'Mistake') {
@@ -287,7 +308,7 @@ class _HomePageState extends State<HomePage> {
       return;
     }
     _showNewTaskBottomSheet(initialType: _createType,
-      initialQuizType: _currentNavIndex == 3 && _quizSection == 1 ? 'TEST_SERIES' : 'WEEKLY_QUIZ');
+      initialQuizType: _creatingTestSeries ? 'TEST_SERIES' : 'WEEKLY_QUIZ');
   }
 
   void _showNewTaskBottomSheet({String initialType = 'Reminder', String initialQuizType = 'WEEKLY_QUIZ'}) {
@@ -1564,12 +1585,7 @@ class _HomePageState extends State<HomePage> {
       bottomNavigationBar: TaskNavigationBar(
         selectedIndex: _currentNavIndex,
         onCreate: _createInCurrentSection,
-        createLabel: switch (_createType) {
-          'Schedule' => 'Schedule a lecture',
-          'Mistake' => 'Log a mistake',
-          'Quizzes' => _currentNavIndex == 3 && _quizSection == 1 ? 'Add a test series mock' : 'Add a weekly quiz',
-          _ => 'Add a revisit',
-        },
+        createLabel: _createLabel,
         onSelected: (index) => setState(() => _currentNavIndex = index),
         revisitCount: _badgeCounts['due_revisits'] ?? 0,
         quizCount: _badgeCounts['pending_quizzes'] ?? 0,
