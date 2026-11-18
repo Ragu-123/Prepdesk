@@ -12,36 +12,70 @@ function node(tag, className, value) { const item = document.createElement(tag);
 function icon(name) { const item = node('span', 'mi', String.fromCodePoint(window.NYRO_ICONS[name] || window.NYRO_ICONS.note)); item.setAttribute('aria-hidden', 'true'); return item; }
 function action(label, symbol, callback, style = 'btn icon-button') { const button = node('button', style); button.type = 'button'; button.title = label; button.setAttribute('aria-label', label); if (symbol) button.append(icon(symbol)); if (!symbol || !style.includes('icon-button')) button.append(node('span', '', label)); button.addEventListener('click', callback); return button; }
 function jsonList(value) { if (Array.isArray(value)) return value; try { const parsed = JSON.parse(value || '[]'); return Array.isArray(parsed) ? parsed : []; } catch (_) { return []; } }
+let sessionStream;
+let privacyRevision;
 let toastTimer;
 function toast(message) { $('toast').textContent = message; $('toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').hidden = true, 4500); }
 function report(error) { $('workspace-error').textContent = error.message || 'Unable to reach your phone. Check the connection and retry.'; $('workspace-error').hidden = false; }
 function connected(value) { $('connection').textContent = value ? 'Phone connected' : 'Connection interrupted'; $('connection').classList.toggle('offline', !value); $('session-status').textContent = value ? 'Paired' : 'Not connected'; $('status-description').textContent = value ? 'Your phone is reachable. Changes save directly to NYRO Tasks.' : 'Keep NYRO open and check that both devices are on the same Wi-Fi network.'; }
+function applyAppearance(accent) {
+  if (!/^#[0-9a-fA-F]{6}$/.test(accent || '')) return;
+  const style = document.documentElement.style;
+  style.setProperty('--primary', accent);
+  style.setProperty('--primary-hover', 'color-mix(in srgb, ' + accent + ' 85%, black)');
+  style.setProperty('--tonal', 'color-mix(in srgb, ' + accent + ' 15%, white)');
+}
 async function api(path, options = {}) {
+  const requestToken = state.token;
   const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 15000);
   try {
     const response = await fetch(path, { ...options, signal: controller.signal, headers: { 'Content-Type': 'application/json', ...(state.token ? { Authorization: 'Bearer ' + state.token } : {}), ...options.headers } });
     const data = await response.json().catch(() => ({}));
     if (response.status === 401) { lockLocal(); throw new Error('Your session expired. Pair with your phone again.'); }
+    if (requestToken !== state.token && path !== '/api/auth/verify') throw new Error('Session changed. Pair again.');
     if (!response.ok) throw new Error(data.error || 'The change could not be saved. Please retry.');
     connected(true); return data;
   } catch (error) { if (error.name === 'AbortError') throw new Error('Your phone did not respond. Check the Wi-Fi connection and retry.'); throw error; }
   finally { clearTimeout(timer); }
 }
 function lockLocal() {
+  if (sessionStream) { sessionStream.abort(); sessionStream = null; }
+  privacyRevision = undefined;
   state.authenticated = false; state.token = ''; state.notes = []; state.mistakes = []; state.editingNote = null;
   sessionStorage.removeItem('nyro_token'); $('app').inert = true;
   document.querySelectorAll('dialog[open]').forEach(dialog => dialog.close());
   $('notes-container').replaceChildren(); $('mistakes-container').replaceChildren();
   $('note-form').reset(); $('mistake-form').reset(); $('pair-pin').value = '';
+  $('reader-title').textContent = 'Note'; $('reader-body').replaceChildren();
   if (!$('pair-dialog').open) $('pair-dialog').showModal();
   $('pair-pin').focus(); connected(false);
 }
 async function lockStudio() { try { await api('/api/auth/logout', { method: 'POST' }); } catch (_) {} finally { lockLocal(); } }
-async function loadWorkspace() { $('app').inert = false; $('pair-dialog').close(); state.authenticated = true; $('workspace-error').hidden = true; await Promise.allSettled([loadNotes(), loadMistakes(), loadSubjects()]); }
+async function watchPrivacy() {
+  if (sessionStream) sessionStream.abort();
+  const controller = new AbortController(); sessionStream = controller;
+  try {
+    const response = await fetch('/api/session/events', { headers: { Authorization: 'Bearer ' + state.token }, signal: controller.signal, cache: 'no-store' });
+    if (response.status === 401) { lockLocal(); return; }
+    if (!response.ok || !response.body) return;
+    const reader = response.body.getReader(); const decoder = new TextDecoder(); let buffer = '';
+    while (!controller.signal.aborted) {
+      const chunk = await reader.read(); if (chunk.done) break;
+      buffer += decoder.decode(chunk.value, { stream: true });
+      const frames = buffer.split(/\r?\n\r?\n/); buffer = frames.pop();
+      for (const frame of frames) if (frame.includes('event: privacy')) { lockLocal(); return; }
+    }
+  } catch (_) { /* Heartbeat also checks revocation if streaming is interrupted. */ }
+}
+async function loadWorkspace() { $('app').inert = false; $('pair-dialog').close(); state.authenticated = true; watchPrivacy(); $('workspace-error').hidden = true; await Promise.allSettled([loadNotes(), loadMistakes(), loadSubjects()]); }
 async function checkSession() {
   if (!state.token) { lockLocal(); return; }
-  try { const data = await api('/api/auth/status'); if (data.authenticated) { if (!state.authenticated) await loadWorkspace(); } else lockLocal(); }
-  catch (_) { connected(false); if (!state.authenticated) lockLocal(); }
+  try { const data = await api('/api/auth/status'); if (data.authenticated) {
+    if (privacyRevision !== undefined && data.privacy_revision !== privacyRevision) { lockLocal(); return; }
+    privacyRevision = data.privacy_revision; applyAppearance(data.accent);
+    if (!state.authenticated) await loadWorkspace();
+  } else lockLocal(); }
+  catch (_) { lockLocal(); }
 }
 $('pair-dialog').addEventListener('cancel', event => event.preventDefault());
 $('pair-form').addEventListener('submit', async event => {
@@ -68,7 +102,7 @@ function empty(container, heading, description, symbol, onCreate) {
   container.append(item);
 }
 async function loadNotes() {
-  try { const data = await api('/api/notes?archived=true'); state.notes = (data.notes || []).filter(note => !truth(note.is_locked)); renderNotes(); $('workspace-error').hidden = true; }
+  try { const data = await api('/api/notes?archived=true'); if (document.hidden || !state.authenticated) return; state.notes = (data.notes || []).filter(note => !truth(note.is_locked)); renderNotes(); $('workspace-error').hidden = true; }
   catch (error) { report(error); }
 }
 function renderNotes() {
@@ -85,7 +119,7 @@ function renderNotes() {
   notes.forEach(note => {
     const card = node('article', 'note' + (truth(note.is_code) ? ' is-code' : ''));
     if (/^#[0-9a-fA-F]{6}$/.test(note.color || '')) card.style.backgroundColor = note.color;
-    const open = node('button', 'note-open'); open.type = 'button'; open.addEventListener('click', () => openNote(note));
+    const open = node('button', 'note-open'); open.type = 'button'; open.addEventListener('click', () => readNote(note));
     open.append(node('h2', '', note.title || 'Untitled note'));
     if (note.content) open.append(node('div', 'note-body', note.content));
     if (truth(note.is_todo_list)) {
@@ -107,6 +141,22 @@ async function mutateNote(note, changes, button) {
   catch (error) { report(error); }
   finally { button.disabled = false; }
 }
+function readNote(note) {
+  state.editingNote = note;
+  $('reader-title').textContent = note.title || 'Untitled note';
+  const body = $('reader-body'); body.replaceChildren();
+  body.append(node('div', truth(note.is_code) ? 'reader-text reader-code' : 'reader-text', note.content));
+  if (truth(note.is_todo_list)) jsonList(note.todo_items_json).forEach(item => {
+    const row = node('p', 'reader-check'); row.append(icon(item.checked ? 'check' : 'note'), node('span', '', item.text)); body.append(row);
+  });
+  const tags = node('div', 'note-meta'); jsonList(note.tags_json).forEach(tag => tags.append(node('span', 'tag', tag))); body.append(tags);
+  $('note-reader').showModal(); $('reader-edit').focus();
+}
+$('reader-edit').addEventListener('click', () => {
+  const note = state.editingNote;
+  $('note-reader').close(); $('reader-title').textContent = 'Note'; $('reader-body').replaceChildren();
+  if (note && state.authenticated) openNote(note);
+});
 function openNote(note = null) {
   state.editingNote = note; $('note-form').reset(); $('note-form-error').textContent = '';
   $('note-dialog-title').textContent = note ? 'Edit note' : 'New note';
@@ -178,7 +228,17 @@ async function deleteRecord(type, id) {
   try { await api('/api/' + (type === 'note' ? 'notes/' : 'mistakes/') + encodeURIComponent(id), { method: 'DELETE' }); await (type === 'note' ? loadNotes() : loadMistakes()); toast(type === 'note' ? 'Note deleted' : 'Mistake deleted'); }
   catch (error) { report(error); }
 }
-setInterval(() => { if (state.authenticated && !document.hidden) checkSession(); }, 60000);
+setInterval(() => { if (state.authenticated && !document.hidden) checkSession(); }, 3000);
+document.addEventListener('visibilitychange', async () => {
+  if (document.hidden) {
+    state.notes = []; state.editingNote = null; $('notes-container').replaceChildren();
+    $('note-form').reset(); $('note-dialog').close(); $('note-reader').close();
+    $('reader-title').textContent = 'Note'; $('reader-body').replaceChildren(); $('app').inert = true;
+  } else if (state.token) {
+    await checkSession();
+    if (state.authenticated) { await loadNotes(); $('app').inert = false; }
+  }
+});
 checkSession();
 ''';
 }

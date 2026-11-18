@@ -11,6 +11,18 @@ import 'package:tasks/services/vault_service.dart';
 import 'package:tasks/services/notification_service.dart';
 import 'package:tasks/services/desktop/desktop_notes_handler.dart';
 import 'package:tasks/services/desktop/desktop_auth_handler.dart';
+import 'package:tasks/data/keep_note_model.dart';
+import 'package:tasks/services/desktop_log_server_service.dart';
+import 'package:tasks/pages/keep/note_reader_page.dart';
+import 'package:tasks/pages/tabs/today_tab.dart';
+import 'package:tasks/pages/tabs/widgets/today_progress_summary.dart';
+import 'package:tasks/widgets/protected_content.dart';
+import 'package:tasks/utils/theme.dart';
+import 'package:tasks/services/appearance_service.dart';
+import 'dart:async';
+import 'dart:ui' as ui;
+import 'package:flutter/rendering.dart';
+import 'package:timezone/data/latest.dart' as tz_data;
 
 class _Paths extends PathProviderPlatform {
   final String path;
@@ -43,6 +55,10 @@ void main() {
     final db = await dbService.database;
     await db.delete('custom_reminders');
     await db.delete('keep_notes');
+    await db.delete('mistake_records');
+    await db.delete('lectures');
+    await db.delete('revisit_items');
+    await db.delete('quiz_items');
     await db.delete('app_config', where: "key LIKE 'keep_vault_%'");
   });
   tearDownAll(() async {
@@ -174,5 +190,228 @@ void main() {
     expect(unlocked, isFalse);
     expect(find.text('Set Master Vault PIN'), findsNothing);
     expect(find.text('Vault credentials are unavailable. Protected notes remain locked.'), findsOneWidget);
+  });
+
+  test('Subject traps carry to Today, weekly and test-series quizzes with different titles', () async {
+    await dbService.insertMistakeRecord(subject: 'Linear Algebra', topic: 'Rank',
+      questionText: 'Find rank', keyTakeaway: 'Count pivots', severity: 'HIGH', quizTitle: 'Matrices 1');
+    final quizzes = [
+      {'id': 1, 'title': 'Next quiz', 'subject': 'linear algebra', 'quiz_type': 'TOPIC'},
+      {'id': 2, 'title': 'Week 2', 'subject': 'Engineering Mathematics', 'module_name': 'Linear Algebra', 'quiz_type': 'WEEKLY'},
+      {'id': 3, 'title': 'Test series 4', 'subject': 'All Subjects', 'syllabus_topics': 'Calculus; Linear Algebra', 'quiz_type': 'TEST_SERIES'},
+      {'id': 4, 'title': 'Thermodynamics', 'subject': 'Mechanical Engineering'},
+    ];
+    expect(await dbService.getQuizTrapCounts(quizzes), {1: 1, 2: 1, 3: 1, 4: 0});
+    expect((await dbService.getQuizTraps('Next quiz', subject: 'LINEAR ALGEBRA')).single['topic'], 'Rank');
+  });
+
+  test('Legacy protection flags fail closed and reject a stale desktop edit or delete', () async {
+    final db = await dbService.database;
+    for (final value in ['true', 'TRUE', 1, 2, 'locked']) {
+      await db.insert('keep_notes', {'id': 'legacy-$value', 'title': 'Private', 'is_locked': value,
+        'created_at': 1, 'updated_at': 1});
+      final note = (await dbService.getKeepNoteById('legacy-$value'))!;
+      expect(note.isLocked, isTrue);
+      expect(await dbService.saveDesktopNote(note.copyWith(title: 'Overwrite', isLocked: false), creating: false), isFalse);
+      expect(await dbService.deleteDesktopNote(note.id), isFalse);
+    }
+    final stale = KeepNote(id: 'race', title: 'Original');
+    await dbService.saveKeepNote(stale);
+    await dbService.toggleLockKeepNote('race', true);
+    expect(await dbService.saveDesktopNote(stale.copyWith(title: 'Stale write'), creating: false), isFalse);
+    expect((await dbService.getKeepNoteById('race'))!.title, 'Original');
+  });
+
+  test('Notification branding and the adaptive preference apply to both delivery and native alarms', () async {
+    Map<dynamic, dynamic>? delivered;
+    bool? nativeAdaptive;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+      const MethodChannel('io.github.thelazyindian.tasks/native'), (call) async {
+        if (call.method == 'setAdaptiveColors') nativeAdaptive = (call.arguments as Map)['enabled'] as bool;
+        return null;
+      });
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+      const MethodChannel('dexterous.com/flutter/local_notifications'), (call) async {
+        if (call.method == 'show') delivered = call.arguments as Map;
+        return null;
+      });
+    final appearance = AppearanceService.instance;
+    await appearance.setEnabled(false);
+    await NotificationService.instance.showInstantNotification(title: 'Linear Algebra', body: 'Review rank');
+    final android = delivered!['platformSpecifics'] as Map;
+    expect(android['icon'], 'ic_nyro_notification');
+    expect(android['largeIcon'], 'nyro_notification_logo');
+    expect([android['colorRed'], android['colorGreen'], android['colorBlue']], [49, 93, 168]);
+    expect(nativeAdaptive, isFalse);
+    await appearance.setEnabled(true);
+    await NotificationService.instance.showInstantNotification(title: 'Linear Algebra', body: 'Review rank');
+    final adaptive = AppearanceService.seedColor('Linear Algebra').toARGB32();
+    final next = delivered!['platformSpecifics'] as Map;
+    expect([next['colorRed'], next['colorGreen'], next['colorBlue']],
+      [(adaptive >> 16) & 255, (adaptive >> 8) & 255, adaptive & 255]);
+    expect(nativeAdaptive, isTrue);
+    expect(await dbService.getConfig('adaptive_colors'), '1');
+  });
+
+  test('Refreshing a daily note whose original date has passed keeps its next occurrence', () async {
+    tz_data.initializeTimeZones();
+    Map<dynamic, dynamic>? scheduled;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+      const MethodChannel('dexterous.com/flutter/local_notifications'), (call) async {
+        if (call.method == 'pendingNotificationRequests') return [];
+        if (call.method == 'zonedSchedule') scheduled = call.arguments as Map;
+        return null;
+      });
+    await NotificationService.instance.scheduleKeepNoteReminder(noteId: 'daily', title: 'Daily recall',
+      body: 'Review formulas', scheduledDate: DateTime.now().subtract(const Duration(days: 10)),
+      repeat: 'DAILY', requestPermission: false, recordHistory: false);
+    expect(scheduled, isNotNull);
+    expect(DateTime.parse(scheduled!['scheduledDateTime'] as String).isAfter(DateTime.now().toUtc().subtract(const Duration(seconds: 1))), isTrue);
+    expect(scheduled!['matchDateTimeComponents'], isNotNull);
+  });
+
+  test('Protecting a note immediately revokes the paired desktop and emits a privacy event', () async {
+    await HttpOverrides.runWithHttpOverrides(() async {
+      final reservation = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      final port = reservation.port;
+      await reservation.close(force: true);
+      final studio = DesktopLogServerService.instance;
+      await studio.startServer(port: port);
+      final client = HttpClient();
+      StreamSubscription<String>? stream;
+      try {
+        final token = studio.verifyPin(studio.pairingPin)!;
+        Future<HttpClientResponse> get(String path) async {
+          final request = await client.getUrl(Uri.parse('http://127.0.0.1:$port$path'));
+          request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
+          return request.close();
+        }
+        final response = await get('/api/session/events');
+        expect(response.statusCode, 200);
+        expect(response.headers.value('cache-control'), 'no-store');
+        final ready = Completer<void>();
+        final revoked = Completer<void>();
+        stream = response.transform(utf8.decoder).transform(const LineSplitter()).listen((line) {
+          if (line == 'event: ready' && !ready.isCompleted) ready.complete();
+          if (line == 'event: privacy' && !revoked.isCompleted) revoked.complete();
+        });
+        await ready.future.timeout(const Duration(seconds: 5));
+        await dbService.saveKeepNote(KeepNote(id: 'screen', title: 'Sensitive'));
+        await dbService.toggleLockKeepNote('screen', true);
+        await revoked.future.timeout(const Duration(seconds: 5));
+        final denied = await get('/api/notes');
+        expect(denied.statusCode, HttpStatus.unauthorized);
+        await denied.drain<void>();
+      } finally {
+        await stream?.cancel();
+        client.close(force: true);
+        await studio.stopServer();
+      }
+    }, _RealHttp());
+  });
+
+  Future<void> settleDatabase(WidgetTester tester, Finder ready) async {
+    for (var i = 0; i < 40 && ready.evaluate().isEmpty; i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+      await tester.pump();
+    }
+    await tester.pumpAndSettle();
+    expect(ready, findsWidgets);
+  }
+
+  testWidgets('Notes open as a full-screen reader and editing requires the pencil', (tester) async {
+    await tester.runAsync(() => dbService.saveKeepNote(KeepNote(id: 'reader', title: 'Read me', content: 'A quiet reading surface')));
+    await tester.pumpWidget(MaterialApp(theme: lightTheme, home: Builder(builder: (context) => Scaffold(
+      body: TextButton(onPressed: () => NoteReaderPage.open(context, 'reader'), child: const Text('Open note'))))));
+    await tester.tap(find.text('Open note'));
+    await settleDatabase(tester, find.text('Read me'));
+    expect(find.byType(TextField), findsNothing);
+    expect(find.text('A quiet reading surface'), findsOneWidget);
+    await tester.tap(find.text('Edit note'));
+    await settleDatabase(tester, find.byType(TextField));
+    expect(find.byType(TextField), findsWidgets);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('Protecting an already-open reader masks its contents', (tester) async {
+    await tester.runAsync(() => dbService.saveKeepNote(KeepNote(id: 'reader-lock', title: 'Sensitive content')));
+    await tester.pumpWidget(MaterialApp(home: Builder(builder: (context) => Scaffold(body: TextButton(
+      onPressed: () => NoteReaderPage.open(context, 'reader-lock'), child: const Text('Open note'))))));
+    await tester.tap(find.text('Open note'));
+    await settleDatabase(tester, find.text('Sensitive content'));
+    await tester.runAsync(() => dbService.toggleLockKeepNote('reader-lock', true));
+    await settleDatabase(tester, find.text('Unlock note'));
+    expect(find.text('Sensitive content'), findsNothing);
+    expect(find.text('Edit note'), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('Nested protected surfaces keep screenshot protection until the last surface closes', (tester) async {
+    final flags = <bool>[];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+      const MethodChannel('io.github.thelazyindian.tasks/native'), (call) async {
+        if (call.method == 'setSecureWindow') flags.add((call.arguments as Map)['enabled'] as bool);
+        return null;
+      });
+    Widget surface(bool nested) => MaterialApp(home: ProtectedContent(key: const ValueKey('outer'), protected: true,
+      child: nested ? const ProtectedContent(protected: true, child: Text('Private')) : const Text('Private')));
+    await tester.pumpWidget(surface(true));
+    await tester.pumpWidget(surface(false));
+    await tester.pump();
+    expect(flags, isNotEmpty);
+    expect(flags.every((flag) => flag), isTrue);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+    expect(flags.last, isFalse);
+  });
+
+  testWidgets('Today shows database study progress, keeps sections pinned and exposes carried traps', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final fonts = FontLoader('NotoSans')..addFont(rootBundle.load('assets/google_fonts/NotoSans-Regular.ttf'));
+    final icons = FontLoader('MaterialIcons')..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
+    await tester.runAsync(() async { await fonts.load(); await icons.load(); });
+    final date = DateTime(2026, 11, 18);
+    await tester.runAsync(() async {
+    final db = await dbService.database;
+    for (var i = 0; i < 12; i++) {
+      await db.insert('lectures', {'date_str': '2026-11-18', 'topic': 'Linear Algebra',
+        'details': 'Matrices ${i + 1}', 'duration_hours': 1.5, 'status': i == 0 ? 'COMPLETED' : 'PENDING'});
+    }
+    await db.insert('quiz_items', {'id': 501, 'date_str': '2026-11-18', 'title': 'Next matrices quiz',
+      'subject': 'Linear Algebra', 'quiz_type': 'TOPIC', 'status': 'PENDING'});
+    await dbService.insertMistakeRecord(subject: 'Linear Algebra', topic: 'Rank', questionText: 'Find rank',
+      keyTakeaway: 'Count pivots', severity: 'HIGH', quizTitle: 'Previous quiz');
+    });
+    final controller = ScrollController();
+    addTearDown(controller.dispose);
+    final preview = GlobalKey();
+    await tester.pumpWidget(MaterialApp(theme: lightTheme, home: RepaintBoundary(key: preview,
+      child: Scaffold(appBar: AppBar(title: const Text('Today')), body: TodayTab(currentDate: date,
+        onDataChanged: () {}, scrollController: controller, onOpenScheduleForm: () {}, onOpenTimetable: () {})))));
+    await settleDatabase(tester, find.byType(TodayProgressSummary));
+    final summary = tester.widget<TodayProgressSummary>(find.byType(TodayProgressSummary));
+    expect(summary.watchedHours, 1.5);
+    expect(summary.lecturesDone, 1);
+    expect(summary.lecturesTotal, 12);
+    await tester.runAsync(() async {
+      final image = await (preview.currentContext!.findRenderObject()! as RenderRepaintBoundary).toImage();
+      final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+      final file = File('build/ui-previews/today-dashboard.png');
+      await file.parent.create(recursive: true);
+      await file.writeAsBytes(bytes!.buffer.asUint8List());
+      image.dispose();
+    });
+    controller.jumpTo(650);
+    await tester.pumpAndSettle();
+    final schedule = find.text('Schedule');
+    expect(tester.getTopLeft(schedule).dy, lessThan(200));
+    await tester.tap(find.text('Quizzes').last);
+    await tester.pumpAndSettle();
+    expect(find.text('1 traps to review'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
   });
 }

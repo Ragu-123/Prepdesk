@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../services/study_data_events.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:intl/intl.dart';
 import 'package:tasks/data/database_service.dart';
@@ -32,6 +34,7 @@ class QuizzesTab extends StatefulWidget {
 }
 
 class _QuizzesTabState extends State<QuizzesTab> {
+  StreamSubscription<void>? _mistakeUpdates;
   int _activeTypeIndex = 0; // 0: WEEKLY_QUIZ, 1: TEST_SERIES
   List<Map<String, dynamic>> _quizzes = [];
   Map<int, int> _trapsCounts = {};
@@ -43,7 +46,11 @@ class _QuizzesTabState extends State<QuizzesTab> {
   void initState() {
     super.initState();
     _loadQuizzes();
+    _mistakeUpdates = StudyDataEvents.instance.mistakes.listen((_) { if (mounted) _loadQuizzes(); });
   }
+
+  @override
+  void dispose() { _mistakeUpdates?.cancel(); super.dispose(); }
 
   @override
   void didUpdateWidget(covariant QuizzesTab oldWidget) {
@@ -124,18 +131,7 @@ class _QuizzesTabState extends State<QuizzesTab> {
       final type = _activeTypeIndex == 0 ? 'WEEKLY_QUIZ' : 'TEST_SERIES';
       final items = await DatabaseService.instance.getQuizzesByType(type, subjectFilter: widget.selectedSubject);
 
-      // Concurrently fetch mistake counts for all quizzes via Future.wait
-      final countsList = await Future.wait(
-        items.map((q) async {
-          final title = (q['title'] ?? '').toString();
-          final id = q['id'] as int;
-          if (title.isEmpty) return MapEntry(id, 0);
-          final subject = (q['subject'] ?? '').toString();
-          final cnt = await DatabaseService.instance.getMistakeCountForQuiz(title, subject: subject);
-          return MapEntry(id, cnt);
-        }),
-      );
-      final counts = Map<int, int>.fromEntries(countsList);
+      final counts = await DatabaseService.instance.getQuizTrapCounts(items);
 
       final sortedItems = _applySorting(items);
 
@@ -320,6 +316,8 @@ class _QuizzesTabState extends State<QuizzesTab> {
       context,
       quizTitle: q['title'] ?? 'Quiz',
       subject: q['subject'] as String?,
+      module: q['module_name']?.toString(),
+      syllabus: q['syllabus_topics']?.toString(),
       onDataChanged: () {
         _loadQuizzes();
         widget.onDataChanged();
@@ -744,12 +742,12 @@ Future<void> showQuizTrapsModalSheet(
   BuildContext context, {
   required String quizTitle,
   String? subject,
+  String? module,
+  String? syllabus,
   VoidCallback? onDataChanged,
 }) async {
-  final mistakes = await DatabaseService.instance.getMistakeRecordsFiltered(
-    quizTitle: quizTitle,
-    subject: subject,
-  );
+  final mistakes = await DatabaseService.instance.getQuizTraps(quizTitle,
+    subject: subject, module: module, syllabus: syllabus);
 
   if (!context.mounted) return;
 
@@ -792,7 +790,7 @@ Future<void> showQuizTrapsModalSheet(
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${mistakes.length} recorded mistake notes for this quiz',
+                        '${mistakes.length} past mistakes carried forward for this subject',
                         style: const TextStyle(fontSize: 12, color: googleTextSecondary),
                       ),
                     ],
@@ -831,7 +829,7 @@ Future<void> showQuizTrapsModalSheet(
                           const Icon(Icons.check_circle_outline_rounded, size: 40, color: googleGreen),
                           const SizedBox(height: 10),
                           const Text(
-                            'No mistakes logged for this specific quiz yet.',
+                            'No traps recorded for this subject yet.',
                             style: TextStyle(fontSize: 13, color: googleTextSecondary),
                           ),
                           const SizedBox(height: 12),

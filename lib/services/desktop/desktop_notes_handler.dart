@@ -4,6 +4,7 @@ import 'dart:math';
 import '../../data/database_service.dart';
 import '../../data/keep_note_model.dart';
 import 'desktop_auth_handler.dart';
+import '../study_data_events.dart';
 
 class DesktopNotesHandler {
   final DesktopAuthHandler authHandler;
@@ -12,6 +13,8 @@ class DesktopNotesHandler {
 
   Future<void> handleGetNotes(HttpRequest request) async {
     try {
+      final revision = StudyDataEvents.instance.privacyRevision;
+      request.response.headers.set('Cache-Control', 'no-store');
       final queryParams = request.uri.queryParameters;
       final includeArchived = queryParams['archived'] == '1' || queryParams['archived'] == 'true';
       final search = queryParams['search'];
@@ -27,6 +30,11 @@ class DesktopNotesHandler {
       final jsonNotes = visible.map((n) => n.toMap()).toList();
       final tags = await DatabaseService.instance.getAllKeepTags();
 
+      if (revision != StudyDataEvents.instance.privacyRevision) {
+        request.response.statusCode = HttpStatus.forbidden;
+        request.response.write(jsonEncode({'error': 'Note protection changed. Pair again.'}));
+        return;
+      }
       request.response.headers.contentType = ContentType.json;
       request.response.write(jsonEncode({
         'success': true,
@@ -100,7 +108,11 @@ class DesktopNotesHandler {
         updatedAt: now,
       );
 
-      await DatabaseService.instance.saveKeepNote(note);
+      if (!await DatabaseService.instance.saveDesktopNote(note, creating: true)) {
+        request.response.statusCode = HttpStatus.conflict;
+        request.response.write(jsonEncode({'error': 'Note ID already exists'}));
+        return;
+      }
 
       request.response.statusCode = HttpStatus.created;
       request.response.headers.contentType = ContentType.json;
@@ -170,7 +182,11 @@ class DesktopNotesHandler {
         updatedAt: DateTime.now().millisecondsSinceEpoch,
       );
 
-      await DatabaseService.instance.saveKeepNote(updated);
+      if (!await DatabaseService.instance.saveDesktopNote(updated, creating: false)) {
+        request.response.statusCode = HttpStatus.forbidden;
+        request.response.write(jsonEncode({'error': 'Note protection changed. Edit on your phone.'}));
+        return;
+      }
 
       request.response.headers.contentType = ContentType.json;
       request.response.write(jsonEncode({'success': true, 'note': updated.toMap()}));
@@ -191,7 +207,11 @@ class DesktopNotesHandler {
         request.response.write(jsonEncode({'error': 'Protected notes can only be deleted on your phone'}));
         return;
       }
-      await DatabaseService.instance.deleteKeepNote(noteId);
+      if (!await DatabaseService.instance.deleteDesktopNote(noteId)) {
+        request.response.statusCode = HttpStatus.forbidden;
+        request.response.write(jsonEncode({'error': 'Protected notes can only be deleted on your phone'}));
+        return;
+      }
       request.response.headers.contentType = ContentType.json;
       request.response.write(jsonEncode({'success': true, 'id': noteId}));
     } catch (e) {

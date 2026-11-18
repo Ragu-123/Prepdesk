@@ -7,6 +7,7 @@ import '../../utils/theme.dart';
 import '../../widgets/top_banner_notification.dart';
 import '../settings/settings_page.dart';
 import 'note_editor_sheet.dart';
+import 'note_reader_page.dart';
 import 'widgets/keep_empty_state.dart';
 import 'widgets/keep_search_bar.dart';
 import 'widgets/note_card.dart';
@@ -69,17 +70,8 @@ class _KeepPageState extends State<KeepPage> {
   }
 
   void _openNoteEditor([KeepNote? note]) {
-    if (note != null && note.isLocked) {
-      VaultService.instance.showAuthDialog(
-        context,
-        title: 'Unlock Protected Note',
-        onAuthenticated: () {
-          _showEditorSheet(note);
-        },
-      );
-    } else {
-      _showEditorSheet(note);
-    }
+    if (note == null) { _showEditorSheet(); return; }
+    NoteReaderPage.open(context, note.id, onChanged: _loadNotes);
   }
 
   void _showEditorSheet([KeepNote? note]) {

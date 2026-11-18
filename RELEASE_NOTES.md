@@ -1,15 +1,14 @@
-NYRO Tasks v1.0.18
+NYRO Tasks v1.0.19
 
-- Refreshed light UI with floating rounded navigation, Material icons, bundled typography, and reduced-motion-aware transitions.
-- Native ringing alarms with alarm audio, vibration, lock-screen controls, Snooze, Dismiss, reboot restoration, and a real two-second alarm test.
-- Clearer task notification titles and expanded text. Permission controls show only the access that still needs enabling.
-- Multi-checkpoint reminders stay active after the first occurrence. Checking off a checkpoint advances to the next one.
-- Current-PIN verification for vault changes, failed-attempt throttling, device-backed credential storage, and biometrics only when tapped.
-- Protected note privacy across the editor, notification history, desktop API and cloud exports.
-- Redesigned Desktop Companion with note editing, search, pin/archive controls, complete mistake cards, accessible forms, and visible errors.
+- Today opens with a study progress ring and three metric cards using saved watched hours, lectures, revisits, and quizzes. Schedule, Revisits, and Quizzes stay pinned while scrolling.
+- Subject traps carry into the next quiz, weekly quizzes, and test series, even when titles change. Counts refresh after logging or resolving mistakes.
+- Existing Keep notes open in a full-screen reading view. Tap the pencil to edit. Desktop notes also open in a reading view.
+- Protected notes stay phone-only. Protection changes revoke paired desktop sessions, clear open browser content, and reject stale desktop edits and deletes. Legacy lock markers fail closed.
+- Notifications use the NYRO brand silhouette and a full-color logo, with expanded bold titles. Adaptive colors apply to the app, desktop, and task notifications. Settings > Adaptive colors restores fixed blue when disabled.
+- Native ringing alarms, multi-checkpoint reminders, explicit biometric activation, and the previous vault safeguards are retained.
 
-Hub transfer paths and BitChat are unchanged.
+Reload existing desktop browser tabs after upgrading, then pair again to load the new privacy controls. Already copied or downloaded data cannot be recalled.
 
-For ringing alarms, enable Notifications, Precise timing, and Full-screen alarms once in Settings > Reminders & Routine Alerts. Use the alarm editor's test control to verify your device.
+Hub upload behavior and BitChat are unchanged. Flutter verification and both release builds run only in GitHub Actions. Android controls the final notification layout and full-screen alarm access; verify ringing on your device using the built-in test.
 
-Assets include the signed GitHub APK, Play-distribution AAB, and SHA-256 checksums. The AAB is a submission candidate; Play Protect classification and Google Play approval still require review. See docs/RELEASE_v1.0.18.md for validation details, signing considerations, and remaining device checks.
+Assets include the GitHub APK, Play-distribution AAB, and SHA-256 checksums. Play Protect classification and Google Play approval require their own review; this release does not claim approval.

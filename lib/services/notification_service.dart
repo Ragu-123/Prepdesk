@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'appearance_service.dart';
 import 'dart:convert';
 import 'notification_route.dart';
 import 'dart:typed_data';
@@ -40,9 +41,10 @@ class NotificationService {
 
   Future<void> init({bool background = false}) async {
     await _configureLocalTimeZone();
+    await AppearanceService.instance.load();
 
     const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+        AndroidInitializationSettings('ic_nyro_notification');
 
     const InitializationSettings initializationSettings = InitializationSettings(
       android: initializationSettingsAndroid,
@@ -153,6 +155,9 @@ class NotificationService {
     final details = NotificationDetails(android: AndroidNotificationDetails(
       isAlarm ? alarmChannelId : studyChannelId,
       isAlarm ? alarmChannelName : studyChannelName,
+      icon: 'ic_nyro_notification',
+      largeIcon: const DrawableResourceAndroidBitmap('nyro_notification_logo'),
+      color: AppearanceService.instance.colorFor(title),
       importance: Importance.max,
       priority: Priority.high,
       category: isAlarm ? AndroidNotificationCategory.alarm : AndroidNotificationCategory.reminder,
@@ -221,6 +226,9 @@ class NotificationService {
       studyChannelId,
       studyChannelName,
       channelDescription: 'Alerts and reminders for GATE study tasks',
+      icon: 'ic_nyro_notification',
+      largeIcon: const DrawableResourceAndroidBitmap('nyro_notification_logo'),
+      color: AppearanceService.instance.colorFor(title),
       importance: Importance.max,
       priority: Priority.high,
       visibility: NotificationVisibility.public,
@@ -259,16 +267,18 @@ class NotificationService {
     String? repeatDays,
     String alertType = 'notification',
     List<String>? checkpoints,
+    bool requestPermission = true,
+    bool recordHistory = true,
   }) async {
     if ((title == 'Study Reminder' || title == 'NYRO Study Task') && body.trim().isNotEmpty) title = body.trim();
-    await _requestNotificationsIfNeeded();
+    if (requestPermission) await _requestNotificationsIfNeeded();
     final isAlarm = alertType.toLowerCase() == 'alarm';
-    if (isAlarm) await prepareAlarmAccess();
+    if (isAlarm && requestPermission) await prepareAlarmAccess();
     // Cancel the old schedule only after access has been verified.
     await cancelReminder(id);
     if (isAlarm) {
       await _scheduleNativeAlarm(id: id, title: title, body: body,
-        scheduledDate: scheduledDate, repeatDays: repeatDays, checkpoints: checkpoints);
+        scheduledDate: scheduledDate, repeatDays: repeatDays, checkpoints: checkpoints, recordHistory: recordHistory);
       return;
     }
 
@@ -281,6 +291,9 @@ class NotificationService {
       channelDescription: isAlarm
           ? 'Full-screen study alarm ringing overlay'
           : 'Alerts and reminders for GATE study tasks',
+      icon: 'ic_nyro_notification',
+      largeIcon: const DrawableResourceAndroidBitmap('nyro_notification_logo'),
+      color: AppearanceService.instance.colorFor(title),
       importance: Importance.max,
       priority: Priority.high,
       fullScreenIntent: isAlarm,
@@ -476,8 +489,8 @@ class NotificationService {
       }
     }
 
-    // Log scheduled reminder
-    try {
+    // Appearance refreshes must not fill notification history with duplicates.
+    if (recordHistory) try {
       await DatabaseService.instance.addInAppNotification(
         title: 'Reminder: $title',
         message: body,
@@ -494,6 +507,7 @@ class NotificationService {
     required DateTime scheduledDate,
     String? repeat,
     bool requestPermission = true,
+    bool recordHistory = true,
   }) async {
     if (requestPermission) await _requestNotificationsIfNeeded();
     final int notifId = (noteId.hashCode.abs() % 50000) + 20000;
@@ -503,6 +517,9 @@ class NotificationService {
       studyChannelId,
       studyChannelName,
       channelDescription: 'Google Keep Note Reminders',
+      icon: 'ic_nyro_notification',
+      largeIcon: const DrawableResourceAndroidBitmap('nyro_notification_logo'),
+      color: AppearanceService.instance.colorFor(title),
       importance: Importance.max,
       priority: Priority.high,
       visibility: NotificationVisibility.private,
@@ -520,8 +537,16 @@ class NotificationService {
     final NotificationDetails platformDetails = NotificationDetails(android: androidDetails);
     final now = tz.TZDateTime.now(tz.local);
     var tzScheduled = tz.TZDateTime.from(scheduledDate, tz.local);
+    final isDaily = repeat?.toUpperCase() == 'DAILY';
 
-    if (tzScheduled.isBefore(now)) {
+    if (isDaily) {
+      tzScheduled = tz.TZDateTime(tz.local, now.year, now.month, now.day,
+        scheduledDate.hour, scheduledDate.minute);
+      if (!tzScheduled.isAfter(now)) {
+        tzScheduled = tz.TZDateTime(tz.local, now.year, now.month, now.day + 1,
+          scheduledDate.hour, scheduledDate.minute);
+      }
+    } else if (tzScheduled.isBefore(now)) {
       if (now.difference(tzScheduled).inMinutes <= 5) {
         tzScheduled = now.add(const Duration(seconds: 5));
       } else {
@@ -530,7 +555,6 @@ class NotificationService {
     }
 
     final payload = 'route:keep_note:$noteId';
-    final isDaily = repeat?.toUpperCase() == 'DAILY';
 
     try {
       await flutterLocalNotificationsPlugin.zonedSchedule(
@@ -560,13 +584,45 @@ class NotificationService {
       );
     }
 
-    try {
+    if (recordHistory) try {
       await DatabaseService.instance.addInAppNotification(
         title: 'Keep Reminder: ${title.isNotEmpty ? title : "Note"}',
         message: body.isNotEmpty ? body : 'Note reminder scheduled',
         type: 'keep_note',
       );
     } catch (_) {}
+  }
+
+  Future<void> _appearanceRefresh = Future<void>.value();
+  Future<void> refreshNotificationAppearance() {
+    return _appearanceRefresh = _appearanceRefresh.catchError((Object _) {})
+        .then((_) => _refreshNotificationAppearance());
+  }
+
+  Future<void> _refreshNotificationAppearance() async {
+    final reminders = await DatabaseService.instance.getCustomReminders();
+    for (final row in reminders) {
+      if (row['status'] == 'COMPLETED') continue;
+      final when = DateTime.tryParse(row['remind_at']?.toString() ?? '');
+      if (when == null) continue;
+      List<String> checkpoints = [];
+      try { checkpoints = (jsonDecode(row['checkpoints_json']?.toString() ?? '[]') as List).map((v) => v.toString()).toList(); } catch (_) {}
+      await scheduleReminder(id: row['id'] as int, title: row['text']?.toString() ?? 'Study reminder',
+        body: '', scheduledDate: when, repeatDays: row['repeat_days']?.toString(),
+        alertType: row['alert_type']?.toString() ?? 'notification', checkpoints: checkpoints,
+        requestPermission: false, recordHistory: false);
+    }
+    final notes = await DatabaseService.instance.getKeepNotes(includeArchived: true);
+    for (final note in notes) {
+      if (note.reminderAt != null) await refreshKeepNotePrivacy(note.id);
+    }
+    await syncDailyRoutineFromSettings();
+  }
+
+  Future<void> refreshBrandingAfterUpgrade() async {
+    if (await DatabaseService.instance.getConfig('notification_brand_v19') == '1') return;
+    await refreshNotificationAppearance();
+    await DatabaseService.instance.setConfig('notification_brand_v19', '1');
   }
 
   Future<void> refreshKeepNotePrivacy(String noteId) async {
@@ -589,7 +645,7 @@ class NotificationService {
       title: note.isLocked ? 'Protected note reminder' : note.title,
       body: note.isLocked ? 'Unlock Keep to view this note.' : note.content,
       scheduledDate: DateTime.fromMillisecondsSinceEpoch(note.reminderAt!), repeat: note.reminderRepeat,
-      requestPermission: false);
+      requestPermission: false, recordHistory: false);
   }
 
   Future<void> cancelKeepNoteReminder(String noteId) async {
@@ -612,16 +668,20 @@ class NotificationService {
     final morningClock = (settings['morning_brief_time']?.toString() ?? '05:00').split(':');
     final shieldClock = (settings['shield_time']?.toString() ?? '21:30').split(':');
     final now = tz.TZDateTime.now(tz.local);
-    const details = NotificationDetails(android: AndroidNotificationDetails(
-      dailyChannelId, dailyChannelName,
-      importance: Importance.high, priority: Priority.high,
-      visibility: NotificationVisibility.private,
-    ));
     Future<void> schedule(int id, bool enabled, int hour, int minute, String title, String body) async {
       if (!enabled) {
         await flutterLocalNotificationsPlugin.cancel(id);
         return;
       }
+      final details = NotificationDetails(android: AndroidNotificationDetails(
+        dailyChannelId, dailyChannelName, importance: Importance.high, priority: Priority.high,
+        icon: 'ic_nyro_notification',
+        largeIcon: const DrawableResourceAndroidBitmap('nyro_notification_logo'),
+        color: AppearanceService.instance.colorFor(title),
+        visibility: NotificationVisibility.private,
+        styleInformation: BigTextStyleInformation(body,
+          contentTitle: '<b>${const HtmlEscape().convert(title)}</b>', htmlFormatContentTitle: true),
+      ));
       var next = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
       if (!next.isAfter(now)) next = tz.TZDateTime(tz.local, now.year, now.month, now.day + 1, hour, minute);
       try {
@@ -657,6 +717,7 @@ class NotificationService {
     await _native.invokeMethod('scheduleStudyAlarms', {'alarms': [{
       'id': id, 'group': id, 'at': DateTime.now().add(const Duration(seconds: 2)).millisecondsSinceEpoch,
       'title': title, 'body': 'Test alarm', 'intervalDays': 0,
+      'accent': AppearanceService.seedColor(title).toARGB32(),
     }]});
   }
 
@@ -677,7 +738,7 @@ class NotificationService {
   }
 
   Future<void> _scheduleNativeAlarm({required int id, required String title, required String body,
-    required DateTime scheduledDate, String? repeatDays, List<String>? checkpoints}) async {
+    required DateTime scheduledDate, String? repeatDays, List<String>? checkpoints, bool recordHistory = true}) async {
     final now = DateTime.now();
     final days = (repeatDays ?? '').split(',').map((day) => int.tryParse(day.trim()))
         .whereType<int>().where((day) => day >= 0 && day <= 6).toSet();
@@ -685,7 +746,8 @@ class NotificationService {
     void add(DateTime time, int index, int intervalDays, String label) {
       if (!time.isAfter(now)) return;
       alarms.add({'id': _childId(id, index), 'group': id, 'at': time.millisecondsSinceEpoch,
-        'title': label, 'body': body, 'intervalDays': intervalDays});
+        'title': label, 'body': body, 'intervalDays': intervalDays,
+        'accent': AppearanceService.seedColor(title).toARGB32()});
     }
     if (days.isEmpty) {
       add(scheduledDate, 0, 0, title);
@@ -707,7 +769,7 @@ class NotificationService {
       if (time != null) add(time, i + 8, 0, '$title (Checkpoint ${i + 1})');
     }
     await _native.invokeMethod('scheduleStudyAlarms', {'alarms': alarms});
-    await DatabaseService.instance.addInAppNotification(title: 'Alarm scheduled: $title', message: body, type: 'alarm');
+    if (recordHistory) await DatabaseService.instance.addInAppNotification(title: 'Alarm scheduled: $title', message: body, type: 'alarm');
   }
 
   Future<void> migrateNativeAlarms() async {

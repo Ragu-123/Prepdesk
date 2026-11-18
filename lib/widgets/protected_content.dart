@@ -15,6 +15,8 @@ class ProtectedContent extends StatefulWidget {
 
 class _ProtectedContentState extends State<ProtectedContent> with WidgetsBindingObserver {
   static const _channel = MethodChannel('io.github.thelazyindian.tasks/native');
+  static int _secureOwners = 0;
+  bool _registeredSecure = false;
   bool _locked = false;
 
   @override
@@ -25,7 +27,10 @@ class _ProtectedContentState extends State<ProtectedContent> with WidgetsBinding
   }
 
   Future<void> _secureWindow(bool value) async {
-    try { await _channel.invokeMethod('setSecureWindow', {'enabled': value}); } catch (_) {}
+    if (_registeredSecure == value) return;
+    _registeredSecure = value;
+    _secureOwners += value ? 1 : -1;
+    try { await _channel.invokeMethod('setSecureWindow', {'enabled': _secureOwners > 0}); } catch (_) {}
   }
 
   @override

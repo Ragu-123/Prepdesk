@@ -45,6 +45,11 @@ class MainActivity: FlutterFragmentActivity() {
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
+                "setAdaptiveColors" -> {
+                    getSharedPreferences("nyro_appearance", MODE_PRIVATE).edit()
+                        .putBoolean("adaptive", call.argument<Boolean>("enabled") ?: true).apply()
+                    result.success(null)
+                }
                 "checkBluetoothPermissions" -> {
                     result.success(hasBluetoothPermissions())
                 }

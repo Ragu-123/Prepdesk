@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:local_auth/local_auth.dart';
 import '../data/database_service.dart';
+import '../data/keep_note_model.dart';
 import '../utils/theme.dart';
 
 class VaultService {
@@ -87,7 +88,7 @@ class VaultService {
   Future<bool> removeVaultPin(BuildContext context) async {
     if (!await authenticate(context, allowBiometrics: false)) return false;
     final db = await DatabaseService.instance.database;
-    final locked = await db.query('keep_notes', columns: ['id'], where: 'is_locked = 1', limit: 1);
+    final locked = await db.query('keep_notes', columns: ['id'], where: KeepNote.protectedSql, limit: 1);
     if (locked.isNotEmpty) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -178,7 +179,7 @@ class VaultService {
       if (!context.mounted || !await authenticate(context, allowBiometrics: false)) return false;
     } else {
       final db = await DatabaseService.instance.database;
-      final locked = await db.query('keep_notes', columns: ['id'], where: 'is_locked = 1', limit: 1);
+      final locked = await db.query('keep_notes', columns: ['id'], where: KeepNote.protectedSql, limit: 1);
       if (locked.isNotEmpty) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(

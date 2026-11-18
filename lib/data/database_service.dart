@@ -7,6 +7,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:intl/intl.dart';
 import 'keep_note_model.dart';
+import 'quiz_trap_matcher.dart';
+import '../services/study_data_events.dart';
 
 class DatabaseService {
   static final DatabaseService instance = DatabaseService._internal();
@@ -968,7 +970,7 @@ class DatabaseService {
     await saveCustomSubject(cleanSubj);
 
     final db = await database;
-    return await db.insert('mistake_records', {
+    final id = await db.insert('mistake_records', {
       'subject': cleanSubj,
       'topic': topic.trim(),
       'question_text': questionText.trim(),
@@ -981,6 +983,8 @@ class DatabaseService {
       'status': 'UNRESOLVED',
       'created_at': DateTime.now().toIso8601String(),
     });
+    StudyDataEvents.instance.mistakesChanged();
+    return id;
   }
 
   Future<void> toggleMistakeResolved(int id, bool isResolved) async {
@@ -994,11 +998,13 @@ class DatabaseService {
       where: 'id = ?',
       whereArgs: [id],
     );
+    StudyDataEvents.instance.mistakesChanged();
   }
 
   Future<void> deleteMistakeRecord(int id) async {
     final db = await database;
     await db.delete('mistake_records', where: 'id = ?', whereArgs: [id]);
+    StudyDataEvents.instance.mistakesChanged();
   }
 
   Future<int> getTotalMistakeCount() async {
@@ -1135,24 +1141,25 @@ class DatabaseService {
     return await db.rawQuery(sql, args);
   }
 
-  Future<int> getMistakeCountForQuiz(String quizTitle, {String? subject}) async {
+  Future<List<Map<String, dynamic>>> getQuizTraps(String quizTitle, {
+    String? subject, String? module, String? syllabus,
+  }) async {
     final db = await database;
-    final qTrim = quizTitle.trim();
-    String sql = '''
-      SELECT COUNT(*) as cnt FROM mistake_records
-      WHERE (
-        lower(quiz_title) LIKE lower(?)
-        OR (trim(quiz_title) != '' AND lower(?) LIKE '%' || lower(trim(quiz_title)) || '%')
-      )
-    ''';
-    List<dynamic> args = ['%$qTrim%', qTrim];
-    if (subject != null && subject.trim().isNotEmpty && subject != 'All Subjects') {
-      final sTrim = subject.trim();
-      sql += " AND (lower(subject) LIKE lower(?) OR lower(?) LIKE '%' || lower(trim(subject)) || '%')";
-      args.addAll(['%$sTrim%', sTrim]);
-    }
-    final res = await db.rawQuery(sql, args);
-    return (res.first['cnt'] as num?)?.toInt() ?? 0;
+    final rows = await db.query('mistake_records', orderBy: 'id DESC');
+    return rows.where((row) => QuizTrapMatcher.matches(row, quizTitle: quizTitle,
+      subject: subject, module: module, syllabus: syllabus)).toList();
+  }
+
+  Future<int> getMistakeCountForQuiz(String quizTitle, {String? subject,
+    String? module, String? syllabus}) async =>
+      (await getQuizTraps(quizTitle, subject: subject, module: module, syllabus: syllabus)).length;
+
+  Future<Map<int, int>> getQuizTrapCounts(List<Map<String, dynamic>> quizzes) async {
+    final rows = await (await database).query('mistake_records');
+    return {for (final quiz in quizzes) quiz['id'] as int: rows.where((row) =>
+      QuizTrapMatcher.matches(row, quizTitle: quiz['title']?.toString() ?? '',
+        subject: quiz['subject']?.toString(), module: quiz['module_name']?.toString(),
+        syllabus: quiz['syllabus_topics']?.toString())).length};
   }
 
   Future<void> toggleQuizStatus(int id, bool completed) async {
@@ -1417,7 +1424,7 @@ class DatabaseService {
     final savedGeohash = await getConfig('bitchat_geohash');
 
     final localDb = await database;
-    final protectedNotes = await localDb.query('keep_notes', where: 'is_locked = 1');
+    final protectedNotes = await localDb.query('keep_notes', where: KeepNote.protectedSql);
     final vaultSettings = await localDb.query('app_config', where: "key LIKE 'keep_vault_%'");
 
     final localPath = await getDbPath();
@@ -1477,7 +1484,7 @@ class DatabaseService {
     try {
       await tempDb.delete('app_config', where: "key IN ('hf_token', 'bitchat_noise_priv', 'bitchat_nostr_priv') OR key LIKE 'keep_vault_%'");
       // Protected notes stay on this device until encrypted sync is supported.
-      await tempDb.delete('keep_notes', where: 'is_locked = 1');
+      await tempDb.delete('keep_notes', where: KeepNote.protectedSql);
       // Vacuum to ensure deleted data is not retained in SQLite free pages
       await tempDb.execute('VACUUM');
     } finally {
@@ -1688,6 +1695,29 @@ class DatabaseService {
   Future<void> saveKeepNote(KeepNote note) async {
     final db = await database;
     await db.insert('keep_notes', note.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+    if (note.isLocked) StudyDataEvents.instance.privacyChanged();
+  }
+
+  /// The protection check and write share a transaction to prevent stale desktop edits.
+  Future<bool> saveDesktopNote(KeepNote note, {required bool creating}) async {
+    final db = await database;
+    return db.transaction((transaction) async {
+      final rows = await transaction.query('keep_notes', where: 'id = ?', whereArgs: [note.id], limit: 1);
+      if (creating && rows.isNotEmpty) return false;
+      if (!creating && (rows.isEmpty || KeepNote.protectedValue(rows.first['is_locked']))) return false;
+      await transaction.insert('keep_notes', note.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+      return true;
+    });
+  }
+
+  Future<bool> deleteDesktopNote(String id) async {
+    final db = await database;
+    return db.transaction((transaction) async {
+      final rows = await transaction.query('keep_notes', where: 'id = ?', whereArgs: [id], limit: 1);
+      if (rows.isNotEmpty && KeepNote.protectedValue(rows.first['is_locked'])) return false;
+      await transaction.delete('keep_notes', where: 'id = ?', whereArgs: [id]);
+      return true;
+    });
   }
 
   Future<void> deleteKeepNote(String id) async {
@@ -1764,6 +1794,7 @@ class DatabaseService {
       where: 'id = ?',
       whereArgs: [id],
     );
+    StudyDataEvents.instance.privacyChanged();
   }
 
   Future<void> updateKeepNoteReminder(String id, int? reminderAt, String? reminderRepeat) async {

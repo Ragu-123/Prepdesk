@@ -5,6 +5,7 @@ import 'package:tasks/data/database_service.dart';
 import 'package:tasks/pages/home/home_page.dart';
 import 'package:tasks/services/notification_service.dart';
 import 'package:tasks/utils/theme.dart';
+import 'services/appearance_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,6 +18,7 @@ void main() async {
   }
 
   try {
+    await AppearanceService.instance.load();
     await NotificationService.instance.init();
   } catch (e) {
     debugPrint('Notification service initialization error: $e');
@@ -39,12 +41,13 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: systemUiOverlayStyleLight,
-      child: MaterialApp(
+      child: ListenableBuilder(listenable: AppearanceService.instance, builder: (context, _) => MaterialApp(
         debugShowCheckedModeBanner: false,
         title: 'NYRO Tasks',
-        theme: lightTheme,
+        theme: AppearanceService.instance.theme,
+        themeAnimationDuration: MediaQuery.disableAnimationsOf(context) ? Duration.zero : const Duration(milliseconds: 350),
         home: const HomePage(),
-      ),
+      )),
     );
   }
 }

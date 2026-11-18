@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:tasks/data/database_service.dart';
 import 'package:tasks/data/keep_note_model.dart';
-import 'package:tasks/pages/keep/note_editor_sheet.dart';
+import 'package:tasks/pages/keep/note_reader_page.dart';
 import 'package:tasks/services/notification_service.dart';
 import 'package:tasks/services/vault_service.dart';
 import 'package:tasks/utils/theme.dart';
@@ -278,32 +278,7 @@ class _AlertsPageState extends State<AlertsPage> {
     );
   }
 
-  void _openKeepNoteEditor(KeepNote note) {
-    if (note.isLocked) {
-      VaultService.instance.showAuthDialog(
-        context,
-        title: 'Unlock Protected Note',
-        onAuthenticated: () {
-          _showNoteEditorModal(note);
-        },
-      );
-    } else {
-      _showNoteEditorModal(note);
-    }
-  }
-
-  void _showNoteEditorModal(KeepNote note) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => NoteEditorSheet(
-        note: note,
-        onSave: (_) => _loadAlerts(),
-        onDelete: () => _loadAlerts(),
-      ),
-    );
-  }
+  void _openKeepNoteEditor(KeepNote note) => NoteReaderPage.open(context, note.id, onChanged: _loadAlerts);
 
   @override
   Widget build(BuildContext context) {

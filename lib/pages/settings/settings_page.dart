@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../services/appearance_service.dart';
 import 'widgets/notification_access_panel.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
@@ -23,6 +24,7 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
+  bool _changingAppearance = false;
   // Cloud Sync
   final _tokenController = TextEditingController();
   final _usernameController = TextEditingController();
@@ -766,6 +768,26 @@ class _SettingsPageState extends State<SettingsPage> {
             subtitle: 'Morning Brief ($_morningBriefTime), Spaced Recall, custom alerts',
             onTap: () => _navigateToSection('alerts'),
           ),
+
+          Card(child: ListenableBuilder(listenable: AppearanceService.instance,
+            builder: (context, _) => SwitchListTile.adaptive(
+              secondary: Icon(Icons.palette_outlined, color: Theme.of(context).colorScheme.primary),
+              title: const Text('Adaptive colors'),
+              subtitle: const Text('Match app accents to your study context and notification accents to each task. Turn off for the fixed blue theme.'),
+              value: AppearanceService.instance.enabled,
+              onChanged: _changingAppearance ? null : (enabled) async {
+                setState(() => _changingAppearance = true);
+                try {
+                  await AppearanceService.instance.setEnabled(enabled);
+                  await NotificationService.instance.refreshNotificationAppearance();
+                } catch (_) {
+                  if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Could not finish applying the theme. Please retry.')));
+                } finally {
+                  if (mounted) setState(() => _changingAppearance = false);
+                }
+              },
+            ))),
 
           // 5. Database Schema & Mass Import Guide Tile
           _buildCategoryTile(

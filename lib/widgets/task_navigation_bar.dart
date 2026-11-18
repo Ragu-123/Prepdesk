@@ -40,7 +40,7 @@ class TaskNavigationBar extends StatelessWidget {
           SizedBox(width: 56, height: 56, child: IconButton.filledTonal(
             onPressed: onCreate,
             tooltip: 'Create task, schedule, quiz or reminder',
-            style: IconButton.styleFrom(backgroundColor: googleBlueContainer, foregroundColor: googleOnBlueContainer),
+            style: IconButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.primaryContainer, foregroundColor: Theme.of(context).colorScheme.onPrimaryContainer),
             icon: const Icon(Icons.add_rounded, size: 28),
           )),
         ],
@@ -64,13 +64,13 @@ class TaskNavigationBar extends StatelessWidget {
             curve: Curves.easeOutCubic,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             decoration: BoxDecoration(
-              color: selected ? googleBlueContainer : Colors.transparent,
+              color: selected ? Theme.of(context).colorScheme.primaryContainer : Colors.transparent,
               borderRadius: BorderRadius.circular(20),
             ),
             child: Badge(
               isLabelVisible: count > 0,
               label: Text(count > 99 ? '99+' : '$count'),
-              child: Icon(icon, size: 24, color: selected ? googleOnBlueContainer : googleTextSecondary),
+              child: Icon(icon, size: 24, color: selected ? Theme.of(context).colorScheme.onPrimaryContainer : googleTextSecondary),
             ),
           ),
           const SizedBox(height: 3),

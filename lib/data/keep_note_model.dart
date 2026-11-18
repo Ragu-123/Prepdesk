@@ -143,6 +143,13 @@ class KeepNoteColors {
 }
 
 class KeepNote {
+  static const protectedSql = "COALESCE(lower(trim(CAST(is_locked AS TEXT))), '0') NOT IN ('', '0', 'false')";
+  // Unknown non-empty protection markers fail closed, including legacy text values.
+  static bool protectedValue(Object? value) {
+    if (value == null) return false;
+    return !['', '0', 'false'].contains(value.toString().trim().toLowerCase());
+  }
+
   final String id;
   final String title;
   final String content;
@@ -269,7 +276,7 @@ class KeepNote {
       todoItems: items,
       tags: tagsList,
       isCode: map['is_code'] == 1 || map['is_code'] == true,
-      isLocked: map['is_locked'] == 1 || map['is_locked'] == true,
+      isLocked: protectedValue(map['is_locked']),
       reminderAt: (map['reminder_at'] is int)
           ? map['reminder_at'] as int
           : int.tryParse(map['reminder_at']?.toString() ?? ''),

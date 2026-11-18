@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../../services/appearance_service.dart';
 import '../../widgets/content_transition.dart';
 import '../../services/notification_route.dart';
 import '../../widgets/task_navigation_bar.dart';
@@ -25,6 +26,7 @@ import 'package:tasks/pages/bitchat/bitchat_main_page.dart';
 import 'package:tasks/services/bitchat/bitchat_service.dart';
 import 'package:tasks/pages/keep/keep_page.dart';
 import 'package:tasks/pages/keep/note_editor_sheet.dart';
+import 'package:tasks/pages/keep/note_reader_page.dart';
 import 'package:tasks/data/keep_note_model.dart';
 import 'package:tasks/services/vault_service.dart';
 import 'package:tasks/widgets/full_screen_alarm_dialog.dart';
@@ -83,6 +85,8 @@ class _HomePageState extends State<HomePage> {
         _handleNotificationPayload(pending);
       });
     }
+
+    try { await NotificationService.instance.refreshBrandingAfterUpgrade(); } catch (_) {}
 
     // Listen for incoming mistake logs from laptop over LAN
     _serverSubscription = DesktopLogServerService.instance.onMistakeReceived.listen((data) {
@@ -195,34 +199,8 @@ class _HomePageState extends State<HomePage> {
       );
     } else if (payload.startsWith('route:keep_note:')) {
       final noteId = payload.substring('route:keep_note:'.length);
-      final note = await DatabaseService.instance.getKeepNoteById(noteId);
-      if (note != null && mounted) {
-        if (note.isLocked) {
-          VaultService.instance.showAuthDialog(
-            context,
-            title: 'Unlock Protected Note',
-            onAuthenticated: () {
-              _openKeepNoteModal(note);
-            },
-          );
-        } else {
-          _openKeepNoteModal(note);
-        }
-      }
+      await NoteReaderPage.open(context, noteId, onChanged: _loadGlobalData);
     }
-  }
-
-  void _openKeepNoteModal(KeepNote note) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => NoteEditorSheet(
-        note: note,
-        onSave: (_) => _loadGlobalData(),
-        onDelete: () => _loadGlobalData(),
-      ),
-    );
   }
 
   @override
@@ -279,6 +257,7 @@ class _HomePageState extends State<HomePage> {
     );
     if (picked != null) {
       setState(() => _currentDate = picked);
+      if (_selectedSubject == 'All Subjects') AppearanceService.instance.focus(picked.toIso8601String().substring(0, 10));
       _loadGlobalData();
     }
   }
@@ -1236,6 +1215,7 @@ class _HomePageState extends State<HomePage> {
         selectedSubject: _selectedSubject,
         onSubjectSelected: (subj) {
           setState(() => _selectedSubject = subj);
+          AppearanceService.instance.focus(subj == 'All Subjects' ? _currentDate.toIso8601String().substring(0, 10) : subj);
         },
       ),
     );
@@ -1526,6 +1506,7 @@ class _HomePageState extends State<HomePage> {
               _loadGlobalData();
             },
             onOpenTimetable: () => setState(() => _currentNavIndex = 1),
+            onOpenScheduleForm: () => _showNewTaskBottomSheet(initialType: 'Schedule'),
             onJumpToDate: _pickDate,
             onOpenCloudSync: _openCloudSyncPage,
           ),

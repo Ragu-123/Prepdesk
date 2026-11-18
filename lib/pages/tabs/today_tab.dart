@@ -1,4 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../services/study_data_events.dart';
+import 'quizzes_tab.dart' show showQuizTrapsModalSheet;
+import 'widgets/today_progress_summary.dart';
+import 'widgets/today_section_header.dart';
 import 'package:intl/intl.dart';
 import 'package:tasks/data/database_service.dart';
 import 'package:tasks/utils/theme.dart';
@@ -33,6 +38,8 @@ class TodayTab extends StatefulWidget {
 }
 
 class _TodayTabState extends State<TodayTab> {
+  StreamSubscription<void>? _mistakeUpdates;
+  Map<int, int> _trapCounts = {};
   late PageController _pageController;
   int _selectedPageIndex = 0;
 
@@ -56,6 +63,7 @@ class _TodayTabState extends State<TodayTab> {
     super.initState();
     _pageController = PageController(initialPage: 0);
     _loadData();
+    _mistakeUpdates = StudyDataEvents.instance.mistakes.listen((_) { if (mounted) _loadData(); });
   }
 
   @override
@@ -68,6 +76,7 @@ class _TodayTabState extends State<TodayTab> {
 
   @override
   void dispose() {
+    _mistakeUpdates?.cancel();
     _pageController.dispose();
     super.dispose();
   }
@@ -82,8 +91,10 @@ class _TodayTabState extends State<TodayTab> {
         DatabaseService.instance.getScheduledQuizzesForDate(widget.currentDate),
       ]);
 
+      final trapCounts = await DatabaseService.instance.getQuizTrapCounts(results[3] as List<Map<String, dynamic>>);
       if (mounted) {
         setState(() {
+          _trapCounts = trapCounts;
           _pacing = results[0] as Map<String, dynamic>;
           _lectures = results[1] as List<Map<String, dynamic>>;
           _dueRevisits = results[2] as List<Map<String, dynamic>>;
@@ -248,25 +259,22 @@ class _TodayTabState extends State<TodayTab> {
 
     final target = (_pacing['target_hours'] as num?)?.toDouble() ?? 8.0;
     final watched = (_pacing['watched_hours'] as num?)?.toDouble() ?? 0.0;
-    final progress = target > 0 ? (watched / target).clamp(0.0, 1.0) : 0.0;
-    final remaining = (target - watched).clamp(0.0, target);
-
     final isToday = widget.currentDate.year == DateTime.now().year &&
         widget.currentDate.month == DateTime.now().month &&
         widget.currentDate.day == DateTime.now().day;
 
-    return ListView(
+    return CustomScrollView(
       controller: widget.scrollController,
       physics: const ClampingScrollPhysics(),
-      padding: const EdgeInsets.only(bottom: 32),
-      children: [
+      slivers: [
+        SliverToBoxAdapter(child: Column(children: [
         // Minimal Google Tasks Date Header
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
+              Expanded(child: Text(
                 DateFormat('EEEE, d MMMM').format(widget.currentDate),
                 style: const TextStyle(
                   fontSize: 16,
@@ -274,7 +282,7 @@ class _TodayTabState extends State<TodayTab> {
                   color: googleTextPrimary,
                   letterSpacing: -0.3,
                 ),
-              ),
+              )),
               Row(
                 children: [
                   if (!isToday && widget.onJumpToToday != null)
@@ -315,111 +323,30 @@ class _TodayTabState extends State<TodayTab> {
           ),
         ),
 
-        // 1. Google Pacing Header (No Box Card — Flat on canvas)
-        Container(
-          margin: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-          padding: const EdgeInsets.all(22),
-          decoration: BoxDecoration(
-            color: googleBlueContainer.withOpacity(0.55),
-            borderRadius: BorderRadius.circular(28),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                children: [
-                  const Text(
-                    'YOUR DAILY PACE',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: googleTextSecondary,
-                      letterSpacing: 0.8,
-                    ),
-                  ),
-                  RichText(
-                    text: TextSpan(
-                      children: [
-                        TextSpan(
-                          text: '${watched.toStringAsFixed(1)} ',
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: googleTextPrimary,
-                          ),
-                        ),
-                        TextSpan(
-                          text: '/ ${target.toStringAsFixed(1)}h',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                            color: googleTextSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  value: progress,
-                  minHeight: 6,
-                  backgroundColor: const Color(0xFFF1F3F4),
-                  valueColor: const AlwaysStoppedAnimation<Color>(googleBlue),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    '${remaining.toStringAsFixed(1)}h left to reach your goal',
-                    style: const TextStyle(fontSize: 12, color: googleTextSecondary),
-                  ),
-                  const Text(
-                    'Starts 08:00 AM',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: googleTextSecondary),
-                  ),
-                ],
-              ),
-            ],
-          ),
+        TodayProgressSummary(
+          watchedHours: watched, targetHours: target,
+          lecturesDone: _lectures.where((row) => row['status'] == 'COMPLETED').length,
+          lecturesTotal: _lectures.length,
+          revisitsDone: _dueRevisits.where((row) => ['COMPLETED', 'DONE'].contains(row['status'])).length,
+          revisitsTotal: _dueRevisits.length,
+          quizzesDone: _todayQuizzes.where((row) => row['status'] == 'COMPLETED').length,
+          quizzesTotal: _todayQuizzes.length,
+          onSection: (index) => setState(() => _selectedPageIndex = index),
+          onAddSession: widget.onOpenScheduleForm ?? widget.onOpenTimetable,
+          onTimetable: widget.onOpenTimetable,
         ),
-
-        // 2. Sliding Pill Segmented Indicator Tabs
-        Container(
-          color: googleBackground,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Container(
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF1F3F4),
-              borderRadius: BorderRadius.circular(24),
-            ),
-            child: Row(
-              children: [
-                _buildPillTab(0, 'Schedule', _lectures.length),
-                _buildPillTab(1, 'Revisits', _dueRevisits.length),
-                _buildPillTab(2, 'Quizzes', _todayQuizzes.length),
-              ],
-            ),
-          ),
-        ),
-        const Divider(height: 1, thickness: 1, color: googleHairline),
-
-        // 3. Tab content rendered dynamically based on selected index
-        if (_selectedPageIndex == 0)
-          _buildScheduleView()
-        else if (_selectedPageIndex == 1)
-          _buildRevisitsView()
-        else
-          _buildQuizzesView(),
+        ])),
+        SliverPersistentHeader(pinned: true, delegate: TodaySectionHeader(
+          extent: 78 + (MediaQuery.textScalerOf(context).scale(14) / 14 - 1).clamp(0.0, 2.0).toDouble() * 48,
+          child: Row(children: [
+            _buildPillTab(0, 'Schedule', _lectures.length),
+            _buildPillTab(1, 'Revisits', _dueRevisits.length),
+            _buildPillTab(2, 'Quizzes', _todayQuizzes.length),
+          ]),
+        )),
+        SliverToBoxAdapter(child: _selectedPageIndex == 0 ? _buildScheduleView()
+          : _selectedPageIndex == 1 ? _buildRevisitsView() : _buildQuizzesView()),
+        const SliverToBoxAdapter(child: SizedBox(height: 32)),
       ],
     );
   }
@@ -448,15 +375,16 @@ class _TodayTabState extends State<TodayTab> {
                   ]
                 : null,
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          child: Wrap(
+            alignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Text(
                 label,
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                  color: isSelected ? googleBlue : googleTextSecondary,
+                  color: isSelected ? Theme.of(context).colorScheme.primary : googleTextSecondary,
                 ),
               ),
               if (count > 0) ...[
@@ -464,7 +392,7 @@ class _TodayTabState extends State<TodayTab> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                   decoration: BoxDecoration(
-                    color: isSelected ? googleBlue : const Color(0xFFDADCE0),
+                    color: isSelected ? Theme.of(context).colorScheme.primary : const Color(0xFFDADCE0),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
@@ -946,6 +874,15 @@ class _TodayTabState extends State<TodayTab> {
                                 style: const TextStyle(fontSize: 11, color: googleTextSecondary),
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 8),
+                              TextButton.icon(
+                                onPressed: () => showQuizTrapsModalSheet(context,
+                                  quizTitle: title.toString(), subject: q['subject']?.toString(),
+                                  module: q['module_name']?.toString(), syllabus: q['syllabus_topics']?.toString(),
+                                  onDataChanged: () { _loadData(); widget.onDataChanged(); }),
+                                icon: const Icon(Icons.warning_amber_rounded, size: 18),
+                                label: Text('${_trapCounts[q['id']] ?? 0} traps to review'),
                               ),
                               if (actionUrl != null && actionUrl.isNotEmpty) ...[
                                 const SizedBox(height: 6),

@@ -11,13 +11,21 @@ import 'desktop/desktop_auth_handler.dart';
 import 'desktop/desktop_notes_handler.dart';
 import 'desktop/desktop_mistakes_handler.dart';
 import 'desktop/desktop_web_template.dart';
+import 'desktop/desktop_session_events.dart';
+import 'study_data_events.dart';
+import 'appearance_service.dart';
 
 class DesktopLogServerService {
   static final DesktopLogServerService instance = DesktopLogServerService._internal();
   DesktopLogServerService._internal() {
     _generateNewPinInternal();
+    StudyDataEvents.instance.privacy.listen((revision) {
+      _activeSessions.clear();
+      _sessionEvents.invalidate(revision);
+    });
   }
 
+  final _sessionEvents = DesktopSessionEvents();
   HttpServer? _server;
   String? _localIp;
   int _port = 8080;
@@ -196,7 +204,7 @@ class DesktopLogServerService {
       _handleRequest(request);
     });
 
-    debugPrint('Desktop Log Server running at http://$_localIp:$_port (PIN: $_pairingPin)');
+    debugPrint('Desktop Log Server running at http://$_localIp:$_port');
     return serverUrl;
   }
 
@@ -206,6 +214,7 @@ class DesktopLogServerService {
     } catch (_) {}
     _server = null;
     _activeSessions.clear();
+    await _sessionEvents.invalidate(StudyDataEvents.instance.privacyRevision);
     debugPrint('Desktop Log Server stopped');
   }
 
@@ -242,6 +251,8 @@ class DesktopLogServerService {
     request.response.headers.add('Access-Control-Allow-Headers', 'Origin, Content-Type, Accept, Authorization');
     request.response.headers.add('X-Content-Type-Options', 'nosniff');
     request.response.headers.add('X-Frame-Options', 'DENY');
+    request.response.headers.set('Cache-Control', 'no-store');
+    request.response.headers.set('Pragma', 'no-cache');
 
     if (request.method == 'OPTIONS') {
       request.response.statusCode = HttpStatus.ok;
@@ -290,7 +301,10 @@ class DesktopLogServerService {
     // 3. Auth Status Check (Public)
     if (request.method == 'GET' && path == '/api/auth/status') {
       request.response.headers.contentType = ContentType.json;
-      request.response.write(jsonEncode({'authenticated': isAuthenticated}));
+      request.response.write(jsonEncode({'authenticated': isAuthenticated,
+        'privacy_revision': StudyDataEvents.instance.privacyRevision,
+        'accent': '#${AppearanceService.instance.accent.toARGB32().toRadixString(16).substring(2)}',
+      }));
       await request.response.close();
       return;
     }
@@ -331,6 +345,11 @@ class DesktopLogServerService {
         'message': 'Please enter the 6-digit PIN displayed on your phone app to access this service.',
       }));
       await request.response.close();
+      return;
+    }
+
+    if (request.method == 'GET' && path == '/api/session/events') {
+      await _sessionEvents.attach(request);
       return;
     }
 
