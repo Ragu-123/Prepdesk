@@ -39,6 +39,7 @@ class QuizzesTab extends StatefulWidget {
 class _QuizzesTabState extends State<QuizzesTab> {
   StreamSubscription<void>? _mistakeUpdates;
   StreamSubscription<void>? _scheduleUpdates;
+  int _loadRequest = 0;
   int _activeTypeIndex = 0; // 0: WEEKLY_QUIZ, 1: TEST_SERIES
   List<Map<String, dynamic>> _quizzes = [];
   Map<int, int> _trapsCounts = {};
@@ -131,6 +132,7 @@ class _QuizzesTabState extends State<QuizzesTab> {
   }
 
   Future<void> _loadQuizzes() async {
+    final request = ++_loadRequest;
     setState(() => _isLoading = true);
     try {
       final type = _activeTypeIndex == 0 ? 'WEEKLY_QUIZ' : 'TEST_SERIES';
@@ -140,7 +142,7 @@ class _QuizzesTabState extends State<QuizzesTab> {
 
       final sortedItems = _applySorting(items);
 
-      if (mounted) {
+      if (mounted && request == _loadRequest) {
         setState(() {
           _quizzes = sortedItems;
           _trapsCounts = counts;
@@ -149,7 +151,7 @@ class _QuizzesTabState extends State<QuizzesTab> {
       }
     } catch (e) {
       debugPrint('Error loading quizzes tab: $e');
-      if (mounted) {
+      if (mounted && request == _loadRequest) {
         setState(() => _isLoading = false);
       }
     }

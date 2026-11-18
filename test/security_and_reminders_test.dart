@@ -573,7 +573,7 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('Schedule quick-add form uses the shared accent instead of fixed blue', (tester) async {
+  testWidgets('Quick add uses the shared accent and follows Mistakes and Test Series', (tester) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -605,9 +605,11 @@ void main() {
     Navigator.of(tester.element(find.text('Save Mistake Record'))).pop();
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Quizzes'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await settleDatabase(tester, find.text('No quizzes found for the selected filter.'));
     await tester.tap(find.text('Test Series Mocks'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await settleDatabase(tester, find.text('No quizzes found for the selected filter.'));
     await tester.tap(find.byTooltip('Add a test series mock'));
     await tester.pumpAndSettle();
     expect(tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'Test Series Mocks')).selected, isTrue);
