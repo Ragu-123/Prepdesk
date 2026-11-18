@@ -21,10 +21,14 @@ void showAddMistakeModalSheet(
   String severity = 'MEDIUM';
   int modeTab = 0; // 0: Write Note, 1: Markdown Preview
 
-  final subjs = availableSubjects ?? ['Engineering Mathematics'];
-  String selectedSubject = (initialSubject != null && initialSubject != 'All Subjects' && subjs.contains(initialSubject))
-      ? initialSubject
-      : (subjs.isNotEmpty && subjs.first != 'All Subjects' ? subjs.first : 'Engineering Mathematics');
+  final preferred = initialSubject?.trim();
+  final subjs = {
+    if (preferred != null && preferred.isNotEmpty && preferred.toLowerCase() != 'all subjects') preferred,
+    for (final subject in availableSubjects ?? const <String>[])
+      if (subject.trim().isNotEmpty && subject.trim().toLowerCase() != 'all subjects') subject.trim(),
+  }.toList();
+  if (subjs.isEmpty) subjs.add('Engineering Mathematics');
+  String selectedSubject = subjs.first;
 
   showModalBottomSheet(
     context: context,
@@ -216,7 +220,7 @@ void showAddMistakeModalSheet(
                                         padding: const EdgeInsets.symmetric(horizontal: 10),
                                         child: DropdownButtonHideUnderline(
                                           child: DropdownButton<String>(
-                                            value: subjs.contains(selectedSubject) ? selectedSubject : (subjs.isNotEmpty ? subjs.first : null),
+                                            value: selectedSubject,
                                             isExpanded: true,
                                             icon: Icon(Icons.arrow_drop_down_rounded, color: Theme.of(context).colorScheme.primary),
                                             style: const TextStyle(
@@ -224,7 +228,7 @@ void showAddMistakeModalSheet(
                                               color: googleTextPrimary,
                                               fontWeight: FontWeight.w600,
                                             ),
-                                            items: subjs.where((s) => s != 'All Subjects').map((s) {
+                                            items: subjs.map((s) {
                                               return DropdownMenuItem<String>(
                                                 value: s,
                                                 child: Text(s, overflow: TextOverflow.ellipsis),

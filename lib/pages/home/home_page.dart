@@ -599,7 +599,9 @@ class _HomePageState extends State<HomePage> {
 
                     // --- 3. QUIZZES / TEST SERIES FORM ---
                     else if (selectedType == 'Quizzes') ...[
-                      Row(
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
                         children: [
                           ChoiceChip(
                             label: const Text('Weekly Quiz', style: TextStyle(fontSize: 11)),
@@ -607,7 +609,6 @@ class _HomePageState extends State<HomePage> {
                             onSelected: (v) => setSheetState(() => quizType = 'WEEKLY_QUIZ'),
                             selectedColor: Theme.of(context).colorScheme.primaryContainer,
                           ),
-                          const SizedBox(width: 8),
                           ChoiceChip(
                             label: const Text('Test Series Mocks', style: TextStyle(fontSize: 11)),
                             selected: quizType == 'TEST_SERIES',
