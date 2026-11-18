@@ -1,3 +1,4 @@
+import '../../widgets/study_entry_sheet.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../services/study_data_events.dart';
@@ -20,6 +21,7 @@ class TodayTab extends StatefulWidget {
   final VoidCallback? onJumpToDate;
   final VoidCallback? onOpenScheduleForm;
   final VoidCallback? onOpenCloudSync;
+  final ValueChanged<int>? onSectionChanged;
 
   const TodayTab({
     Key? key,
@@ -31,6 +33,7 @@ class TodayTab extends StatefulWidget {
     this.onJumpToDate,
     this.onOpenScheduleForm,
     this.onOpenCloudSync,
+    this.onSectionChanged,
   }) : super(key: key);
 
   @override
@@ -40,7 +43,8 @@ class TodayTab extends StatefulWidget {
 class _TodayTabState extends State<TodayTab> {
   StreamSubscription<void>? _mistakeUpdates;
   Map<int, int> _trapCounts = {};
-  late PageController _pageController;
+  StreamSubscription<void>? _scheduleUpdates;
+  int _loadNumber = 0;
   int _selectedPageIndex = 0;
 
   Map<String, dynamic> _pacing = {
@@ -61,7 +65,7 @@ class _TodayTabState extends State<TodayTab> {
   @override
   void initState() {
     super.initState();
-    _pageController = PageController(initialPage: 0);
+    _scheduleUpdates = StudyDataEvents.instance.schedule.listen((_) => _loadData());
     _loadData();
     _mistakeUpdates = StudyDataEvents.instance.mistakes.listen((_) { if (mounted) _loadData(); });
   }
@@ -77,12 +81,12 @@ class _TodayTabState extends State<TodayTab> {
   @override
   void dispose() {
     _mistakeUpdates?.cancel();
-    _pageController.dispose();
+    _scheduleUpdates?.cancel();
     super.dispose();
   }
 
   Future<void> _loadData() async {
-    setState(() => _isLoading = true);
+    final request = ++_loadNumber;
     try {
       final results = await Future.wait([
         DatabaseService.instance.getDailyPacing(widget.currentDate),
@@ -92,7 +96,7 @@ class _TodayTabState extends State<TodayTab> {
       ]);
 
       final trapCounts = await DatabaseService.instance.getQuizTrapCounts(results[3] as List<Map<String, dynamic>>);
-      if (mounted) {
+      if (mounted && request == _loadNumber) {
         setState(() {
           _trapCounts = trapCounts;
           _pacing = results[0] as Map<String, dynamic>;
@@ -104,7 +108,7 @@ class _TodayTabState extends State<TodayTab> {
       }
     } catch (e) {
       debugPrint('Error loading today tab: $e');
-      if (mounted) {
+      if (mounted && request == _loadNumber) {
         setState(() => _isLoading = false);
       }
     }
@@ -132,123 +136,9 @@ class _TodayTabState extends State<TodayTab> {
     widget.onDataChanged();
   }
 
-  void _showLectureDetails(Map<String, dynamic> lec) {
-    final title = lec['details'] ?? lec['topic'] ?? 'Lecture';
-    final topic = lec['topic'] ?? '';
-    final session = lec['session_block'] ?? 'General Session';
-    final dur = (lec['duration_hours'] as num?)?.toDouble() ?? 1.0;
-    final status = lec['status'] ?? 'PENDING';
-    final completedAt = lec['completed_at'];
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE0E2EC),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 18),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: googleTextPrimary,
-                        height: 1.3,
-                      ),
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: status == 'COMPLETED' ? const Color(0xFFE6F4EA) : const Color(0xFFFFF0D4),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      status,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: status == 'COMPLETED' ? googleGreen : googleAmber,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              if (topic.isNotEmpty) ...[
-                Row(
-                  children: [
-                    Icon(Icons.bookmark_border, size: 18, color: Theme.of(context).colorScheme.primary),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        topic,
-                        style: const TextStyle(fontSize: 13, color: googleTextSecondary, fontWeight: FontWeight.w500),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-              ],
-              Row(
-                children: [
-                  Icon(Icons.schedule, size: 18, color: Theme.of(context).colorScheme.primary),
-                  const SizedBox(width: 8),
-                  Text(
-                    '$session • ${dur.toStringAsFixed(1)} hours',
-                    style: const TextStyle(fontSize: 13, color: googleTextSecondary),
-                  ),
-                ],
-              ),
-              if (completedAt != null) ...[
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    const Icon(Icons.check_circle_outline, size: 18, color: googleGreen),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Completed on $completedAt',
-                      style: const TextStyle(fontSize: 12, color: googleGreen),
-                    ),
-                  ],
-                ),
-              ],
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Theme.of(context).colorScheme.primary,
-                    side: const BorderSide(color: googleBorder),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: const Text('Close'),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
+  void _selectSection(int index) {
+    setState(() => _selectedPageIndex = index);
+    widget.onSectionChanged?.call(index);
   }
 
   @override
@@ -263,6 +153,8 @@ class _TodayTabState extends State<TodayTab> {
         widget.currentDate.month == DateTime.now().month &&
         widget.currentDate.day == DateTime.now().day;
 
+    final headerHeight = 78 + (MediaQuery.textScalerOf(context).scale(14) / 14 - 1)
+        .clamp(0.0, 2.0).toDouble() * 48;
     return CustomScrollView(
       controller: widget.scrollController,
       physics: const ClampingScrollPhysics(),
@@ -331,22 +223,31 @@ class _TodayTabState extends State<TodayTab> {
           revisitsTotal: _dueRevisits.length,
           quizzesDone: _todayQuizzes.where((row) => row['status'] == 'COMPLETED').length,
           quizzesTotal: _todayQuizzes.length,
-          onSection: (index) => setState(() => _selectedPageIndex = index),
+          onSection: _selectSection,
           onAddSession: widget.onOpenScheduleForm ?? widget.onOpenTimetable,
           onTimetable: widget.onOpenTimetable,
         ),
         ])),
         SliverPersistentHeader(pinned: true, delegate: TodaySectionHeader(
-          extent: 78 + (MediaQuery.textScalerOf(context).scale(14) / 14 - 1).clamp(0.0, 2.0).toDouble() * 48,
+          extent: headerHeight,
           child: Row(children: [
             _buildPillTab(0, 'Schedule', _lectures.length),
             _buildPillTab(1, 'Revisits', _dueRevisits.length),
             _buildPillTab(2, 'Quizzes', _todayQuizzes.length),
           ]),
         )),
-        SliverToBoxAdapter(child: _selectedPageIndex == 0 ? _buildScheduleView()
-          : _selectedPageIndex == 1 ? _buildRevisitsView() : _buildQuizzesView()),
-        const SliverToBoxAdapter(child: SizedBox(height: 32)),
+        SliverLayoutBuilder(builder: (context, constraints) {
+          // Short sections still leave room to scroll the summary out of view.
+          final minimum = (constraints.viewportMainAxisExtent - headerHeight).clamp(0.0, double.infinity).toDouble();
+          return SliverToBoxAdapter(child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: minimum),
+            child: Column(children: [
+              _selectedPageIndex == 0 ? _buildScheduleView()
+                : _selectedPageIndex == 1 ? _buildRevisitsView() : _buildQuizzesView(),
+              const SizedBox(height: 32),
+            ]),
+          ));
+        }),
       ],
     );
   }
@@ -357,7 +258,7 @@ class _TodayTabState extends State<TodayTab> {
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () {
-          setState(() => _selectedPageIndex = index);
+          _selectSection(index);
         },
         child: AnimatedContainer(
           duration: MediaQuery.disableAnimationsOf(context) ? Duration.zero : const Duration(milliseconds: 220),
@@ -594,7 +495,7 @@ class _TodayTabState extends State<TodayTab> {
     final dur = (lec['duration_hours'] as num?)?.toDouble() ?? 1.0;
 
     return InkWell(
-      onTap: () => _showLectureDetails(lec),
+      onTap: () => showStudyEntry(context, lec, lecture: true),
       child: Column(
         children: [
           Padding(
@@ -634,15 +535,11 @@ class _TodayTabState extends State<TodayTab> {
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
-                Text(
-                  '${dur.toStringAsFixed(1)}h',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: googleTextSecondary,
-                  ),
-                ),
+                Padding(padding: const EdgeInsets.only(top: 10),
+                  child: Text('${dur.toStringAsFixed(1)}h', style: const TextStyle(fontSize: 11))),
+                StudyEntryMenu(kind: 'lecture',
+                  onEdit: () => showStudyEntry(context, lec, lecture: true, edit: true),
+                  onDelete: () => confirmStudyEntryDeletion(context, lec, lecture: true)),
               ],
             ),
           ),
@@ -858,7 +755,7 @@ class _TodayTabState extends State<TodayTab> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
+                              InkWell(onTap: () => showStudyEntry(context, q, lecture: false), child: Text(
                                 title,
                                 style: TextStyle(
                                   fontSize: 14,
@@ -867,7 +764,7 @@ class _TodayTabState extends State<TodayTab> {
                                   decoration: isDone ? TextDecoration.lineThrough : null,
                                   height: 1.25,
                                 ),
-                              ),
+                              )),
                               const SizedBox(height: 4),
                               Text(
                                 '$dur mins • $marks Marks ${syllabus.isNotEmpty ? "• $syllabus" : ""}',
@@ -882,7 +779,8 @@ class _TodayTabState extends State<TodayTab> {
                                   module: q['module_name']?.toString(), syllabus: q['syllabus_topics']?.toString(),
                                   onDataChanged: () { _loadData(); widget.onDataChanged(); }),
                                 icon: const Icon(Icons.warning_amber_rounded, size: 18),
-                                label: Text('${_trapCounts[q['id']] ?? 0} traps to review'),
+                                label: Text(_trapCounts[q['id']] == 1
+                                  ? '1 trap to review' : '${_trapCounts[q['id']] ?? 0} traps to review'),
                               ),
                               if (actionUrl != null && actionUrl.isNotEmpty) ...[
                                 const SizedBox(height: 6),
@@ -904,6 +802,9 @@ class _TodayTabState extends State<TodayTab> {
                             ],
                           ),
                         ),
+                        StudyEntryMenu(kind: 'quiz',
+                          onEdit: () => showStudyEntry(context, q, lecture: false, edit: true),
+                          onDelete: () => confirmStudyEntryDeletion(context, q, lecture: false)),
                       ],
                     ),
                   ),

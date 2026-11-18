@@ -1,3 +1,4 @@
+import '../../widgets/study_entry_sheet.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../services/study_data_events.dart';
@@ -21,12 +22,14 @@ class QuizzesTab extends StatefulWidget {
   final VoidCallback onDataChanged;
   final String selectedSubject;
   final VoidCallback? onOpenFilter;
+  final ValueChanged<int>? onSectionChanged;
 
   const QuizzesTab({
     Key? key,
     required this.onDataChanged,
     this.selectedSubject = 'All Subjects',
     this.onOpenFilter,
+    this.onSectionChanged,
   }) : super(key: key);
 
   @override
@@ -35,6 +38,7 @@ class QuizzesTab extends StatefulWidget {
 
 class _QuizzesTabState extends State<QuizzesTab> {
   StreamSubscription<void>? _mistakeUpdates;
+  StreamSubscription<void>? _scheduleUpdates;
   int _activeTypeIndex = 0; // 0: WEEKLY_QUIZ, 1: TEST_SERIES
   List<Map<String, dynamic>> _quizzes = [];
   Map<int, int> _trapsCounts = {};
@@ -46,11 +50,12 @@ class _QuizzesTabState extends State<QuizzesTab> {
   void initState() {
     super.initState();
     _loadQuizzes();
+    _scheduleUpdates = StudyDataEvents.instance.schedule.listen((_) => _loadQuizzes());
     _mistakeUpdates = StudyDataEvents.instance.mistakes.listen((_) { if (mounted) _loadQuizzes(); });
   }
 
   @override
-  void dispose() { _mistakeUpdates?.cancel(); super.dispose(); }
+  void dispose() { _scheduleUpdates?.cancel(); _mistakeUpdates?.cancel(); super.dispose(); }
 
   @override
   void didUpdateWidget(covariant QuizzesTab oldWidget) {
@@ -553,7 +558,9 @@ class _QuizzesTabState extends State<QuizzesTab> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
+                    Wrap(
+                      spacing: 6, runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         if (subject.isNotEmpty)
                           Container(
@@ -581,7 +588,6 @@ class _QuizzesTabState extends State<QuizzesTab> {
                               decoration: isCompleted ? TextDecoration.lineThrough : null,
                             ),
                           ),
-                        const Spacer(),
                         Text(
                           '${dur}m • $marks M',
                           style: TextStyle(
@@ -592,7 +598,7 @@ class _QuizzesTabState extends State<QuizzesTab> {
                       ],
                     ),
                     const SizedBox(height: 4),
-                    Text(
+                    InkWell(onTap: () => showStudyEntry(context, q, lecture: false), child: Text(
                       title,
                       style: TextStyle(
                         fontSize: 14,
@@ -600,7 +606,7 @@ class _QuizzesTabState extends State<QuizzesTab> {
                         color: isCompleted ? googleTextSecondary : googleTextPrimary,
                         decoration: isCompleted ? TextDecoration.lineThrough : null,
                       ),
-                    ),
+                    )),
                     if (module.isNotEmpty) ...[
                       const SizedBox(height: 2),
                       Text(
@@ -622,8 +628,7 @@ class _QuizzesTabState extends State<QuizzesTab> {
                     ],
                     const SizedBox(height: 8),
 
-                    // Actions Row
-                    Row(
+                    Wrap(spacing: 8, runSpacing: 8,
                       children: [
                         if (url != null && url.isNotEmpty)
                           InkWell(
@@ -648,7 +653,6 @@ class _QuizzesTabState extends State<QuizzesTab> {
                               ),
                             ),
                           ),
-                        const Spacer(),
 
                         // Mistake Traps Pill
                         InkWell(
@@ -686,6 +690,9 @@ class _QuizzesTabState extends State<QuizzesTab> {
                   ],
                 ),
               ),
+              StudyEntryMenu(kind: 'quiz',
+                onEdit: () => showStudyEntry(context, q, lecture: false, edit: true),
+                onDelete: () => confirmStudyEntryDeletion(context, q, lecture: false)),
             ],
           ),
         ),
@@ -704,6 +711,7 @@ class _QuizzesTabState extends State<QuizzesTab> {
         behavior: HitTestBehavior.opaque,
         onTap: () {
           setState(() => _activeTypeIndex = index);
+          widget.onSectionChanged?.call(index);
           _loadQuizzes();
         },
         child: AnimatedContainer(

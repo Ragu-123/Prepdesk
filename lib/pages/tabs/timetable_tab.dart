@@ -1,3 +1,6 @@
+import 'dart:async';
+import '../../services/study_data_events.dart';
+import '../../widgets/study_entry_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:tasks/data/database_service.dart';
 import 'package:tasks/utils/theme.dart';
@@ -22,6 +25,7 @@ class TimetableTab extends StatefulWidget {
 }
 
 class _TimetableTabState extends State<TimetableTab> {
+  StreamSubscription<void>? _scheduleUpdates;
   final TextEditingController _searchController = TextEditingController();
   List<Map<String, dynamic>> _lectures = [];
   List<String> _availableSubjects = ['All Subjects'];
@@ -38,6 +42,7 @@ class _TimetableTabState extends State<TimetableTab> {
       _availableSubjects = widget.availableSubjects!;
     }
     _loadSubjectsAndCurriculum();
+    _scheduleUpdates = StudyDataEvents.instance.schedule.listen((_) => _loadCurriculum());
   }
 
   @override
@@ -59,6 +64,7 @@ class _TimetableTabState extends State<TimetableTab> {
 
   @override
   void dispose() {
+    _scheduleUpdates?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -112,10 +118,7 @@ class _TimetableTabState extends State<TimetableTab> {
     final id = lec['id'] as int;
     final dur = (lec['duration_hours'] as num?)?.toDouble() ?? 1.0;
     final dateStr = lec['date_str'] ?? '';
-    DateTime date = DateTime.now();
-    try {
-      date = DateTime.parse(dateStr);
-    } catch (_) {}
+    final date = DatabaseService.parseStudyDate(dateStr.toString()) ?? DateTime.now();
 
     await DatabaseService.instance.toggleLectureStatus(id, completed, dur, date);
     await _loadCurriculum();
@@ -434,7 +437,7 @@ class _TimetableTabState extends State<TimetableTab> {
                 onChanged: (val) => _toggleLecture(lec, val),
               ),
               Expanded(
-                child: Column(
+                child: InkWell(onTap: () => showStudyEntry(context, lec, lecture: true), child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
@@ -448,7 +451,8 @@ class _TimetableTabState extends State<TimetableTab> {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Row(
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         if (_activeSubject == 'All Subjects' && topic.isNotEmpty) ...[
                           Text(
@@ -500,8 +504,11 @@ class _TimetableTabState extends State<TimetableTab> {
                       ],
                     ),
                   ],
-                ),
+                )),
               ),
+              StudyEntryMenu(kind: 'lecture',
+                onEdit: () => showStudyEntry(context, lec, lecture: true, edit: true),
+                onDelete: () => confirmStudyEntryDeletion(context, lec, lecture: true)),
             ],
           ),
         ),

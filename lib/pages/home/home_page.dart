@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../../services/study_data_events.dart';
 import '../../widgets/content_transition.dart';
 import '../../services/notification_route.dart';
 import '../../widgets/task_navigation_bar.dart';
@@ -40,6 +41,11 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   int _currentNavIndex = 0;
+  int _todaySection = 0;
+  int _revisitSection = 0;
+  int _dueCategory = 0;
+  int _quizSection = 0;
+  StreamSubscription<void>? _scheduleUpdates;
   DateTime _currentDate = DateTime.now();
 
   // Scroll tracking for circular pacing ring in App Bar
@@ -66,6 +72,7 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _todayScrollController.addListener(_onTodayScroll);
+    _scheduleUpdates = StudyDataEvents.instance.schedule.listen((_) => _loadGlobalData());
     _loadGlobalData();
     _initBackgroundServices();
   }
@@ -205,6 +212,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void dispose() {
     _serverSubscription?.cancel();
+    _scheduleUpdates?.cancel();
     _notificationPayloadSub?.cancel();
     _todayScrollController.removeListener(_onTodayScroll);
     _todayScrollController.dispose();
@@ -262,7 +270,27 @@ class _HomePageState extends State<HomePage> {
 
   // --- Multi-Type Quick Add Bottom Sheet (Reminder, Schedule, Quizzes, Revisit, Mistake) ---
 
-  void _showNewTaskBottomSheet({String initialType = 'Reminder'}) {
+  String get _createType => switch (_currentNavIndex) {
+    1 => 'Schedule',
+    2 when _revisitSection == 2 => 'Mistake',
+    2 when _revisitSection == 0 && _dueCategory == 1 => 'Quizzes',
+    2 when _revisitSection == 0 && _dueCategory == 2 => 'Schedule',
+    2 => 'Revisit',
+    3 => 'Quizzes',
+    _ => ['Schedule', 'Revisit', 'Quizzes'][_todaySection],
+  };
+
+  void _createInCurrentSection() {
+    if (_createType == 'Mistake') {
+      showAddMistakeModalSheet(context, onSaved: _loadGlobalData,
+        initialSubject: _selectedSubject, availableSubjects: _availableSubjects);
+      return;
+    }
+    _showNewTaskBottomSheet(initialType: _createType,
+      initialQuizType: _currentNavIndex == 3 && _quizSection == 1 ? 'TEST_SERIES' : 'WEEKLY_QUIZ');
+  }
+
+  void _showNewTaskBottomSheet({String initialType = 'Reminder', String initialQuizType = 'WEEKLY_QUIZ'}) {
     String selectedType = initialType;
 
     // Common fields
@@ -274,7 +302,8 @@ class _HomePageState extends State<HomePage> {
     // Schedule specific fields
     final scheduleSubjectController = TextEditingController();
     final scheduleLectureController = TextEditingController();
-    String? selectedDropdownSubject;
+    String? selectedDropdownSubject = _selectedSubject != 'All Subjects' &&
+        _availableSubjects.contains(_selectedSubject) ? _selectedSubject : null;
     bool isAddingNewSubject = false;
     double scheduleDurationHours = 1.5;
     String sessionBlock = 'Morning Block';
@@ -283,9 +312,9 @@ class _HomePageState extends State<HomePage> {
     final quizTitleController = TextEditingController();
     final quizSubjectController = TextEditingController();
     final quizSyllabusController = TextEditingController();
-    String? selectedQuizDropdownSubject;
+    String? selectedQuizDropdownSubject = selectedDropdownSubject;
     bool isAddingNewQuizSubject = false;
-    String quizType = 'WEEKLY_QUIZ';
+    String quizType = initialQuizType;
     int quizDurationMins = 45;
     int quizTotalMarks = 25;
 
@@ -859,7 +888,7 @@ class _HomePageState extends State<HomePage> {
                             if (val == 'Mistake') {
                               Navigator.pop(context);
                               showAddMistakeModalSheet(
-                                context,
+                                this.context,
                                 onSaved: _loadGlobalData,
                                 initialSubject: _selectedSubject,
                                 availableSubjects: _availableSubjects,
@@ -1506,6 +1535,7 @@ class _HomePageState extends State<HomePage> {
             onOpenScheduleForm: () => _showNewTaskBottomSheet(initialType: 'Schedule'),
             onJumpToDate: _pickDate,
             onOpenCloudSync: _openCloudSyncPage,
+            onSectionChanged: (index) => setState(() => _todaySection = index),
           ),
           TimetableTab(
             key: const ValueKey('home_tab_timetable'),
@@ -1518,19 +1548,28 @@ class _HomePageState extends State<HomePage> {
             onDataChanged: _loadGlobalData,
             selectedSubject: _selectedSubject,
             onOpenFilter: _showSubjectFilterSheet,
+            onSectionChanged: (index) => setState(() => _revisitSection = index),
+            onDueCategoryChanged: (index) => setState(() => _dueCategory = index),
           ),
           QuizzesTab(
             key: const ValueKey('home_tab_quizzes'),
             onDataChanged: _loadGlobalData,
             selectedSubject: _selectedSubject,
             onOpenFilter: _showSubjectFilterSheet,
+            onSectionChanged: (index) => setState(() => _quizSection = index),
           ),
         ],
       )),
 
       bottomNavigationBar: TaskNavigationBar(
         selectedIndex: _currentNavIndex,
-        onCreate: _showNewTaskBottomSheet,
+        onCreate: _createInCurrentSection,
+        createLabel: switch (_createType) {
+          'Schedule' => 'Schedule a lecture',
+          'Mistake' => 'Log a mistake',
+          'Quizzes' => _currentNavIndex == 3 && _quizSection == 1 ? 'Add a test series mock' : 'Add a weekly quiz',
+          _ => 'Add a revisit',
+        },
         onSelected: (index) => setState(() => _currentNavIndex = index),
         revisitCount: _badgeCounts['due_revisits'] ?? 0,
         quizCount: _badgeCounts['pending_quizzes'] ?? 0,

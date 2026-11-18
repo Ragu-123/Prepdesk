@@ -697,6 +697,7 @@ class DatabaseService {
       });
     }
 
+    StudyDataEvents.instance.scheduleChanged();
     return lectureId;
   }
 
@@ -718,7 +719,7 @@ class DatabaseService {
 
     final dateStr = DateFormat('dd MMM yyyy').format(date);
 
-    return await db.insert('quiz_items', {
+    final id = await db.insert('quiz_items', {
       'quiz_type': quizType,
       'title': title.trim(),
       'subject': cleanSubj,
@@ -730,6 +731,66 @@ class DatabaseService {
       'status': 'PENDING',
       'created_at': DateTime.now().toIso8601String(),
     });
+    StudyDataEvents.instance.scheduleChanged();
+    return id;
+  }
+
+  Future<void> editLecture(int id, {required String title, required String subject,
+    required DateTime date, required double hours, required String session}) async {
+    final db = await database;
+    await saveCustomSubject(subject);
+    final format = DateFormat('dd MMM yyyy');
+    final topic = subject.isEmpty ? title : '$subject • $title';
+    await db.transaction((txn) async {
+      final lectures = await txn.query('lectures', where: 'id = ?', whereArgs: [id]);
+      if (lectures.isEmpty) throw StateError('Lecture no longer exists.');
+      final original = _parseDateSafe(lectures.single['date_str']?.toString());
+      final shift = original == null ? 0 : DateTime.utc(date.year, date.month, date.day)
+          .difference(DateTime.utc(original.year, original.month, original.day)).inDays;
+      await txn.update('lectures', {'details': title, 'topic': topic,
+        'date_str': format.format(date), 'duration_hours': hours, 'session_block': session},
+        where: 'id = ?', whereArgs: [id]);
+      final revisits = await txn.query('revisit_items', where: "lecture_id = ? AND upper(trim(coalesce(status, ''))) NOT IN ('COMPLETED', 'DONE')",
+        whereArgs: [id]);
+      for (final revisit in revisits) {
+        final due = _parseDateSafe(revisit['due_date']?.toString());
+        await txn.update('revisit_items', {
+          'topic': topic,
+          if (due != null && shift != 0)
+            'due_date': format.format(DateTime(due.year, due.month, due.day + shift)),
+        }, where: 'id = ?', whereArgs: [revisit['id']]);
+      }
+    });
+    StudyDataEvents.instance.scheduleChanged();
+  }
+
+  Future<void> deleteLecture(int id) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      await txn.delete('revisit_items', where: "lecture_id = ? AND upper(trim(coalesce(status, ''))) NOT IN ('COMPLETED', 'DONE')", whereArgs: [id]);
+      await txn.update('revisit_items', {'lecture_id': null}, where: 'lecture_id = ?', whereArgs: [id]);
+      await txn.delete('lectures', where: 'id = ?', whereArgs: [id]);
+    });
+    StudyDataEvents.instance.scheduleChanged();
+  }
+
+  Future<void> editQuiz(int id, {required String title, required String subject,
+    required String type, required DateTime date, required int minutes, required int marks,
+    required String module, required String syllabus, required String link}) async {
+    final db = await database;
+    await saveCustomSubject(subject);
+    final updated = await db.update('quiz_items', {'title': title, 'subject': subject,
+      'quiz_type': type, 'date_str': DateFormat('dd MMM yyyy').format(date),
+      'duration_mins': minutes, 'total_marks': marks, 'module_name': module,
+      'syllabus_topics': syllabus, 'action_url': link}, where: 'id = ?', whereArgs: [id]);
+    if (updated == 0) throw StateError('Quiz no longer exists.');
+    StudyDataEvents.instance.scheduleChanged();
+  }
+
+  Future<void> deleteQuiz(int id) async {
+    final db = await database;
+    await db.delete('quiz_items', where: 'id = ?', whereArgs: [id]);
+    StudyDataEvents.instance.scheduleChanged();
   }
 
   // --- Custom Revisit Item Creation ---
@@ -743,13 +804,15 @@ class DatabaseService {
     final db = await database;
     final dueDateStr = DateFormat('dd MMM yyyy').format(dueDate);
 
-    return await db.insert('revisit_items', {
+    final id = await db.insert('revisit_items', {
       'topic': topic.trim(),
       'stage': stage.trim(),
       'duration_mins': durationMins,
       'due_date': dueDateStr,
       'status': 'DUE',
     });
+    StudyDataEvents.instance.scheduleChanged();
+    return id;
   }
 
   // --- Revisits Queries ---
@@ -766,7 +829,7 @@ class DatabaseService {
     );
   }
 
-  DateTime? _parseDateSafe(String? str) {
+  static DateTime? parseStudyDate(String? str) {
     if (str == null || str.trim().isEmpty) return null;
     final s = str.trim();
     try {
@@ -783,6 +846,8 @@ class DatabaseService {
     } catch (_) {}
     return null;
   }
+
+  DateTime? _parseDateSafe(String? str) => parseStudyDate(str);
 
   Future<Map<String, List<Map<String, dynamic>>>> getDueBacklogCategorized({
     required DateTime date,

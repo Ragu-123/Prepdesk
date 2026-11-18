@@ -442,9 +442,67 @@ void main() {
     expect(tester.getTopLeft(schedule).dy, lessThan(200));
     await tester.tap(find.text('Quizzes').last);
     await tester.pumpAndSettle();
-    expect(find.text('1 traps to review'), findsOneWidget);
+    expect(find.text('1 trap to review'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('Today can pin its section tabs on an empty day and keep them pinned when switching sections', (tester) async {
+    final controller = ScrollController();
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(MaterialApp(theme: lightTheme, home: Scaffold(body: TodayTab(
+      currentDate: DateTime(2099, 3, 8), onDataChanged: () {}, scrollController: controller,
+    ))));
+    await settleDatabase(tester, find.byType(TodayProgressSummary));
+    final scroll = find.byType(CustomScrollView);
+    final schedule = find.text('Schedule');
+    final before = tester.getTopLeft(schedule).dy;
+    controller.jumpTo(controller.position.maxScrollExtent);
+    await tester.pumpAndSettle();
+    final pinned = tester.getTopLeft(schedule).dy;
+    expect(before - pinned, greaterThan(100));
+    expect(pinned - tester.getTopLeft(scroll).dy, lessThan(60));
+    await tester.tap(find.text('Revisits').last);
+    await tester.pumpAndSettle();
+    expect(tester.getTopLeft(schedule).dy, closeTo(pinned, 1));
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  test('Lecture edits shift unfinished recalls and deletion preserves completed recall history', () async {
+    final db = await dbService.database;
+    final id = await dbService.insertScheduledLecture(subject: 'Algebra', lectureName: 'Matrices',
+      date: DateTime(2026, 11, 10), durationHours: 1);
+    await db.update('revisit_items', {'status': 'COMPLETED'},
+      where: 'lecture_id = ? AND offset_days = 1', whereArgs: [id]);
+    await dbService.editLecture(id, title: 'Eigenvalues', subject: 'Algebra',
+      date: DateTime(2026, 11, 13), hours: 2, session: 'Evening');
+    var recalls = await db.query('revisit_items', where: 'lecture_id = ?', whereArgs: [id], orderBy: 'offset_days');
+    expect(recalls.first['due_date'], '11 Nov 2026');
+    expect(recalls[1]['due_date'], '17 Nov 2026');
+    expect(recalls[1]['topic'], 'Algebra • Eigenvalues');
+    expect((await dbService.getLecturesForDate(DateTime(2026, 11, 13))).single['details'], 'Eigenvalues');
+    await dbService.deleteLecture(id);
+    recalls = await db.query('revisit_items', where: 'topic LIKE ?', whereArgs: ['Algebra%']);
+    expect(recalls, hasLength(1));
+    expect(recalls.single['status'], 'COMPLETED');
+    expect(recalls.single['lecture_id'], isNull);
+  });
+
+  test('Editing a quiz keeps its score and deleting the quiz keeps its logged traps', () async {
+    final db = await dbService.database;
+    final id = await dbService.insertQuiz(subject: 'Linear Algebra', title: 'Matrices', date: DateTime(2026, 11, 10));
+    await db.update('quiz_items', {'score': 18, 'status': 'COMPLETED'}, where: 'id = ?', whereArgs: [id]);
+    await dbService.insertMistakeRecord(subject: 'Linear Algebra', topic: 'Rank',
+      questionText: 'Find rank', keyTakeaway: 'Count pivots', severity: 'HIGH', quizTitle: 'Matrices');
+    await dbService.editQuiz(id, title: 'Matrices mock', subject: 'Linear Algebra', type: 'TEST_SERIES',
+      date: DateTime(2026, 11, 11), minutes: 30, marks: 20, module: 'Matrices', syllabus: 'Rank', link: '');
+    final quiz = (await db.query('quiz_items', where: 'id = ?', whereArgs: [id])).single;
+    expect(quiz['quiz_type'], 'TEST_SERIES');
+    expect(quiz['score'], 18);
+    expect(quiz['status'], 'COMPLETED');
+    await dbService.deleteQuiz(id);
+    expect(await db.query('quiz_items', where: 'id = ?', whereArgs: [id]), isEmpty);
+    expect(await db.query('mistake_records', where: 'quiz_title = ?', whereArgs: ['Matrices']), hasLength(1));
   });
 
   Future<void> savePreview(WidgetTester tester, GlobalKey key, String name) async {
@@ -535,6 +593,24 @@ void main() {
     final save = find.widgetWithText(ElevatedButton, 'Save');
     expect(tester.widget<ElevatedButton>(save).style!.backgroundColor!.resolve({}), accent);
     await savePreview(tester, preview, 'schedule-themed');
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Revisit'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Mistakes'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Log a mistake'));
+    await tester.pumpAndSettle();
+    expect(find.text('Save Mistake Record'), findsOneWidget);
+    Navigator.of(tester.element(find.text('Save Mistake Record'))).pop();
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Quizzes'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Test Series Mocks'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Add a test series mock'));
+    await tester.pumpAndSettle();
+    expect(tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'Test Series Mocks')).selected, isTrue);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
     await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 200)));

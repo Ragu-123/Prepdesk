@@ -1,3 +1,5 @@
+import 'dart:async';
+import '../../services/study_data_events.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
@@ -12,12 +14,16 @@ class RevisitTab extends StatefulWidget {
   final VoidCallback onDataChanged;
   final String selectedSubject;
   final VoidCallback? onOpenFilter;
+  final ValueChanged<int>? onSectionChanged;
+  final ValueChanged<int>? onDueCategoryChanged;
 
   const RevisitTab({
     Key? key,
     required this.onDataChanged,
     this.selectedSubject = 'All Subjects',
     this.onOpenFilter,
+    this.onSectionChanged,
+    this.onDueCategoryChanged,
   }) : super(key: key);
 
   @override
@@ -25,6 +31,8 @@ class RevisitTab extends StatefulWidget {
 }
 
 class _RevisitTabState extends State<RevisitTab> {
+  StreamSubscription<void>? _scheduleUpdates;
+  StreamSubscription<void>? _mistakeUpdates;
   int _activeSubIndex = 0; // 0: Due & Backlog, 1: Retention Matrix, 2: Mistake Notebook
   int _activeDueCategoryIndex = 0; // 0: Recalls, 1: Quizzes, 2: Lectures
 
@@ -58,7 +66,16 @@ class _RevisitTabState extends State<RevisitTab> {
   @override
   void initState() {
     super.initState();
+    _scheduleUpdates = StudyDataEvents.instance.schedule.listen((_) => _loadData());
+    _mistakeUpdates = StudyDataEvents.instance.mistakes.listen((_) => _loadData());
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    _scheduleUpdates?.cancel();
+    _mistakeUpdates?.cancel();
+    super.dispose();
   }
 
   @override
@@ -624,7 +641,10 @@ class _RevisitTabState extends State<RevisitTab> {
     return Expanded(
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: () => setState(() => _activeSubIndex = index),
+        onTap: () {
+          setState(() => _activeSubIndex = index);
+          widget.onSectionChanged?.call(index);
+        },
         child: AnimatedContainer(
           duration: MediaQuery.disableAnimationsOf(context) ? Duration.zero : const Duration(milliseconds: 220),
           padding: const EdgeInsets.symmetric(vertical: 8),
@@ -741,7 +761,11 @@ class _RevisitTabState extends State<RevisitTab> {
   Widget _buildCategoryPill(int index, String title) {
     final isSelected = _activeDueCategoryIndex == index;
     return GestureDetector(
-      onTap: () => setState(() => _activeDueCategoryIndex = index),
+      onTap: () {
+          setState(() => _activeDueCategoryIndex = index);
+          widget.onDueCategoryChanged?.call(index);
+          widget.onDueCategoryChanged?.call(index);
+        },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(

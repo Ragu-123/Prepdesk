@@ -8,9 +8,11 @@ class TaskNavigationBar extends StatelessWidget {
   final int quizCount;
 
   const TaskNavigationBar({Key? key, required this.selectedIndex,
-    required this.onSelected, this.revisitCount = 0, this.quizCount = 0, this.onCreate}) : super(key: key);
+    required this.onSelected, this.revisitCount = 0, this.quizCount = 0, this.onCreate,
+    this.createLabel = 'Create task, schedule, quiz or reminder'}) : super(key: key);
 
   final VoidCallback? onCreate;
+  final String createLabel;
 
   @override
   Widget build(BuildContext context) => SafeArea(
@@ -39,7 +41,7 @@ class TaskNavigationBar extends StatelessWidget {
           const SizedBox(width: 10),
           SizedBox(width: 56, height: 56, child: IconButton.filledTonal(
             onPressed: onCreate,
-            tooltip: 'Create task, schedule, quiz or reminder',
+            tooltip: createLabel,
             style: IconButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.primaryContainer, foregroundColor: Theme.of(context).colorScheme.onPrimaryContainer),
             icon: const Icon(Icons.add_rounded, size: 28),
           )),
