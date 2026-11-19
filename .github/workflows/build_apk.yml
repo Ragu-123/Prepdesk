@@ -38,7 +38,11 @@ jobs:
           sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
           sdk_manager="$(command -v sdkmanager || find "$sdk_root/cmdline-tools" -type f -path '*/bin/sdkmanager' | sort -V | tail -1)"
           test -x "$sdk_manager"
-          "$sdk_manager" --sdk_root="$sdk_root" "platforms;android-37" "build-tools;37.0.0"
+          "$sdk_manager" --sdk_root="$sdk_root" --channel=3 "platforms;android-37.0" "build-tools;37.0.0"
+          if [ ! -e "$sdk_root/platforms/android-37" ]; then
+            ln -s android-37.0 "$sdk_root/platforms/android-37"
+          fi
+          test -f "$sdk_root/platforms/android-37/android.jar"
       - name: Get dependencies
         run: flutter pub get
       - name: Compiler and analyzer checks
