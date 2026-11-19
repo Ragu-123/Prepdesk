@@ -1,0 +1,59 @@
+plugins {
+    id 'com.android.library'
+    id 'org.jetbrains.kotlin.android'
+    id 'org.jetbrains.kotlin.plugin.compose'
+    id 'kotlin-parcelize'
+}
+
+android {
+    namespace 'com.bitchat.android'
+    compileSdk 37
+    buildToolsVersion '37.0.0'
+    defaultConfig {
+        minSdk 26
+        buildConfigField 'String', 'VERSION_NAME', '"2.2.0"'
+        buildConfigField 'String', 'GITHUB_RELEASE_CERT_SHA256', '""'
+    }
+    buildFeatures {
+        compose true
+        buildConfig true
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+kotlin {
+    jvmToolchain(21)
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
+}
+
+dependencies {
+    implementation bitchatLibs.androidx.core.ktx
+    implementation bitchatLibs.androidx.activity.compose
+    implementation bitchatLibs.androidx.appcompat
+    implementation platform(bitchatLibs.androidx.compose.bom)
+    implementation bitchatLibs.bundles.compose
+    implementation bitchatLibs.bundles.lifecycle
+    implementation bitchatLibs.androidx.lifecycle.process
+    implementation bitchatLibs.androidx.navigation.compose
+    implementation bitchatLibs.accompanist.permissions
+    implementation bitchatLibs.zxing.core
+    implementation bitchatLibs.mlkit.barcode.scanning
+    implementation bitchatLibs.androidx.camera.camera2
+    implementation bitchatLibs.androidx.camera.lifecycle
+    implementation bitchatLibs.androidx.camera.compose
+    implementation bitchatLibs.bundles.cryptography
+    implementation bitchatLibs.gson
+    implementation bitchatLibs.kotlinx.coroutines.android
+    implementation bitchatLibs.nordic.ble
+    implementation bitchatLibs.okhttp
+    implementation bitchatLibs.androidx.work.runtime.ktx
+    implementation bitchatLibs.nanohttpd
+    implementation bitchatLibs.gms.location
+    implementation bitchatLibs.androidx.security.crypto
+    implementation bitchatLibs.androidx.exifinterface
+}

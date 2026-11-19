@@ -1,11 +1,11 @@
-# BitChat Android integration
+# BitChat Android in Prepdesk
 
-Prepdesk v1.0.23 uses public Nostr relay rooms inside the app. The integrated screen starts with chat off and shows connected relays, the active room, and message send failures. Public rooms share text with anyone who joins the same room and receives its events. Nearby offline chat and private messages require the native transport work below.
+Prepdesk embeds the [BitChat Android](https://github.com/permissionlesstech/bitchat-android) app at revision `998f1684` as the `android/bitchat` library. Both source trees are distributed under [GPLv3](../LICENSE). The upstream Activity, Compose screens, conversation management, private-message store, and networking ship inside the Prepdesk package.
 
-The Android reference is the local `bitchat-android` checkout at `998f1684`. Its README describes a public-domain release and its LICENSE file contains GPLv3. Confirm the applicable terms for each imported component before vendoring it.
+The host launches BitChat in a separate Android process and task. The upstream quit and panic controls can shut down chat and clear its own state without killing Prepdesk or wiping the study database. Bluetooth and relay connectivity start after opening chat. Background operation and boot startup are disabled until enabled in BitChat settings. Prepdesk passes its current light palette into the chat UI and shares the bundled Noto Sans family. The explicit dark-theme setting remains available in BitChat.
 
-1. Put the Android transport behind a small Flutter channel for starting and stopping the radio, peers, incoming messages, sending, and status events. Check upstream dependency versions and Android SDK requirements against Prepdesk's GitHub release build.
-2. Port the interoperable BLE framing, fragmentation, peer discovery, and forwarding behavior. Preserve upstream message IDs across forwards and persist each logical message once, including when a send returns over a second transport.
-3. Wire the native transport into the current room and conversation screens. Request Bluetooth access when the user enables Nearby chat. Stop scanning, advertising, and connections when chat is switched off.
-4. Add direct conversations only after both endpoints can establish and verify the upstream encrypted session. Keep the selected transport and delivery state visible in each conversation.
-5. Check two Prepdesk phones and a phone running the upstream Android app. Cover offline discovery and delivery, fragmentation, relay reconnects, messages arriving over both transports, switching chat off mid-send, and Android permission denial. Run the APK and Play bundle through GitHub Actions after these checks.
+The integration retains native nearby mesh, encrypted direct chats, Nostr rooms, media and voice controls, peer verification, conversation deletion, and BitChat settings. The Android manifest keeps the Prepdesk launcher and scopes BitChat's file provider and signature permission to the Prepdesk package. Existing study data stays in Prepdesk's database. Old Flutter chat records remain in backups but do not appear in the native conversation store.
+
+The bundled Arti native libraries come from the pinned upstream checkout. Build instructions, pinned toolchain inputs, and library checksums are in [the upstream Arti build directory](https://github.com/permissionlesstech/bitchat-android/tree/998f1684/tools/arti-build).
+
+Verify Bluetooth discovery and public and private delivery with two Prepdesk phones and with a phone running upstream BitChat. Check relay handoff, duplicate delivery, delete and undo, attachment sharing, permission denial, background opt-in, and leaving or quitting chat while Prepdesk remains open.

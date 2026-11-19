@@ -45,6 +45,17 @@ class MainActivity: FlutterFragmentActivity() {
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
+                "openBitChat" -> {
+                    val appearance = call.arguments as? Map<*, *>
+                    val chat = Intent()
+                        .setClassName(packageName, "com.bitchat.android.MainActivity")
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                    appearance?.forEach { (key, value) ->
+                        if (key is String && value is Number) chat.putExtra("prepdesk.$key", value.toInt())
+                    }
+                    startActivity(chat)
+                    result.success(null)
+                }
                 "setAdaptiveColors" -> {
                     getSharedPreferences("nyro_appearance", MODE_PRIVATE).edit()
                         .putBoolean("adaptive", call.argument<Boolean>("enabled") ?: true)

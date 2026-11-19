@@ -1,7 +1,7 @@
 name: tasks
 description: Prepdesk study planning, spaced revision, and test preparation.
 
-version: 1.0.23+24
+version: 1.1.22+24
 
 environment:
   sdk: ">=2.17.0 <4.0.0"

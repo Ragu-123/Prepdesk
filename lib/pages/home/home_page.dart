@@ -5,6 +5,7 @@ import '../../widgets/content_transition.dart';
 import '../../services/notification_route.dart';
 import '../../widgets/task_navigation_bar.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:tasks/pages/tabs/today_tab.dart';
 import 'package:tasks/pages/tabs/timetable_tab.dart';
@@ -23,8 +24,6 @@ import 'package:tasks/widgets/subject_filter_modal_sheet.dart';
 import 'package:tasks/widgets/notifications_history_sheet.dart';
 import 'package:tasks/widgets/add_mistake_modal_sheet.dart';
 import 'package:tasks/widgets/top_banner_notification.dart';
-import 'package:tasks/pages/bitchat/bitchat_main_page.dart';
-import 'package:tasks/services/bitchat/bitchat_service.dart';
 import 'package:tasks/pages/keep/keep_page.dart';
 import 'package:tasks/pages/keep/note_editor_sheet.dart';
 import 'package:tasks/pages/keep/note_reader_page.dart';
@@ -1238,11 +1237,26 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  void _openBitchatPage() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const BitchatMainPage()),
-    );
+  Future<void> _openBitchatPage() async {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    try {
+      await const MethodChannel('io.github.thelazyindian.tasks/native').invokeMethod<void>('openBitChat', {
+        'primary': colors.primary.toARGB32(),
+        'primaryContainer': colors.primaryContainer.toARGB32(),
+        'onPrimaryContainer': colors.onPrimaryContainer.toARGB32(),
+        'background': theme.scaffoldBackgroundColor.toARGB32(),
+        'surface': colors.surface.toARGB32(),
+        'onSurface': colors.onSurface.toARGB32(),
+        'onSurfaceVariant': colors.onSurfaceVariant.toARGB32(),
+        'surfaceContainer': colors.surfaceContainer.toARGB32(),
+        'outlineVariant': colors.outlineVariant.toARGB32(),
+      });
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('BitChat is available in the Prepdesk Android app.')),
+      );
+    }
   }
 
   void _openKeepPage() {
@@ -1379,39 +1393,13 @@ class _HomePageState extends State<HomePage> {
                     },
                   ),
                   // 5. BitChat P2P Mesh
-                  ValueListenableBuilder<bool>(
-                    valueListenable: BitchatService.instance.isMasterPowerOnNotifier,
-                    builder: (context, isOnline, _) {
-                      return ListTile(
-                        leading: Icon(
-                          Icons.hub_outlined,
-                          color: isOnline ? Theme.of(context).colorScheme.primary : googleTextSecondary,
-                          size: 22,
-                        ),
-                        title: Row(
-                          children: [
-                            const Text('BitChat', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: googleTextPrimary)),
-                            const SizedBox(width: 8),
-                            Container(
-                              width: 8,
-                              height: 8,
-                              decoration: BoxDecoration(
-                                color: isOnline ? googleGreen : Colors.grey,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                          ],
-                        ),
-                        subtitle: Text(
-                          isOnline ? 'Relay chat on' : 'Off',
-                          style: const TextStyle(fontSize: 11, color: googleTextSecondary),
-                        ),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        onTap: () {
-                          Navigator.pop(context);
-                          _openBitchatPage();
-                        },
-                      );
+                  ListTile(
+                    leading: const Icon(Icons.hub_outlined, color: googleTextSecondary, size: 22),
+                    title: const Text('BitChat', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: googleTextPrimary)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _openBitchatPage();
                     },
                   ),
                   const Divider(height: 1, thickness: 1, color: googleHairline),
