@@ -1296,6 +1296,7 @@ class _HomePageState extends State<HomePage> {
   // --- Full Side Navigation Drawer ---
 
   Widget _buildSideNavigationDrawer() {
+    final accent = Theme.of(context).colorScheme.primary;
     return Drawer(
       backgroundColor: Colors.white,
       surfaceTintColor: Colors.transparent,
@@ -1317,11 +1318,11 @@ class _HomePageState extends State<HomePage> {
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primary.withOpacity(0.12),
+                      color: accent.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Center(child: Image.asset('assets/images/prepdesk_mark.png',
-                      width: 27, height: 27, color: Theme.of(context).colorScheme.primary)),
+                      width: 27, height: 27, color: accent)),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -1350,7 +1351,7 @@ class _HomePageState extends State<HomePage> {
                 children: [
                   // 1. Keep
                   ListTile(
-                    leading: const Icon(Icons.lightbulb_outline_rounded, color: Color(0xFFF29900), size: 22),
+                    leading: Icon(Icons.lightbulb_outline_rounded, color: accent, size: 22),
                     title: const Text('Keep', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: googleTextPrimary)),
                     subtitle: const Text('Notes, checklists, ideas & tags', style: TextStyle(fontSize: 11, color: googleTextSecondary)),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -1361,7 +1362,7 @@ class _HomePageState extends State<HomePage> {
                   ),
                   // 2. Cloud Sync
                   ListTile(
-                    leading: Icon(Icons.cloud_sync_outlined, color: Theme.of(context).colorScheme.primary, size: 22),
+                    leading: Icon(Icons.cloud_sync_outlined, color: accent, size: 22),
                     title: const Text('Cloud Sync', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: googleTextPrimary)),
                     subtitle: const Text('Backup & restore DB to Hugging Face', style: TextStyle(fontSize: 11, color: googleTextSecondary)),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -1372,7 +1373,7 @@ class _HomePageState extends State<HomePage> {
                   ),
                   // 3. Reminders
                   ListTile(
-                    leading: const Icon(Icons.notifications_none_rounded, color: googleAmber, size: 22),
+                    leading: Icon(Icons.notifications_none_rounded, color: accent, size: 22),
                     title: const Text('Reminders', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: googleTextPrimary)),
                     subtitle: const Text('Study timers, custom alerts & routine', style: TextStyle(fontSize: 11, color: googleTextSecondary)),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -1383,7 +1384,7 @@ class _HomePageState extends State<HomePage> {
                   ),
                   // 4. Jump to Date
                   ListTile(
-                    leading: Icon(Icons.event_outlined, color: Theme.of(context).colorScheme.primary, size: 22),
+                    leading: Icon(Icons.event_outlined, color: accent, size: 22),
                     title: const Text('Jump to Date', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: googleTextPrimary)),
                     subtitle: const Text('Quick calendar date navigation', style: TextStyle(fontSize: 11, color: googleTextSecondary)),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

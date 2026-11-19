@@ -1,5 +1,7 @@
 package com.bitchat.android.util
 
+import com.bitchat.android.integration.prepdeskChatNotification
+
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
@@ -159,10 +161,10 @@ class ApkDownloadWorker(
         val cancelIntent = WorkManager.getInstance(applicationContext)
             .createCancelPendingIntent(id)
 
-        return NotificationCompat.Builder(applicationContext, CHANNEL_ID)
+        return prepdeskChatNotification(applicationContext, CHANNEL_ID)
             .setContentTitle(applicationContext.getString(R.string.apk_download_notification_title))
             .setContentText(applicationContext.getString(downloadPhaseLabel(currentPhase)))
-            .setSmallIcon(R.drawable.ic_notification)
+
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             // A percentage is a lie outside the transfer: the release lookup, the Tor bootstrap

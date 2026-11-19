@@ -60,6 +60,7 @@ class MainActivity: FlutterFragmentActivity() {
                     getSharedPreferences("nyro_appearance", MODE_PRIVATE).edit()
                         .putBoolean("adaptive", call.argument<Boolean>("enabled") ?: true)
                         .putInt("accent", call.argument<Number>("accent")?.toInt() ?: 0xFF315DA8.toInt()).apply()
+                    contentResolver.notifyChange(Uri.parse("content://$packageName.appearance"), null)
                     result.success(null)
                 }
                 "checkBluetoothPermissions" -> {

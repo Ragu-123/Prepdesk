@@ -1,5 +1,7 @@
 package com.bitchat.android.service
 
+import com.bitchat.android.integration.prepdeskChatNotification
+
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.NotificationChannel
@@ -256,8 +258,8 @@ internal class PeerAvailabilityNotifier(
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_notification)
+        val notification = prepdeskChatNotification(context, CHANNEL_ID)
+
             .setContentTitle(textProvider.title())
             .setContentText(textProvider.body(peerCount))
             .setContentIntent(pendingIntent)

@@ -79,6 +79,10 @@
             </intent-filter>
         </receiver>
 
+        <provider android:name=".AppearanceProvider"
+            android:authorities="${applicationId}.appearance"
+            android:exported="false" />
+
         <!-- Scheduled Notification Receivers for flutter_local_notifications -->
         <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ActionBroadcastReceiver" />
         <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />

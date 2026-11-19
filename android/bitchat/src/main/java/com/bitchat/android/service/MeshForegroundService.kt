@@ -1,5 +1,8 @@
 package com.bitchat.android.service
 
+import com.bitchat.android.integration.prepdeskChatNotification
+import com.bitchat.android.integration.prepdeskAppearanceUri
+
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -8,8 +11,11 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.database.ContentObserver
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -97,11 +103,20 @@ class MeshForegroundService : Service() {
     private var isInForeground: Boolean = false
     private var isShuttingDown: Boolean = false
     private var lastNotifiedPeerCount: Int? = null
+    private val appearanceObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
+        override fun onChange(selfChange: Boolean) {
+            if (isInForeground) {
+                lastNotifiedPeerCount = null
+                updateNotification(force = false)
+            }
+        }
+    }
 
     override fun onCreate() {
         super.onCreate()
         com.bitchat.android.BitchatRuntime.initialize(applicationContext)
         notificationManager = NotificationManagerCompat.from(this)
+        contentResolver.registerContentObserver(prepdeskAppearanceUri, false, appearanceObserver)
         peerAvailabilityNotifier = PeerAvailabilityNotifier(
             context = applicationContext,
             scope = scope,
@@ -305,10 +320,10 @@ class MeshForegroundService : Service() {
         val title = getString(R.string.bitchat_app_name)
         val content = getString(R.string.mesh_service_notification_content, activePeers)
 
-        return NotificationCompat.Builder(this, CHANNEL_ID)
+        return prepdeskChatNotification(this, CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(content)
-            .setSmallIcon(R.mipmap.ic_launcher)
+
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
@@ -368,6 +383,7 @@ class MeshForegroundService : Service() {
     }
 
     override fun onDestroy() {
+        contentResolver.unregisterContentObserver(appearanceObserver)
         updateJob?.cancel()
         updateJob = null
         // Cancel the service coroutine scope to prevent leaks

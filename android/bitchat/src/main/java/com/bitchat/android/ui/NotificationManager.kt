@@ -1,5 +1,7 @@
 package com.bitchat.android.ui
 
+import com.bitchat.android.integration.prepdeskChatNotification
+
 import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager as AndroidNotificationManager
@@ -263,8 +265,8 @@ class NotificationManager(
             "${latestNotification.senderNickname} ($messageCount messages)"
         }
 
-        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_notification)
+        val builder = prepdeskChatNotification(context, CHANNEL_ID)
+
             .setContentTitle(contentTitle)
             .setContentText(contentText)
             .setContentIntent(pendingIntent)
@@ -321,8 +323,8 @@ class NotificationManager(
                     .build()
             )
             .setPublicVersion(
-                NotificationCompat.Builder(context, CHANNEL_ID)
-                    .setSmallIcon(R.drawable.ic_notification)
+                prepdeskChatNotification(context, CHANNEL_ID)
+
                     .setContentTitle(context.getString(R.string.notification_private_message))
                     .setContentText(context.getString(R.string.notification_content_hidden))
                     .build()
@@ -393,8 +395,8 @@ class NotificationManager(
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_notification)
+        val builder = prepdeskChatNotification(context, CHANNEL_ID)
+
             .setContentTitle(title)
             .setContentText(body)
             .setContentIntent(pendingIntent)
@@ -427,8 +429,8 @@ class NotificationManager(
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_notification)
+        val builder = prepdeskChatNotification(context, CHANNEL_ID)
+
             .setContentTitle(context.getString(R.string.bitchat_app_name))
             .setContentText(context.getString(R.string.notification_messages_from_people, totalMessages, senderCount))
             .setContentIntent(pendingIntent)
@@ -582,8 +584,8 @@ class NotificationManager(
             else -> "${latestNotification.senderNickname}: ${latestNotification.messageContent}"
         }
 
-        val builder = NotificationCompat.Builder(context, GEOHASH_CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_notification)
+        val builder = prepdeskChatNotification(context, GEOHASH_CHANNEL_ID)
+
             .setContentTitle(contentTitle)
             .setContentText(contentText)
             .setContentIntent(pendingIntent)
@@ -662,8 +664,8 @@ class NotificationManager(
 
         val contentText = context.getString(R.string.notification_geohash_summary_text, totalMessages, geohashCount)
 
-        val builder = NotificationCompat.Builder(context, GEOHASH_CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_notification)
+        val builder = prepdeskChatNotification(context, GEOHASH_CHANNEL_ID)
+
             .setContentTitle(contentTitle)
             .setContentText(contentText)
             .setContentIntent(pendingIntent)
@@ -795,8 +797,8 @@ class NotificationManager(
 
         val contentText = "${latestNotification.senderNickname}: ${latestNotification.messageContent}"
 
-        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_notification)
+        val builder = prepdeskChatNotification(context, CHANNEL_ID)
+
             .setContentTitle(contentTitle)
             .setContentText(contentText)
             .setContentIntent(pendingIntent)

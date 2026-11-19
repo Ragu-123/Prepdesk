@@ -830,7 +830,7 @@ class _SettingsPageState extends State<SettingsPage> {
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: googleHairline),
       ),
-      child: ListTile(
+      child: Material(type: MaterialType.transparency, child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
         leading: Container(
           width: 44,
@@ -861,7 +861,7 @@ class _SettingsPageState extends State<SettingsPage> {
         trailing: const Icon(Icons.chevron_right_rounded, color: googleTextSecondary, size: 20),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         onTap: onTap,
-      ),
+      )),
     );
   }
 

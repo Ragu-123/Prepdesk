@@ -477,7 +477,15 @@ void main() {
     expect(tester.getTopLeft(schedule).dy, lessThan(200));
     await tester.tap(find.text('Quizzes').last);
     await tester.pumpAndSettle();
-    expect(find.text('1 trap to review'), findsOneWidget);
+    expect(find.text('Review mistakes (1)'), findsOneWidget);
+    await tester.tap(find.text('Review mistakes (1)'));
+    await tester.pump();
+    await settleDatabase(tester, find.text('No mistakes logged for this topic.'));
+    await tester.tap(find.text('All subject mistakes'));
+    await tester.pumpAndSettle();
+    expect(find.text('Rank'), findsOneWidget);
+    Navigator.of(tester.element(find.text('All subject mistakes'))).pop();
+    await tester.pumpAndSettle();
     expect(find.byTooltip('quiz options'), findsNothing);
     await tester.tap(find.text('Next matrices quiz'));
     await tester.pumpAndSettle();
@@ -616,7 +624,7 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('Quick add uses the shared accent and follows Mistakes and Test Series', (tester) async {
+  testWidgets('Drawer icons and quick add use the shared accent and forms follow the current tab', (tester) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -631,6 +639,14 @@ void main() {
     await tester.pumpWidget(MaterialApp(theme: buildLightTheme(accent),
       builder: (context, child) => RepaintBoundary(key: preview, child: child!), home: const HomePage()));
     await settleDatabase(tester, find.byType(TodayProgressSummary));
+    await tester.tap(find.byTooltip('Navigation Menu'));
+    await tester.pumpAndSettle();
+    for (final label in ['Keep', 'Reminders']) {
+      final tile = tester.widget<ListTile>(find.widgetWithText(ListTile, label));
+      expect((tile.leading! as Icon).color, accent);
+    }
+    Navigator.of(tester.element(find.byType(Drawer))).pop();
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Add session'));
     await tester.pumpAndSettle();
     final save = find.widgetWithText(ElevatedButton, 'Save');
