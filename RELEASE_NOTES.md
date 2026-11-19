@@ -2,6 +2,7 @@
 
 - Daily routines can ring as full-screen alarms when Android grants the required access. Enable this in Reminders & Routine Alerts.
 - The Today ring changes with Schedule, Revisit, and Quizzes.
+- Quiz and revisit entries open the same mistake drawer with topic and subject tabs. Resolve mistakes as you review them.
 - Keep searches note tags. Open a note to copy its text, checklist, and tags together.
 - Appearance offers six fixed colors and an option to rotate colors on launch. The accent also applies to notifications and alarms.
 - Settings shows the installed release notes, lets you name the exam you are preparing for, and links to GitHub. The default study views are exam-neutral.

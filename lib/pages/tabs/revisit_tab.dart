@@ -8,7 +8,7 @@ import 'package:tasks/utils/theme.dart';
 import 'package:tasks/utils/url_helper.dart';
 import 'package:tasks/widgets/google_checkbox.dart';
 import 'package:tasks/widgets/add_mistake_modal_sheet.dart';
-import 'package:tasks/pages/tabs/quizzes_tab.dart';
+import '../../widgets/mistake_review_sheet.dart';
 
 class RevisitTab extends StatefulWidget {
   final VoidCallback onDataChanged;
@@ -345,13 +345,13 @@ class _RevisitTabState extends State<RevisitTab> {
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.warning_amber_rounded, size: 16, color: Theme.of(context).colorScheme.primary),
+                        Icon(Icons.fact_check_outlined, size: 16, color: Theme.of(context).colorScheme.primary),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('QUIZ TRAPS • TAP TO VIEW ALL', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary)),
+                              Text('REVIEW QUIZ MISTAKES', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary)),
                               Text(quiz, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: googleTextPrimary)),
                             ],
                           ),
@@ -542,6 +542,10 @@ class _RevisitTabState extends State<RevisitTab> {
                                               ),
                                               const SizedBox(height: 3),
                                               Text('Due: $dueDate', style: const TextStyle(fontSize: 11, color: googleTextSecondary)),
+                                              StudyReviewActions(onReview: () => showRevisitMistakeReview(
+                                                context, topic.toString(), subject: subject,
+                                                onDataChanged: () { _loadData(); widget.onDataChanged(); },
+                                              )),
                                             ],
                                           ),
                                         ),
@@ -821,6 +825,11 @@ class _RevisitTabState extends State<RevisitTab> {
                             Text('$dur mins • Due: $due', style: const TextStyle(fontSize: 11, color: googleTextSecondary)),
                           ],
                         ),
+                        const SizedBox(height: 4),
+                        StudyReviewActions(onReview: () => showRevisitMistakeReview(
+                          context, topic.toString(), subject: widget.selectedSubject,
+                          onDataChanged: () { _loadData(); widget.onDataChanged(); },
+                        )),
                       ],
                     ),
                   ),
@@ -901,19 +910,15 @@ class _RevisitTabState extends State<RevisitTab> {
                                 ),
                               ),
                             Text('$date • $dur mins • $marks Marks', style: const TextStyle(fontSize: 11, color: googleTextSecondary)),
-                            const Spacer(),
-                            if (url != null && url.isNotEmpty)
-                              InkWell(
-                                onTap: () => openExternalUrl(url),
-                                child: Row(
-                                  children: [
-                                    Text('Start Quiz', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary)),
-                                    SizedBox(width: 2),
-                                    Icon(Icons.open_in_new, size: 12, color: Theme.of(context).colorScheme.primary),
-                                  ],
-                                ),
-                              ),
                           ],
+                        ),
+                        const SizedBox(height: 4),
+                        StudyReviewActions(
+                          onReview: () => showQuizTrapsModalSheet(context,
+                            quizTitle: title.toString(), subject: subject.toString(),
+                            module: q['module_name']?.toString(), syllabus: q['syllabus_topics']?.toString(),
+                            onDataChanged: () { _loadData(); widget.onDataChanged(); }),
+                          onStart: url == null || url.isEmpty ? null : () => openExternalUrl(url),
                         ),
                       ],
                     ),
@@ -1246,7 +1251,7 @@ class _RevisitTabState extends State<RevisitTab> {
                                         child: Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            Icon(Icons.warning_amber_rounded, size: 11, color: Theme.of(context).colorScheme.primary),
+                                            Icon(Icons.fact_check_outlined, size: 11, color: Theme.of(context).colorScheme.primary),
                                             const SizedBox(width: 3),
                                             Text(
                                               quiz,

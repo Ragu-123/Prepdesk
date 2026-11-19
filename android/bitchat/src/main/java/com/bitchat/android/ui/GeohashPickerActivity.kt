@@ -235,8 +235,8 @@ class GeohashPickerActivity : OrientationAwareActivity() {
                     )
                 }
 
-                val labelTypeface = remember { ResourcesCompat.getFont(context, R.font.geist_mono_medium) }
-                val labelTypefaceBold = remember { ResourcesCompat.getFont(context, R.font.geist_mono_semibold) }
+                val labelTypeface = remember { ResourcesCompat.getFont(context, R.font.prepdesk_noto_regular) }
+                val labelTypefaceBold = remember { ResourcesCompat.getFont(context, R.font.prepdesk_noto_bold) }
 
                 // Geohashes of a tapped cluster, shown as a pick list until one is chosen.
                 var cluster by remember { mutableStateOf<List<String>?>(null) }

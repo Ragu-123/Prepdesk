@@ -2,7 +2,7 @@ import '../../widgets/study_entry_sheet.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../services/study_data_events.dart';
-import 'quizzes_tab.dart' show showQuizTrapsModalSheet;
+import '../../widgets/mistake_review_sheet.dart';
 import 'widgets/today_progress_summary.dart';
 import 'widgets/today_section_header.dart';
 import 'package:intl/intl.dart';
@@ -646,6 +646,11 @@ class _TodayTabState extends State<TodayTab> {
                                   ),
                                 ],
                               ),
+                              const SizedBox(height: 4),
+                              StudyReviewActions(onReview: () => showRevisitMistakeReview(
+                                context, topic.toString(),
+                                onDataChanged: () { _loadData(); widget.onDataChanged(); },
+                              )),
                             ],
                           ),
                         ),
@@ -740,32 +745,14 @@ class _TodayTabState extends State<TodayTab> {
                                   overflow: TextOverflow.ellipsis,
                                 ),
                                 const SizedBox(height: 8),
-                                TextButton.icon(
-                                  onPressed: () => showQuizTrapsModalSheet(context,
+                                StudyReviewActions(
+                                  count: _trapCounts[q['id']],
+                                  onReview: () => showQuizTrapsModalSheet(context,
                                     quizTitle: title.toString(), subject: q['subject']?.toString(),
                                     module: q['module_name']?.toString(), syllabus: q['syllabus_topics']?.toString(),
                                     onDataChanged: () { _loadData(); widget.onDataChanged(); }),
-                                  icon: const Icon(Icons.warning_amber_rounded, size: 18),
-                                  label: Text(_trapCounts[q['id']] == 1
-                                    ? '1 trap to review' : '${_trapCounts[q['id']] ?? 0} traps to review'),
+                                  onStart: actionUrl == null || actionUrl.isEmpty ? null : () => openExternalUrl(actionUrl),
                                 ),
-                                if (actionUrl != null && actionUrl.isNotEmpty) ...[
-                                  const SizedBox(height: 6),
-                                  InkWell(
-                                    onTap: () => openExternalUrl(actionUrl),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text(
-                                          'Start Quiz',
-                                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
-                                        ),
-                                        SizedBox(width: 3),
-                                        Icon(Icons.open_in_new, size: 12, color: Theme.of(context).colorScheme.primary),
-                                      ],
-                                    ),
-                                  ),
-                                ],
                               ],
                             ),
                           ),

@@ -15,6 +15,13 @@ void main() {
     expect(QuizTrapMatcher.matches({'quiz_title': 'Legacy Quiz'}, quizTitle: 'legacy quiz'), isTrue);
     expect(QuizTrapMatcher.matches({'quiz_title': 'Legacy Quiz'}, quizTitle: 'unrelated quiz'), isFalse);
   });
+  test('Topic review includes linked quiz mistakes and matching syllabus topics', () {
+    final row = {'subject': 'Linear Algebra', 'topic': 'Matrix rank', 'quiz_title': 'Quiz 1'};
+    expect(QuizTrapMatcher.matchesTopic(row, quizTitle: 'Quiz 1', topics: ['Determinants']), isTrue);
+    expect(QuizTrapMatcher.matchesTopic(row, quizTitle: 'Quiz 2', topics: ['Matrix-rank and nullity']), isTrue);
+    expect(QuizTrapMatcher.matchesTopic(row, topics: ['Rankine cycle']), isFalse);
+    expect(QuizTrapMatcher.matches(row, quizTitle: 'Quiz 2', subject: 'Linear Algebra'), isTrue);
+  });
   test('Adaptive accents are stable and disabling restores the fixed app accent', () {
     final appearance = AppearanceService.instance;
     appearance.enabled = false;

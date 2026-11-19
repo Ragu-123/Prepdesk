@@ -9,9 +9,10 @@ void showAddMistakeModalSheet(
   required VoidCallback onSaved,
   String? initialSubject,
   String? initialQuizTitle,
+  String? initialTopic,
   List<String>? availableSubjects,
 }) {
-  final topicController = TextEditingController();
+  final topicController = TextEditingController(text: initialTopic ?? '');
   final quizController = TextEditingController(text: initialQuizTitle ?? '');
   final questionController = TextEditingController();
   final wrongController = TextEditingController();
