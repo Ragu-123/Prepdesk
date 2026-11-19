@@ -1,5 +1,8 @@
 package com.bitchat.android.nostr
 
+import com.bitchat.android.integration.chatCacheDir
+import com.bitchat.android.integration.chatFilesDir
+
 import android.app.Application
 import android.content.SharedPreferences
 import android.util.Log
@@ -126,7 +129,7 @@ object RelayDirectory {
         application.getSharedPreferences(PREFS_NAME, Application.MODE_PRIVATE)
 
     private fun getDownloadedFile(application: Application): File =
-        File(application.filesDir, DOWNLOADED_FILE)
+        File(application.chatFilesDir, DOWNLOADED_FILE)
 
     private fun isStale(application: Application): Boolean {
         val last = getPrefs(application).getLong(KEY_LAST_UPDATE_MS, 0L)
@@ -151,7 +154,7 @@ object RelayDirectory {
 
     private fun fetchAndMaybeSwap(application: Application) {
         try {
-            val tmpFile = File.createTempFile("relays_", ".csv", application.cacheDir)
+            val tmpFile = File.createTempFile("relays_", ".csv", application.chatCacheDir)
             val ok = downloadToFile(ASSET_FILE_URL, tmpFile)
             if (!ok) {
                 Log.w(TAG, "Failed to fetch latest relays; keeping current list (will fallback to bundled if none)")

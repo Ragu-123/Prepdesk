@@ -1,6 +1,8 @@
 
 package com.bitchat.android.features.voice
 
+import com.bitchat.android.integration.chatFilesDir
+
 import android.content.Context
 import android.media.MediaRecorder
 import android.util.Log
@@ -37,7 +39,7 @@ class VoiceRecorder(
     fun start(): File? {
         stop() // ensure previous session closed
         if (liveTarget != null) {
-            val directory = File(context.filesDir, "voicenotes/outgoing")
+            val directory = File(context.chatFilesDir, "voicenotes/outgoing")
             val capture = LiveVoiceCapture(directory, liveTarget)
             val liveFile = capture.start()
             if (liveFile != null) {
@@ -51,7 +53,7 @@ class VoiceRecorder(
 
     private fun startClassic(): File? {
         return try {
-            val dir = File(context.filesDir, "voicenotes/outgoing").apply { mkdirs() }
+            val dir = File(context.chatFilesDir, "voicenotes/outgoing").apply { mkdirs() }
             val name = "voice_" + SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date()) + ".m4a"
             val file = File(dir, name)
             val rec = MediaRecorder()

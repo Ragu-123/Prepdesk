@@ -1,5 +1,7 @@
 package com.bitchat.android.features.voice
 
+import com.bitchat.android.integration.chatCacheDir
+
 import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Log
@@ -474,5 +476,5 @@ class LiveVoiceManager private constructor(private val context: Context) {
     private fun isVisible(scope: LiveVoiceScope, peerID: String): Boolean =
         visibleScope == scope && (scope == LiveVoiceScope.PUBLIC_MESH || visiblePeerID == peerID)
 
-    private fun liveDirectory(): File = File(context.cacheDir, "files/incoming").apply { mkdirs() }
+    private fun liveDirectory(): File = File(context.chatCacheDir, "files/incoming").apply { mkdirs() }
 }

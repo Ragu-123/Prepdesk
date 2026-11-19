@@ -1,5 +1,7 @@
 package com.bitchat.android.features.media
 
+import com.bitchat.android.integration.chatFilesDir
+
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -30,7 +32,7 @@ object ImageUtils {
             val newW = (w / scale).toInt().coerceAtLeast(1)
             val newH = (h / scale).toInt().coerceAtLeast(1)
             val scaled = if (scale > 1f) Bitmap.createScaledBitmap(oriented, newW, newH, true) else oriented
-            val dir = File(context.filesDir, "images/outgoing").apply { mkdirs() }
+            val dir = File(context.chatFilesDir, "images/outgoing").apply { mkdirs() }
             val outFile = File(dir, "img_${System.currentTimeMillis()}.jpg")
             FileOutputStream(outFile).use { fos ->
                 scaled.compress(Bitmap.CompressFormat.JPEG, quality, fos)
@@ -55,7 +57,7 @@ object ImageUtils {
             val newW = (w / scale).toInt().coerceAtLeast(1)
             val newH = (h / scale).toInt().coerceAtLeast(1)
             val scaled = if (scale > 1f) Bitmap.createScaledBitmap(oriented, newW, newH, true) else oriented
-            val dir = File(context.filesDir, "images/outgoing").apply { mkdirs() }
+            val dir = File(context.chatFilesDir, "images/outgoing").apply { mkdirs() }
             val outFile = File(dir, "img_${System.currentTimeMillis()}.jpg")
             FileOutputStream(outFile).use { fos ->
                 scaled.compress(Bitmap.CompressFormat.JPEG, quality, fos)

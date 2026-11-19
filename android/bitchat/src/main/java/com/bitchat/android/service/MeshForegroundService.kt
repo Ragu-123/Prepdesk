@@ -29,7 +29,7 @@ class MeshForegroundService : Service() {
 
     companion object {
         private const val CHANNEL_ID = "bitchat_mesh_service"
-        private const val NOTIFICATION_ID = 10001
+        internal const val NOTIFICATION_ID = 0x62000001
 
         const val ACTION_START = "com.bitchat.android.service.START"
         const val ACTION_STOP = "com.bitchat.android.service.STOP"

@@ -1,5 +1,7 @@
 package com.bitchat.android.ui.media
 
+import com.bitchat.android.integration.chatCacheDir
+
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -135,7 +137,7 @@ fun FileViewerDialog(
 private fun tryOpenFile(context: Context, packet: BitchatFilePacket) {
     try {
         // First try to save to temp file and open
-        val tempFile = File.createTempFile("bitchat_", ".${packet.fileName.substringAfterLast(".")}", context.cacheDir)
+        val tempFile = File.createTempFile("bitchat_", ".${packet.fileName.substringAfterLast(".")}", context.chatCacheDir)
         tempFile.writeBytes(packet.content)
         tempFile.deleteOnExit()
 

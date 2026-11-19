@@ -43,6 +43,7 @@ class NotificationManager(
 
     companion object {
         private const val TAG = "NotificationManager"
+        private const val NOTIFICATION_TAG = "bitchat"
         private const val CHANNEL_ID = "bitchat_dm_notifications"
         private const val GEOHASH_CHANNEL_ID = "bitchat_geohash_notifications"
         private const val GROUP_KEY_DM = "bitchat_dm_group"
@@ -77,7 +78,7 @@ class NotificationManager(
             val managers = synchronized(liveManagers) { liveManagers.toList() }
             managers.forEach { it.clearNotificationsForSender(canonicalID) }
             if (managers.isEmpty()) {
-                NotificationManagerCompat.from(context).cancel(canonicalID.hashCode())
+                NotificationManagerCompat.from(context).cancel(NOTIFICATION_TAG, canonicalID.hashCode())
             }
         }
     }
@@ -355,7 +356,7 @@ class NotificationManager(
     }
 
     private fun conversationShortcutID(conversationID: String): String =
-        "dm_" + java.util.UUID.nameUUIDFromBytes(
+        "bitchat_dm_" + java.util.UUID.nameUUIDFromBytes(
             conversationID.lowercase().toByteArray(Charsets.UTF_8)
         ).toString()
 
@@ -473,16 +474,16 @@ class NotificationManager(
         }
         matchingKeys.forEach { key ->
             pendingNotifications.remove(key)
-            notificationManager.cancel(key.hashCode())
+            notificationManager.cancel(NOTIFICATION_TAG, key.hashCode())
         }
-        notificationManager.cancel(conversationID.hashCode())
+        notificationManager.cancel(NOTIFICATION_TAG, conversationID.hashCode())
 
         // Update or remove summary notification
         if (pendingNotifications.isEmpty()) {
-            notificationManager.cancel(SUMMARY_NOTIFICATION_ID)
+            notificationManager.cancel(NOTIFICATION_TAG, SUMMARY_NOTIFICATION_ID)
         } else if (pendingNotifications.size == 1) {
             // Only one sender left, remove group summary
-            notificationManager.cancel(SUMMARY_NOTIFICATION_ID)
+            notificationManager.cancel(NOTIFICATION_TAG, SUMMARY_NOTIFICATION_ID)
         } else {
             // Update summary notification
             showSummaryNotification()
@@ -708,14 +709,14 @@ class NotificationManager(
 
         // Cancel the individual notification
         val notificationId = 3000 + geohash.hashCode()
-        notificationManager.cancel(notificationId)
+        notificationManager.cancel(NOTIFICATION_TAG, notificationId)
 
         // Update or remove summary notification
         if (pendingGeohashNotifications.isEmpty()) {
-            notificationManager.cancel(GEOHASH_SUMMARY_NOTIFICATION_ID)
+            notificationManager.cancel(NOTIFICATION_TAG, GEOHASH_SUMMARY_NOTIFICATION_ID)
         } else if (pendingGeohashNotifications.size == 1) {
             // Only one geohash left, remove group summary
-            notificationManager.cancel(GEOHASH_SUMMARY_NOTIFICATION_ID)
+            notificationManager.cancel(NOTIFICATION_TAG, GEOHASH_SUMMARY_NOTIFICATION_ID)
         } else {
             // Update summary notification
             showGeohashSummaryNotification()
@@ -849,14 +850,14 @@ class NotificationManager(
 
         // Cancel the mesh mention notification
         val notificationId = 4000
-        notificationManager.cancel(notificationId)
+        notificationManager.cancel(NOTIFICATION_TAG, notificationId)
 
         // Update or remove summary notification
         if (pendingNotifications.isEmpty()) {
-            notificationManager.cancel(SUMMARY_NOTIFICATION_ID)
+            notificationManager.cancel(NOTIFICATION_TAG, SUMMARY_NOTIFICATION_ID)
         } else if (pendingNotifications.size == 1) {
             // Only one sender left, remove group summary
-            notificationManager.cancel(SUMMARY_NOTIFICATION_ID)
+            notificationManager.cancel(NOTIFICATION_TAG, SUMMARY_NOTIFICATION_ID)
         } else {
             // Update summary notification
             showSummaryNotification()
@@ -870,12 +871,15 @@ class NotificationManager(
      */
     fun clearAllNotifications(removeConversationShortcuts: Boolean = false) {
         pendingNotifications.clear()
-        notificationManager.cancelAll()
+        notificationManager.activeNotifications
+            .filter { it.tag == NOTIFICATION_TAG }
+            .forEach { notificationManager.cancel(NOTIFICATION_TAG, it.id) }
         pendingGeohashNotifications.clear()
         if (removeConversationShortcuts) {
             val shortcutIDs = ShortcutManagerCompat.getDynamicShortcuts(context).map { it.id }
-            ShortcutManagerCompat.removeAllDynamicShortcuts(context)
+                .filter { it.startsWith("bitchat_dm_") }
             if (shortcutIDs.isNotEmpty()) {
+                ShortcutManagerCompat.removeDynamicShortcuts(context, shortcutIDs)
                 ShortcutManagerCompat.removeLongLivedShortcuts(context, shortcutIDs)
             }
         }
@@ -893,7 +897,7 @@ class NotificationManager(
             return
         }
         try {
-            notificationManager.notify(notificationID, notification)
+            notificationManager.notify(NOTIFICATION_TAG, notificationID, notification)
         } catch (error: SecurityException) {
             Log.w(TAG, "Notification permission was revoked: ${error.message}")
         }

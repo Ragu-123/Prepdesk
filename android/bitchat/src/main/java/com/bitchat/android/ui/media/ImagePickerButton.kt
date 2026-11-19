@@ -1,5 +1,7 @@
 package com.bitchat.android.ui.media
 
+import com.bitchat.android.integration.chatFilesDir
+
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Camera
 import androidx.compose.material.icons.filled.Photo
@@ -65,7 +67,7 @@ fun ImagePickerButton(
 
     fun startCameraCapture() {
         try {
-            val dir = File(context.filesDir, "images/outgoing").apply { mkdirs() }
+            val dir = File(context.chatFilesDir, "images/outgoing").apply { mkdirs() }
             val file = File(dir, "camera_${System.currentTimeMillis()}.jpg")
             val uri = FileProvider.getUriForFile(
                 context,

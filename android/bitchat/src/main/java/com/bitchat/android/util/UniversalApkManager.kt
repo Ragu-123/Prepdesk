@@ -1,5 +1,7 @@
 package com.bitchat.android.util
 
+import com.bitchat.android.integration.chatCacheDir
+
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
@@ -52,7 +54,7 @@ class UniversalApkManager(
     }
 
     private val cacheDir: File
-        get() = File(context.cacheDir, CACHE_DIR_NAME).also { it.mkdirs() }
+        get() = File(context.chatCacheDir, CACHE_DIR_NAME).also { it.mkdirs() }
 
     private val metadataFile: File get() = File(cacheDir, METADATA_FILE_NAME)
     private val progressFile: File get() = File(cacheDir, PROGRESS_FILE_NAME)

@@ -76,7 +76,7 @@ object AppShutdownCoordinator {
 
             // Stop foreground and clear notification
             try { stopForeground() } catch (_: Exception) { }
-            try { notificationManager.cancel(10001) } catch (_: Exception) { }
+            try { notificationManager.cancel(MeshForegroundService.NOTIFICATION_ID) } catch (_: Exception) { }
 
             // Wait up to 5 seconds for shutdown tasks
             withTimeoutOrNull(5000) {

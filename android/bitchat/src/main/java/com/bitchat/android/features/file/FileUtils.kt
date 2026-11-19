@@ -1,5 +1,8 @@
 package com.bitchat.android.features.file
 
+import com.bitchat.android.integration.chatCacheDir
+import com.bitchat.android.integration.chatFilesDir
+
 import android.content.Context
 import android.net.Uri
 import android.os.Environment
@@ -38,7 +41,7 @@ object FileUtils {
             val fileName = "file_${System.currentTimeMillis()}.$extension"
 
             // Create incoming dir if needed
-            val incomingDir = File(context.filesDir, "files/incoming").apply {
+            val incomingDir = File(context.chatFilesDir, "files/incoming").apply {
                 if (!exists()) mkdirs()
             }
 
@@ -93,7 +96,7 @@ object FileUtils {
             var fileName = if (extension.isNotBlank()) "$baseName.$extension" else baseName
 
             // Create outgoing dir if needed
-            val outgoingDir = File(context.filesDir, "files/outgoing").apply {
+            val outgoingDir = File(context.chatFilesDir, "files/outgoing").apply {
                 if (!exists()) mkdirs()
             }
 
@@ -201,7 +204,7 @@ object FileUtils {
         val isImage = lowerMime.startsWith("image/")
         // FIX: Use cacheDir instead of filesDir to prevent storage exhaustion attacks (Issue #592)
         // Files in cacheDir are eligible for automatic system cleanup when space is low
-        val baseDir = context.cacheDir
+        val baseDir = context.chatCacheDir
         val subdir = if (isImage) "images/incoming" else "files/incoming"
         val dir = java.io.File(baseDir, subdir).apply { mkdirs() }
 
@@ -242,7 +245,7 @@ object FileUtils {
             try {
                 var fallback = safeName
                 var idx2 = 1
-                while (java.io.File(context.cacheDir, fallback).exists() && idx2 < 1000) {
+                while (java.io.File(context.chatCacheDir, fallback).exists() && idx2 < 1000) {
                     val dot = fallback.lastIndexOf('.')
                     fallback = if (dot > 0) {
                         val b = fallback.substring(0, dot)
@@ -253,7 +256,7 @@ object FileUtils {
                     }
                     idx2++
                 }
-                val out = java.io.File(context.cacheDir, fallback)
+                val out = java.io.File(context.chatCacheDir, fallback)
                 out.outputStream().use { it.write(file.content) }
                 out.absolutePath
             } catch (_: Exception) {
@@ -285,7 +288,7 @@ object FileUtils {
         var cleared = true
         try {
             // Clear files dir subdirectories (legacy storage and outgoing)
-            val filesDir = context.filesDir
+            val filesDir = context.chatFilesDir
             val dirsToClear = listOf(
                 "files/incoming",
                 "files/outgoing",
@@ -309,7 +312,7 @@ object FileUtils {
             // Clear cache dir subdirectories (new incoming storage)
             // Note: cacheDir.deleteRecursively() below would handle this, but being explicit ensures these
             // specific media folders are targeted even if full cache clear fails or is modified later.
-            val cacheDir = context.cacheDir
+            val cacheDir = context.chatCacheDir
             val cacheDirsToClear = listOf(
                 "files/incoming",
                 "images/incoming"
@@ -328,7 +331,7 @@ object FileUtils {
             }
 
             // Also clear entire cache dir as a catch-all
-            if (context.cacheDir.deleteRecursively()) {
+            if (context.chatCacheDir.deleteRecursively()) {
                 Log.d(TAG, "Cleared entire cache directory")
             } else {
                 Log.e(TAG, "Failed to clear entire cache directory")
@@ -358,7 +361,7 @@ object FileUtils {
             BitchatMessageType.Image,
             BitchatMessageType.File
         )
-        val roots = listOf(context.filesDir, context.cacheDir)
+        val roots = listOf(context.chatFilesDir, context.chatCacheDir)
             .mapNotNull { runCatching { it.canonicalFile }.getOrNull() }
         val retainedPaths = retainedMessages
             .asSequence()
@@ -397,7 +400,7 @@ object FileUtils {
      * from being removed even if persisted metadata is malformed.
      */
     fun deleteStoredMediaPaths(context: Context, paths: Collection<String>) {
-        val roots = listOf(context.filesDir, context.cacheDir)
+        val roots = listOf(context.chatFilesDir, context.chatCacheDir)
             .mapNotNull { runCatching { it.canonicalFile }.getOrNull() }
         paths.asSequence()
             .mapNotNull { runCatching { File(it).canonicalFile }.getOrNull() }

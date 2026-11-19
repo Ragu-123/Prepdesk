@@ -85,8 +85,7 @@ class _MistakeReviewSheetState extends State<_MistakeReviewSheet> {
   late var _results = _load();
   final _updating = <int>{};
 
-  Future<({List<Map<String, dynamic>> topic, List<Map<String, dynamic>> subject, List<String> subjects})>
-  _load() async {
+  Future<_MistakeReviewResults> _load() async {
     final rows = await _db.getMistakeRecordsFiltered();
     final subjects = await _db.getOnlySubjectsForDropdown();
     final normalized = QuizTrapMatcher.normalize(widget.subject ?? '');
@@ -101,7 +100,7 @@ class _MistakeReviewSheetState extends State<_MistakeReviewSheet> {
       subjectRows.addAll(rows.where((row) => matchedSubjects.contains(
         QuizTrapMatcher.normalize(row['subject']?.toString() ?? '')) && !subjectRows.contains(row)));
     }
-    return (topic: topicRows, subject: subjectRows, subjects: subjects);
+    return _MistakeReviewResults(topicRows, subjectRows, subjects);
   }
 
   Future<void> _setResolved(int id, bool resolved) async {
@@ -125,7 +124,7 @@ class _MistakeReviewSheetState extends State<_MistakeReviewSheet> {
     final theme = Theme.of(context);
     return FractionallySizedBox(heightFactor: 0.84, child: DefaultTabController(
       length: 2,
-      child: FutureBuilder(
+      child: FutureBuilder<_MistakeReviewResults>(
         future: _results,
         builder: (context, snapshot) {
           final results = snapshot.data;
@@ -202,8 +201,16 @@ class _MistakeReviewSheetState extends State<_MistakeReviewSheet> {
     return Padding(padding: const EdgeInsets.only(bottom: 8), child: Column(
       crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(label, style: Theme.of(context).textTheme.labelLarge),
-        MarkdownBody(data: text, selectable: true, onTapLink: (_, href, _) => openExternalUrl(href)),
+        MarkdownBody(data: text, selectable: true, onTapLink: (_, href, title) => openExternalUrl(href)),
       ],
     ));
   }
+}
+
+class _MistakeReviewResults {
+  const _MistakeReviewResults(this.topic, this.subject, this.subjects);
+
+  final List<Map<String, dynamic>> topic;
+  final List<Map<String, dynamic>> subject;
+  final List<String> subjects;
 }

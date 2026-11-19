@@ -34,7 +34,7 @@
 //    }
 //
 //    private val prefs: SharedPreferences = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-//    private val retentionDir = File(context.filesDir, "retained_messages")
+//    private val retentionDir = File(context.chatFilesDir, "retained_messages")
 //
 //    init {
 //        if (!retentionDir.exists()) {

@@ -208,7 +208,7 @@ internal class PeerAvailabilityNotifier(
     fun clear() {
         pendingNotificationJob?.cancel()
         pendingNotificationJob = null
-        notificationManager.cancel(NOTIFICATION_ID)
+        notificationManager.cancel("bitchat_peers", NOTIFICATION_ID)
     }
 
     private fun scheduleNotification() {
@@ -270,7 +270,7 @@ internal class PeerAvailabilityNotifier(
             .build()
 
         try {
-            notificationManager.notify(NOTIFICATION_ID, notification)
+            notificationManager.notify("bitchat_peers", NOTIFICATION_ID, notification)
             tracker.markAlertShown()
             Log.i(TAG, "Posted peer availability notification for $peerCount peer(s)")
         } catch (error: SecurityException) {

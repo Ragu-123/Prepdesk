@@ -1,5 +1,8 @@
 package com.bitchat.android.services
 
+import com.bitchat.android.integration.chatCacheDir
+import com.bitchat.android.integration.chatFilesDir
+
 import android.content.ContentValues
 import android.content.Context
 import android.database.Cursor
@@ -1515,7 +1518,7 @@ internal class ConversationDatabase(
 
     private fun appOwnedCanonicalPath(value: String): String? {
         val file = runCatching { File(value.trim()).canonicalFile }.getOrNull() ?: return null
-        val roots = listOf(applicationContext.filesDir, applicationContext.cacheDir)
+        val roots = listOf(applicationContext.chatFilesDir, applicationContext.chatCacheDir)
             .mapNotNull { runCatching { it.canonicalFile }.getOrNull() }
         return file.path.takeIf { path ->
             roots.any { root ->
