@@ -13,6 +13,7 @@ import 'package:tasks/services/vault_service.dart';
 import 'package:tasks/utils/theme.dart';
 import 'package:tasks/utils/url_helper.dart';
 import 'package:tasks/widgets/top_banner_notification.dart';
+import '../../widgets/github_support_prompt.dart';
 
 class SettingsPage extends StatefulWidget {
   final String? initialSection;
@@ -42,6 +43,9 @@ class _SettingsPageState extends State<SettingsPage> {
 
   // Alerts
   bool _morningBrief = true;
+  bool _routineFullScreen = false;
+  bool _savingRoutineMode = false;
+  String _examName = '';
   bool _afternoonSession = true;
   bool _eveningReview = true;
   String _morningBriefTime = '05:00';
@@ -118,6 +122,8 @@ class _SettingsPageState extends State<SettingsPage> {
 
     // Alerts
     final alerts = await DatabaseService.instance.getAlertSettings();
+    _examName = await DatabaseService.instance.getConfig('exam_name') ?? '';
+    _routineFullScreen = await DatabaseService.instance.getConfig('routine_full_screen') == '1';
     _morningBrief = alerts['morning_brief'] == 1;
     _afternoonSession = alerts['afternoon_session'] == 1;
     _eveningReview = alerts['evening_review'] == 1;
@@ -591,6 +597,21 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   // --- Alert Settings Actions ---
+
+  Future<void> _setRoutineAlarmMode(bool enabled) async {
+    setState(() => _savingRoutineMode = true);
+    try {
+      if (enabled) await NotificationService.instance.prepareAlarmAccess();
+      await DatabaseService.instance.setConfig('routine_full_screen', enabled ? '1' : '0');
+      setState(() => _routineFullScreen = enabled);
+      await NotificationService.instance.syncDailyRoutineFromSettings();
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error is StateError ? error.message.toString() : 'Could not update routine alarms.')));
+    } finally {
+      if (mounted) setState(() => _savingRoutineMode = false);
+    }
+  }
 
   Future<void> _saveAlertSettings() async {
     await DatabaseService.instance.updateAlertSettings(
@@ -1416,6 +1437,14 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
         _buildCardContainer(
           children: [
+            SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Ring daily routines'),
+              subtitle: const Text('Use full-screen alarms for the morning brief, afternoon session, evening review, and backlog reminder.'),
+              value: _routineFullScreen,
+              onChanged: _savingRoutineMode ? null : _setRoutineAlarmMode,
+            ),
+            const Divider(height: 16, thickness: 1, color: googleHairline),
             // Morning Brief
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1535,19 +1564,51 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   // --- Detail 5: About & Diagnostics ---
+  Future<void> _editExamName() async {
+    var name = _examName;
+    final result = await showDialog<String>(context: context, builder: (context) => AlertDialog(
+      title: const Text('Exam you’re preparing for'),
+      content: TextFormField(initialValue: name, maxLength: 60,
+        decoration: const InputDecoration(labelText: 'Exam name', hintText: 'Optional'),
+        onChanged: (value) => name = value),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        FilledButton(onPressed: () => Navigator.pop(context, name.trim()), child: const Text('Save')),
+      ],
+    ));
+    if (result == null) return;
+    await DatabaseService.instance.setConfig('exam_name', result);
+    if (mounted) setState(() => _examName = result);
+  }
+
   Widget _buildAboutDetail() {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
         _buildCardContainer(
           children: [
-            const Text('Prepdesk for GATE 2027', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+            const Text('Prepdesk v${AppUpdateService.currentVersion}', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
             const SizedBox(height: 6),
             const Text(
-              'A Google Tasks inspired study pacing, spaced retention, and blunder inoculation copilot for GATE aspirants.',
+              'Plan your exam prep, review what you’ve learned, and track practice tests.',
               style: TextStyle(fontSize: 12, color: googleTextSecondary, height: 1.35),
             ),
             const SizedBox(height: 12),
+            ListTile(contentPadding: EdgeInsets.zero, leading: const Icon(Icons.school_outlined),
+              title: const Text('Exam you’re preparing for'),
+              subtitle: Text(_examName.isEmpty ? 'Choose your exam' : _examName),
+              trailing: const Icon(Icons.edit_outlined), onTap: _editExamName),
+            ListTile(contentPadding: EdgeInsets.zero, leading: const Icon(Icons.star_outline_rounded),
+              title: const Text('Star on GitHub'), onTap: () => openExternalUrl(prepdeskRepositoryUrl)),
+            ListTile(contentPadding: EdgeInsets.zero, leading: const Icon(Icons.notes_outlined),
+              title: const Text('Release notes'),
+              subtitle: const Text('Version ${AppUpdateService.currentVersion}'),
+              onTap: () async {
+                final notes = await rootBundle.loadString('RELEASE_NOTES.md');
+                if (!mounted) return;
+                await showModalBottomSheet<void>(context: context, showDragHandle: true, useSafeArea: true,
+                  builder: (_) => SafeArea(child: Markdown(data: notes, selectable: true)));
+              }),
             InkWell(
               onTap: () => openExternalUrl('https://github.com/Ragu-123/nyro-tasks'),
               child: Row(
@@ -1584,7 +1645,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       TopBanner.show(
                         context,
                         title: 'Curriculum Loaded',
-                        message: 'Prepackaged GATE 2027 curriculum imported.',
+                        message: 'The sample GATE curriculum was imported.',
                         icon: Icons.check_circle_outline_rounded,
                         color: googleGreen,
                       );

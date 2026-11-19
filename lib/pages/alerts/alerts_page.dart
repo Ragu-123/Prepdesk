@@ -1548,7 +1548,7 @@ class __ReminderEditorSheetState extends State<_ReminderEditorSheet> {
                               controller: _nameController,
                               style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: googleTextPrimary),
                               decoration: const InputDecoration(
-                                hintText: 'Reminder name (e.g. GATE Revision)',
+                                hintText: 'Reminder name (e.g. Review Chapter 4)',
                                 border: InputBorder.none,
                                 hintStyle: TextStyle(fontSize: 13, color: googleBorder),
                               ),

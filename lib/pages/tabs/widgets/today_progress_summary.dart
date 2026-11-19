@@ -12,36 +12,42 @@ class TodayProgressSummary extends StatelessWidget {
   final int quizzesDone;
   final int quizzesTotal;
   final ValueChanged<int> onSection;
+  final int selectedSection;
   final VoidCallback? onAddSession;
   final VoidCallback? onTimetable;
 
   const TodayProgressSummary({Key? key, required this.watchedHours, required this.targetHours,
     required this.lecturesDone, required this.lecturesTotal, required this.revisitsDone,
     required this.revisitsTotal, required this.quizzesDone, required this.quizzesTotal,
-    required this.onSection, this.onAddSession, this.onTimetable}) : super(key: key);
+    required this.onSection, this.selectedSection = 0, this.onAddSession, this.onTimetable}) : super(key: key);
 
   Color _accent(BuildContext context) => Theme.of(context).colorScheme.primary;
   @override
   Widget build(BuildContext context) {
-    final progress = targetHours > 0 ? (watchedHours / targetHours).clamp(0.0, 1.0).toDouble() : 0.0;
+    final label = ['Watched', 'Revisits done', 'Quizzes done'][selectedSection];
+    final completed = [watchedHours.toStringAsFixed(1) + 'h', '$revisitsDone', '$quizzesDone'][selectedSection];
+    final total = [targetHours.toStringAsFixed(1) + 'h', '$revisitsTotal', '$quizzesTotal'][selectedSection];
+    final denominator = [targetHours, revisitsTotal, quizzesTotal][selectedSection];
+    final numerator = [watchedHours, revisitsDone, quizzesDone][selectedSection];
+    final progress = denominator > 0 ? (numerator / denominator).clamp(0.0, 1.0).toDouble() : 0.0;
     return Padding(padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
       child: Column(children: [
         LayoutBuilder(builder: (context, constraints) {
           final largeText = MediaQuery.textScalerOf(context).scale(14) > 19;
           final ringSize = math.min(largeText ? 280.0 : 240.0, constraints.maxWidth * (largeText ? 0.75 : 0.47));
-          final ring = Semantics(label: '${watchedHours.toStringAsFixed(1)} of ${targetHours.toStringAsFixed(1)} study hours completed',
+          final ring = Semantics(label: '$label, $completed of $total',
             child: SizedBox(width: ringSize, height: ringSize,
               child: TweenAnimationBuilder<double>(tween: Tween(begin: 0, end: progress),
                 duration: MediaQuery.disableAnimationsOf(context) ? Duration.zero : const Duration(milliseconds: 500),
                 builder: (_, value, child) => CustomPaint(painter: _ProgressRing(value, _accent(context)), child: child),
                 child: Padding(padding: EdgeInsets.all(ringSize * 0.17),
                   child: FittedBox(fit: BoxFit.scaleDown, child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    const Text('Watched', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                    Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
                     const SizedBox(height: 10),
-                    FittedBox(child: Text('${watchedHours.toStringAsFixed(1)}h',
+                    FittedBox(child: Text(completed,
                       style: const TextStyle(fontSize: 38, fontWeight: FontWeight.w700, letterSpacing: -1.2))),
                     const SizedBox(height: 8),
-                    FittedBox(child: Text('of ${targetHours.toStringAsFixed(1)}h',
+                    FittedBox(child: Text('of $total',
                       style: TextStyle(color: _accent(context), fontSize: 14, fontWeight: FontWeight.w700))),
                   ]))),
               )),

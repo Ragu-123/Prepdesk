@@ -43,8 +43,7 @@ class StudyAlarmActivity : Activity() {
         handler.removeCallbacksAndMessages(null)
         handler.postDelayed(checkRinging, 1000)
         val appearance = getSharedPreferences("nyro_appearance", MODE_PRIVATE)
-        val accent = if (appearance.getBoolean("adaptive", true))
-            appearance.getInt("accent", 0xFF315DA8.toInt()) else 0xFF315DA8.toInt()
+        val accent = appearance.getInt("accent", 0xFF315DA8.toInt())
         val container = androidx.core.graphics.ColorUtils.blendARGB(Color.WHITE, accent, 0.15f)
         val density = resources.displayMetrics.density
         fun dp(value: Int) = (value * density).toInt()

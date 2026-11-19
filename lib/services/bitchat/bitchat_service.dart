@@ -28,7 +28,7 @@ class BitchatService {
   final ValueNotifier<List<BitchatMessage>> currentChannelMessagesNotifier =
       ValueNotifier<List<BitchatMessage>>([]);
 
-  final ValueNotifier<bool> isMasterPowerOnNotifier = ValueNotifier<bool>(true);
+  final ValueNotifier<bool> isMasterPowerOnNotifier = ValueNotifier<bool>(false);
   ValueNotifier<bool> get isOnlineNotifier => isMasterPowerOnNotifier;
   final ValueNotifier<String> currentNicknameNotifier = ValueNotifier<String>('NYRO_User');
   final ValueNotifier<String> currentPeerIdNotifier = ValueNotifier<String>('');
@@ -52,10 +52,10 @@ class BitchatService {
   String _nostrPrivateKeyHex = '';
   String _nostrPublicKeyHex = '';
   String _nostrNpub = '';
-  String _currentGeohash = 'gate2027';
+  String _currentGeohash = 'global';
   int _geohashPrecision = 6;
 
-  bool _initialized = false;
+  Future<void>? _initialization;
   StreamSubscription<BitchatMessage>? _bleSub;
   StreamSubscription<BitchatMessage>? _nostrSub;
   StreamSubscription<BitchatPeer>? _peerSub;
@@ -68,22 +68,20 @@ class BitchatService {
   bool get isMasterPowerOn => isMasterPowerOnNotifier.value;
   bool get isOnline => isMasterPowerOnNotifier.value;
   BitchatChannel? get activeChannel => activeChannelNotifier.value;
+  bool isOwnMessage(BitchatMessage message) =>
+      message.senderNostrPubkey == _nostrPublicKeyHex ||
+      (message.senderPeerID != null && message.senderPeerID == _peerId);
 
-  Future<void> initialize() async {
-    if (_initialized) return;
-    _initialized = true;
+  Future<void> initialize() => _initialization ??= _initialize();
 
-    final enabledConfig = await _db.getConfig('bitchat_enabled');
-    final isEnabled = enabledConfig == null || enabledConfig == '1';
+  Future<void> _initialize() async {
+
+    final isEnabled = false; // Explicitly opt in for each app session.
     isMasterPowerOnNotifier.value = isEnabled;
 
     final precisionConfig = await _db.getConfig('bitchat_geohash_precision');
     if (precisionConfig != null) {
       _geohashPrecision = int.tryParse(precisionConfig) ?? 6;
-    }
-
-    if (isEnabled) {
-      await BluetoothPermissionService.requestPermissions();
     }
 
     await _loadOrGenerateIdentity();
@@ -104,16 +102,11 @@ class BitchatService {
       autoConnect: isEnabled,
     );
 
-    if (isEnabled) {
-      bleMeshService.start();
-    }
-
-    _bleSub = bleMeshService.messageStream.listen(_onIncomingMessage);
     _nostrSub = nostrRelayService.messageStream.listen(_onIncomingMessage);
     _peerSub = bleMeshService.peerDiscoveredStream.listen(_onPeerDiscovered);
 
     if (_channels.isNotEmpty) {
-      await selectChannel(_channels.first.id);
+      await selectChannel('geo:global');
     }
   }
 
@@ -170,33 +163,14 @@ class BitchatService {
     _channels.clear();
 
     final stored = await _db.getBitchatChannels();
-    if (stored.isNotEmpty) {
-      for (final row in stored) {
-        _channels.add(BitchatChannel.fromMap(row));
-      }
-    } else {
-      final defaultMesh = const BitchatChannel(
-        id: 'mesh',
-        name: '#mesh (BLE Broadcast)',
-        type: ChannelType.broadcast,
-      );
-      final defaultGate = const BitchatChannel(
-        id: 'geo:gate2027',
-        name: '#gate2027 (Study Group)',
-        type: ChannelType.geohash,
-        geohash: 'gate2027',
-      );
-      final defaultGlobal = const BitchatChannel(
-        id: 'geo:global',
-        name: '#global (Nostr Geohash)',
-        type: ChannelType.geohash,
-        geohash: 'global',
-      );
-
-      _channels.addAll([defaultMesh, defaultGate, defaultGlobal]);
-      for (final ch in _channels) {
-        await _db.upsertBitchatChannel(ch.toMap());
-      }
+    for (final row in stored) {
+      _channels.add(BitchatChannel.fromMap(row));
+    }
+    if (!_channels.any((channel) => channel.id == 'geo:global')) {
+      const general = BitchatChannel(id: 'geo:global', name: '#global',
+        type: ChannelType.geohash, geohash: 'global');
+      _channels.add(general);
+      await _db.upsertBitchatChannel(general.toMap());
     }
 
     channelsNotifier.value = List.unmodifiable(_channels);
@@ -237,60 +211,19 @@ class BitchatService {
     }
   }
 
-  Future<void> sendMessage(String text) async {
-    final sanitized = text
-        .replaceAll(RegExp(r'[\u202A-\u202E\u2066-\u2069\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]'), '')
-        .trim();
-    if (sanitized.isEmpty) return;
-    final cleanContent = sanitized.length > 10000 ? sanitized.substring(0, 10000) : sanitized;
-
-    final currentChannel = activeChannelNotifier.value;
-    if (currentChannel == null) return;
-
-    if (currentChannel.id == 'mesh' || currentChannel.type == ChannelType.broadcast) {
-      // Dual-transport multi-dispatch: broadcast to local BLE mesh and publish to Nostr relays
-      await bleMeshService.broadcastMessage(cleanContent, channel: currentChannel.id);
-      await nostrRelayService.publishEphemeralGeohashMessage(
-        geohash: 'mesh',
-        content: cleanContent,
-        nickname: _nickname,
-      );
-    } else if (currentChannel.type == ChannelType.geohash && currentChannel.geohash != null) {
-      // Dual-transport multi-dispatch: publish to Nostr relays and broadcast to local BLE mesh
-      await bleMeshService.broadcastMessage(cleanContent, channel: currentChannel.id);
-      await nostrRelayService.publishEphemeralGeohashMessage(
-        geohash: currentChannel.geohash!,
-        content: cleanContent,
-        nickname: _nickname,
-      );
-    } else if (currentChannel.type == ChannelType.direct) {
-      final peerId = currentChannel.id.replaceFirst('dm:', '');
-      final isBlePeer = bleMeshService.peers.any((p) => p.peerID == peerId && p.isConnected);
-
-      if (isBlePeer) {
-        await bleMeshService.sendDirectMessage(peerId, cleanContent);
-      }
-      // Also multi-dispatch direct message via Nostr relay so the recipient receives it across networks
-      await nostrRelayService.publishDirectMessage(
-        recipientPubkeyHex: peerId,
-        content: cleanContent,
-        recipientNickname: currentChannel.name,
-      );
-    }
+  Future<bool> sendMessage(String text) async {
+    final channel = activeChannelNotifier.value;
+    final content = NostrRelayService.sanitizeContent(text);
+    if (!isMasterPowerOn || channel == null || content.isEmpty ||
+        channel.type != ChannelType.geohash || channel.geohash == null) return false;
+    final published = await nostrRelayService.publishEphemeralGeohashMessage(
+      geohash: channel.geohash!, content: content, nickname: _nickname,
+    );
+    return published != null;
   }
 
   Future<void> _onIncomingMessage(BitchatMessage message) async {
-    // Handle Delivery ACK and Read Receipt control packets
-    if (message.content.startsWith('ACK:')) {
-      final targetId = message.content.substring(4);
-      await updateDeliveryStatus(targetId, DeliveryStatus.delivered);
-      return;
-    }
-    if (message.content.startsWith('READ:')) {
-      final targetId = message.content.substring(5);
-      await updateDeliveryStatus(targetId, DeliveryStatus.read);
-      return;
-    }
+    if (!isMasterPowerOn || message.isPrivate) return;
 
     final chId = message.channel ?? 'mesh';
     _channelMessages.putIfAbsent(chId, () => []);
@@ -313,11 +246,6 @@ class BitchatService {
     }
 
     await _db.insertBitchatMessage(message.toMap());
-
-    // Send automatic delivery ACK back for private messages
-    if (message.isPrivate && message.senderPeerID != null && message.senderPeerID != _peerId) {
-      unawaited(sendDeliveryAck(message.id, message.senderPeerID!));
-    }
 
     final isActive = activeChannelNotifier.value?.id == chId;
     if (isActive) {
@@ -422,16 +350,14 @@ class BitchatService {
   }
 
   Future<void> setMasterPower(bool enable) async {
-    isMasterPowerOnNotifier.value = enable;
-    await _db.setConfig('bitchat_enabled', enable ? '1' : '0');
-    if (enable) {
-      await BluetoothPermissionService.requestPermissions();
-      bleMeshService.start();
-      nostrRelayService.connectAll();
-    } else {
-      bleMeshService.stop();
+    if (!enable) {
+      isMasterPowerOnNotifier.value = false;
       nostrRelayService.disconnectAll();
+      return;
     }
+    await initialize();
+    isMasterPowerOnNotifier.value = true;
+    nostrRelayService.connectAll();
   }
 
   Future<void> sendDeliveryAck(String messageId, String recipientPeerId) async {
@@ -521,12 +447,8 @@ class BitchatService {
   }
 
   void toggleBleMesh(bool enable) {
-    if (enable) {
-      BluetoothPermissionService.requestPermissions();
-      bleMeshService.start();
-    } else {
-      bleMeshService.stop();
-    }
+    // The previous transport was simulated. Native Bluetooth is pending.
+    bleMeshService.stop();
   }
 
   Future<bool> checkBluetoothPermissions() => BluetoothPermissionService.checkPermissions();

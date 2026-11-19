@@ -46,7 +46,7 @@ class KeepEmptyState extends StatelessWidget {
             Text(
               isFiltered
                   ? 'Try searching with different keywords or clearing tag filters.'
-                  : 'Capture quick thoughts, GATE formulas, checklists, and revision summaries in Keep.',
+                  : 'Capture quick thoughts, formulas, checklists, and revision summaries in Keep.',
               style: const TextStyle(
                 fontSize: 13,
                 color: googleTextSecondary,

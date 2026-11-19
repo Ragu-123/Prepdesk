@@ -4,7 +4,7 @@
 
 # Prepdesk
 
-Prepdesk is an Android study planner for GATE preparation. Plan lectures, revisit material on a schedule, and turn past mistakes into a checklist for your next test.
+Prepdesk is an Android study planner for exam preparation. Plan lectures, revisit material on a schedule, and turn past mistakes into a checklist for your next test.
 
 [Download the Android APK](https://github.com/Ragu-123/nyro-tasks/releases/latest) · [Build history](https://github.com/Ragu-123/nyro-tasks/actions/workflows/build_apk.yml)
 
@@ -39,6 +39,7 @@ These screenshots show an earlier build of Prepdesk. Private details are obscure
 | **Mistake notebook** | Record the question, your answer, the correction, why you missed it, and the takeaway. Mark mistakes resolved as you improve. |
 | **Keep notes** | Write notes and checklists, add tags and reminders, and protect selected notes with a PIN or an explicit biometric unlock. |
 | **Reminders** | Set single or recurring reminders, add checkpoints, and choose notification banners or ringing alarms with snooze controls. |
+| **BitChat** | Opt in to public relay rooms and share a room code with other Prepdesk users. Nearby offline chat is covered in the [Android integration plan](docs/BITCHAT_ANDROID_INTEGRATION.md). |
 | **Desktop Companion** | Pair a browser on the same network to read and edit regular notes and log mistakes. Protected notes stay on the phone. |
 | **Appearance and backup** | Choose adaptive accents or a fixed theme. Back up and restore the database through a configured Hugging Face Hub account. |
 

@@ -51,6 +51,10 @@ class NostrRelayService {
   final Map<String, WebSocket> _sockets = {};
   final Map<String, RelayHealth> _relayHealth = {};
   final Map<String, Timer> _reconnectTimers = {};
+  final Map<String, int> _connecting = {};
+  final Map<String, Completer<bool>> _pendingPublishes = {};
+  bool _online = false;
+  int _generation = 0;
 
   static const int seenEventsTtlSeconds = 7200; // 2 hours
   static const int maxSeenEvents = 10000;
@@ -87,36 +91,12 @@ class NostrRelayService {
     _devicePublicKeyHex = publicKeyHex;
     _nickname = nickname;
 
-    _activeSubscriptions['geo_global'] = {
-      'kinds': [20000, 20001, 1],
-      '#t': ['global', 'bitchat', 'mesh', 'gate2027'],
-      'limit': 50,
-    };
-    _activeSubscriptions['geo_global_g'] = {
-      'kinds': [20000, 20001, 1],
-      '#g': ['global', 'mesh', 'gate2027'],
-      'limit': 50,
-    };
-
     final relaysToConnect = (customRelays ?? defaultRelays).where(isValidRelayUrl).toList();
     for (final url in relaysToConnect) {
       _relayHealth[url] = RelayHealth(url: url);
     }
     _updateStatusNotifier();
-    if (autoConnect) {
-      connectAll();
-    }
-
-    _presenceTimer?.cancel();
-    _presenceTimer = Timer.periodic(const Duration(seconds: 60), (_) {
-      _sendGeohashPresenceHeartbeat();
-    });
-
-    _cachePruneTimer?.cancel();
-    _cachePruneTimer = Timer.periodic(const Duration(minutes: 5), (_) {
-      final nowSec = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-      _pruneSeenEvents(nowSec);
-    });
+    if (autoConnect) connectAll();
   }
 
   static bool isValidRelayUrl(String url) {
@@ -161,13 +141,27 @@ class NostrRelayService {
 
   void connectAll() {
     if (_isDisposed) return;
+    _online = true;
+    _presenceTimer ??= Timer.periodic(const Duration(seconds: 60), (_) => _sendGeohashPresenceHeartbeat());
+    _cachePruneTimer ??= Timer.periodic(const Duration(minutes: 5), (_) =>
+      _pruneSeenEvents(DateTime.now().millisecondsSinceEpoch ~/ 1000));
     for (final url in _relayHealth.keys) {
       _connectRelay(url);
     }
   }
 
   void disconnectAll() {
-    for (final entry in _sockets.entries) {
+    _online = false;
+    _generation++;
+    _connecting.clear();
+    _presenceTimer?.cancel();
+    _presenceTimer = null;
+    _cachePruneTimer?.cancel();
+    _cachePruneTimer = null;
+    for (final pending in _pendingPublishes.values) {
+      if (!pending.isCompleted) pending.complete(false);
+    }
+    for (final entry in _sockets.entries.toList()) {
       try {
         entry.value.close(WebSocketStatus.normalClosure, 'Client disconnecting');
       } catch (_) {}
@@ -209,14 +203,19 @@ class NostrRelayService {
   }
 
   Future<void> _connectRelay(String url) async {
-    if (_isDisposed) return;
-    if (_sockets.containsKey(url)) return;
+    if (_isDisposed || !_online || _sockets.containsKey(url) || _connecting.containsKey(url)) return;
+    final generation = _generation;
+    _connecting[url] = generation;
 
     final health = _relayHealth[url] ?? RelayHealth(url: url);
     _relayHealth[url] = health;
 
     try {
       final socket = await WebSocket.connect(url).timeout(const Duration(seconds: 10));
+      if (!_online || generation != _generation || !_relayHealth.containsKey(url)) {
+        await socket.close();
+        return;
+      }
       _sockets[url] = socket;
       health.isConnected = true;
       health.lastConnectedAt = DateTime.now();
@@ -227,23 +226,26 @@ class NostrRelayService {
       _resubscribeOnRelay(url, socket);
 
       socket.listen(
-        (data) => _handleSocketData(url, data),
-        onError: (err) => _handleSocketError(url, err),
-        onDone: () => _handleSocketDone(url),
+        (data) { if (_sockets[url] == socket) _handleSocketData(url, data); },
+        onError: (Object err) { if (_sockets[url] == socket) _handleSocketError(url, err); },
+        onDone: () { if (_sockets[url] == socket) _handleSocketDone(url); },
         cancelOnError: true,
       );
     } catch (err) {
+      if (!_online || generation != _generation) return;
       health.isConnected = false;
       health.lastError = err.toString();
       health.lastDisconnectedAt = DateTime.now();
       health.reconnectAttempts++;
       _updateStatusNotifier();
       _scheduleReconnect(url);
+    } finally {
+      if (_connecting[url] == generation) _connecting.remove(url);
     }
   }
 
   void _scheduleReconnect(String url) {
-    if (_isDisposed) return;
+    if (_isDisposed || !_online || !_relayHealth.containsKey(url)) return;
     _reconnectTimers[url]?.cancel();
 
     final health = _relayHealth[url];
@@ -281,7 +283,7 @@ class NostrRelayService {
         // Security check: validate ID and pubkey hex format
         if (!NostrCrypto.isValidHex(event.id, 64)) return;
         if (!NostrCrypto.isValidHex(event.pubkey, 64)) return;
-        if (event.sig != null && !NostrCrypto.isValidHex(event.sig!, 128)) return;
+        if (event.sig == null || !NostrCrypto.isValidHex(event.sig!, 128)) return;
 
         // Replay and clock skew prevention
         final nowSec = DateTime.now().millisecondsSinceEpoch ~/ 1000;
@@ -290,10 +292,6 @@ class NostrRelayService {
 
         // Deduplication using TTL cache
         if (_seenEventTimestamps.containsKey(event.id)) return;
-        _seenEventTimestamps[event.id] = nowSec;
-        if (_seenEventTimestamps.length > maxSeenEvents) {
-          _pruneSeenEvents(nowSec);
-        }
 
         // Verify Event ID calculation
         final calculatedId = NostrCrypto.computeEventId(
@@ -315,12 +313,17 @@ class NostrRelayService {
           if (!isSigValid) return; // Invalid signature, drop forged event
         }
 
+        _seenEventTimestamps[event.id] = nowSec;
+        if (_seenEventTimestamps.length > maxSeenEvents) _pruneSeenEvents(nowSec);
+        final pending = _pendingPublishes[event.id];
+        if (pending != null && !pending.isCompleted) pending.complete(true);
         _eventController.add(event);
         _processIncomingEvent(event);
       } else if (action == 'NOTICE' && parsed.length >= 2) {
         // Relay informational notice
       } else if (action == 'OK' && parsed.length >= 4) {
-        // Publish confirmation
+        final pending = _pendingPublishes[parsed[1]];
+        if (parsed[2] == true && pending != null && !pending.isCompleted) pending.complete(true);
       }
     } catch (_) {}
   }
@@ -357,28 +360,16 @@ class NostrRelayService {
   }
 
   void subscribeToGeohash(String geohash) {
+    final previous = _currentGeohash;
+    if (previous != null && previous != geohash) unsubscribeFromGeohash(previous);
     _currentGeohash = geohash;
     final subId = 'geo_$geohash';
-    final filter = {
-      'kinds': [20000, 20001, 1],
-      '#t': [geohash, 'global', 'bitchat'],
-      'limit': 50,
-    };
-    final filterG = {
-      'kinds': [20000, 20001, 1],
+    final filter = <String, dynamic>{
+      'kinds': [20000],
       '#g': [geohash],
-      'limit': 50,
     };
-
     _activeSubscriptions[subId] = filter;
-    _activeSubscriptions['${subId}_g'] = filterG;
-
-    final reqMessage = jsonEncode(['REQ', subId, filter]);
-    final reqMessageG = jsonEncode(['REQ', '${subId}_g', filterG]);
-    _broadcastToConnectedSockets(reqMessage);
-    _broadcastToConnectedSockets(reqMessageG);
-
-    _sendGeohashPresenceHeartbeat();
+    _broadcastToConnectedSockets(jsonEncode(['REQ', subId, filter]));
   }
 
   void unsubscribeFromGeohash(String geohash) {
@@ -425,7 +416,7 @@ class NostrRelayService {
     required String content,
     String? nickname,
   }) async {
-    if (_devicePrivateKeyHex.isEmpty || _devicePublicKeyHex.isEmpty) return null;
+    if (!_online || _sockets.isEmpty || _devicePrivateKeyHex.isEmpty || _devicePublicKeyHex.isEmpty) return null;
 
     final senderNick = nickname ?? _nickname;
     final tags = [
@@ -434,6 +425,7 @@ class NostrRelayService {
       ['t', 'bitchat'],
       ['t', 'global'],
       ['n', senderNick],
+      ['nonce', DateTime.now().microsecondsSinceEpoch.toString()],
     ];
 
     final nowSec = DateTime.now().millisecondsSinceEpoch ~/ 1000;
@@ -458,7 +450,19 @@ class NostrRelayService {
     );
 
     final eventJson = jsonEncode(['EVENT', event.toJson()]);
-    _broadcastToConnectedSockets(eventJson);
+    final confirmation = Completer<bool>();
+    _pendingPublishes[eventId] = confirmation;
+    final accepted = await (() async {
+      try {
+        _broadcastToConnectedSockets(eventJson);
+        return await confirmation.future.timeout(const Duration(seconds: 8), onTimeout: () => false);
+      } finally {
+        _pendingPublishes.remove(eventId);
+      }
+    })();
+    if (!accepted) return null;
+    if (_seenEventTimestamps.containsKey(eventId)) return event;
+    _seenEventTimestamps[eventId] = nowSec;
 
     final message = BitchatMessage(
       id: eventId,
@@ -479,7 +483,8 @@ class NostrRelayService {
   }
 
   Future<void> _sendGeohashPresenceHeartbeat() async {
-    if (_currentGeohash == null || _devicePrivateKeyHex.isEmpty || _devicePublicKeyHex.isEmpty) return;
+    if (!_online || _sockets.isEmpty || _currentGeohash == null ||
+        _devicePrivateKeyHex.isEmpty || _devicePublicKeyHex.isEmpty) return;
 
     final nowSec = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     final tags = [
@@ -568,7 +573,7 @@ class NostrRelayService {
     final cleanContent = sanitizeContent(event.content);
     if (cleanContent.isEmpty && event.kind != 20001) return;
 
-    if (event.kind == 20000 || event.kind == 1) {
+    if (event.kind == 20000) {
       String? geohash;
       String senderNick = 'Anonymous';
 
@@ -587,14 +592,8 @@ class NostrRelayService {
       final cleanNick = sanitizeContent(senderNick, maxLength: 40);
       final safeNick = cleanNick.isNotEmpty ? cleanNick : 'Anonymous';
       final cleanGeohash = geohash != null ? sanitizeContent(geohash, maxLength: 32).toLowerCase() : null;
-      final String channelId;
-      if (cleanGeohash == 'mesh') {
-        channelId = 'mesh';
-      } else if (cleanGeohash != null && cleanGeohash.isNotEmpty) {
-        channelId = 'geo:$cleanGeohash';
-      } else {
-        channelId = 'geo:global';
-      }
+      if (cleanGeohash == null || cleanGeohash != _currentGeohash) return;
+      final channelId = 'geo:$cleanGeohash';
       final peerId = event.pubkey.length >= 16 ? event.pubkey.substring(0, 16) : event.pubkey;
 
       final message = BitchatMessage(

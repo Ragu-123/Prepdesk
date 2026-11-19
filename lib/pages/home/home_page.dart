@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../../widgets/github_support_prompt.dart';
 import '../../services/study_data_events.dart';
 import '../../widgets/content_transition.dart';
 import '../../services/notification_route.dart';
@@ -32,7 +33,8 @@ import 'package:tasks/services/vault_service.dart';
 import 'package:tasks/widgets/full_screen_alarm_dialog.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({Key? key}) : super(key: key);
+  const HomePage({Key? key, this.promptForSupport = false}) : super(key: key);
+  final bool promptForSupport;
 
   @override
   _HomePageState createState() => _HomePageState();
@@ -75,6 +77,14 @@ class _HomePageState extends State<HomePage> {
     _scheduleUpdates = StudyDataEvents.instance.schedule.listen((_) => _loadGlobalData());
     _loadGlobalData();
     _initBackgroundServices();
+    if (widget.promptForSupport) {
+      Future<void>.delayed(const Duration(seconds: 3), () async {
+        if (mounted && ModalRoute.of(context)?.isCurrent == true &&
+            !(_scaffoldKey.currentState?.isEndDrawerOpen ?? false)) {
+          await showGithubSupportPrompt(context);
+        }
+      });
+    }
   }
 
   Future<void> _initBackgroundServices() async {
@@ -1309,7 +1319,7 @@ class _HomePageState extends State<HomePage> {
                           style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: googleTextPrimary),
                         ),
                         Text(
-                          'GATE Study Copilot • v${AppUpdateService.currentVersion}',
+                          'Exam study planner • v${AppUpdateService.currentVersion}',
                           style: const TextStyle(fontSize: 11, color: googleTextSecondary),
                         ),
                       ],
@@ -1380,7 +1390,7 @@ class _HomePageState extends State<HomePage> {
                         ),
                         title: Row(
                           children: [
-                            const Text('BitChat P2P Mesh', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: googleTextPrimary)),
+                            const Text('BitChat', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: googleTextPrimary)),
                             const SizedBox(width: 8),
                             Container(
                               width: 8,
@@ -1393,7 +1403,7 @@ class _HomePageState extends State<HomePage> {
                           ],
                         ),
                         subtitle: Text(
-                          isOnline ? 'Bluetooth & Relay network (Online)' : 'Standby (Disconnected)',
+                          isOnline ? 'Relay chat on' : 'Off',
                           style: const TextStyle(fontSize: 11, color: googleTextSecondary),
                         ),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

@@ -707,33 +707,6 @@ class _RevisitTabState extends State<RevisitTab> {
     return ListView(
       padding: EdgeInsets.zero,
       children: [
-        // DPP Protocol header
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          color: googleBackground,
-          child: Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'Solve assigned DPPs & practice questions on GateOverflow',
-                  style: TextStyle(fontSize: 12, color: googleTextPrimary, fontWeight: FontWeight.w500),
-                ),
-              ),
-              InkWell(
-                onTap: () => openExternalUrl('https://gateoverflow.in'),
-                child: Row(
-                  children: [
-                    Text('GateOverflow', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary)),
-                    SizedBox(width: 4),
-                    Icon(Icons.open_in_new_rounded, size: 14, color: Theme.of(context).colorScheme.primary),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        const Divider(height: 1, thickness: 1, color: googleHairline),
-
         // Sub-categories switcher: Recalls | Quizzes | Lectures
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),

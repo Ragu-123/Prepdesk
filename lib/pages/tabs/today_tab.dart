@@ -224,6 +224,7 @@ class _TodayTabState extends State<TodayTab> {
           quizzesDone: _todayQuizzes.where((row) => row['status'] == 'COMPLETED').length,
           quizzesTotal: _todayQuizzes.length,
           onSection: _selectSection,
+          selectedSection: _selectedPageIndex,
           onAddSession: widget.onOpenScheduleForm ?? widget.onOpenTimetable,
           onTimetable: widget.onOpenTimetable,
         ),
@@ -557,39 +558,6 @@ class _TodayTabState extends State<TodayTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // GateOverflow DPP Protocol Banner
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            color: const Color(0xFFF8FAFD),
-            child: Row(
-              children: [
-                Icon(Icons.psychology_outlined, size: 18, color: Theme.of(context).colorScheme.primary),
-                const SizedBox(width: 8),
-                const Expanded(
-                  child: Text(
-                    'Active Recall & DPP Protocol',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: googleTextPrimary),
-                  ),
-                ),
-                InkWell(
-                  onTap: () => openExternalUrl('https://gateoverflow.in'),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'GateOverflow',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
-                      ),
-                      SizedBox(width: 3),
-                      Icon(Icons.open_in_new, size: 13, color: Theme.of(context).colorScheme.primary),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1, thickness: 1, color: googleHairline),
-
           if (_dueRevisits.isEmpty)
             Container(
               padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 24),

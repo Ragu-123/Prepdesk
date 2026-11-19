@@ -247,7 +247,7 @@ void main() {
         return null;
       });
     final appearance = AppearanceService.instance;
-    await appearance.setEnabled(false);
+    await appearance.selectAccent(2);
     await NotificationService.instance.showInstantNotification(title: 'Linear Algebra', body: 'Review rank');
     final android = delivered!['platformSpecifics'] as Map;
     expect(android['icon'], 'ic_nyro_notification');
@@ -281,7 +281,43 @@ void main() {
     expect(scheduled!['matchDateTimeComponents'], isNotNull);
   });
 
-  test('Opening a new session rotates once, reloads preserve it and fixed mode stays blue', () async {
+  test('Keep searches tags with or without a hash and hides protected results', () async {
+    await dbService.saveKeepNote(KeepNote(id: 'tag-public', title: 'Day one', tags: ['Eigenvalues']));
+    await dbService.saveKeepNote(KeepNote(id: 'tag-private', title: 'Day two', tags: ['Eigenvalues']));
+    await dbService.toggleLockKeepNote('tag-private', true);
+    for (final query in ['EIGEN', '#eigenvalues']) {
+      final notes = await dbService.getKeepNotes(searchQuery: query);
+      expect(notes.map((note) => note.id), ['tag-public']);
+    }
+  });
+
+  test('Daily ringing alarms use a recurring native schedule when access is granted', () async {
+    tz_data.initializeTimeZones();
+    await dbService.setConfig('routine_full_screen', '1');
+    final scheduled = <Map>[];
+    final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(
+      const MethodChannel('io.github.thelazyindian.tasks/native'), (call) async {
+        if (call.method == 'getNotificationAccess') {
+          return {'notifications': true, 'exact': true, 'fullScreen': true};
+        }
+        if (call.method == 'scheduleStudyAlarms') {
+          scheduled.addAll((call.arguments['alarms'] as List).cast<Map>());
+        }
+        return null;
+      },
+    );
+    messenger.setMockMethodCallHandler(
+      const MethodChannel('dexterous.com/flutter/local_notifications'), (_) async => null,
+    );
+    await NotificationService.instance.scheduleDailySessionAlerts(afternoon: false, evening: false);
+    final morning = scheduled.singleWhere((alarm) => alarm['group'] == -9001);
+    expect(morning['intervalDays'], 1);
+    expect(morning['id'], greaterThan(9001));
+    expect(morning['at'], greaterThan(DateTime.now().millisecondsSinceEpoch));
+  });
+
+  test('New sessions rotate once and a selected fixed accent survives reopening', () async {
     final appearance = AppearanceService.instance;
     await dbService.setConfig('adaptive_colors', '1');
     await dbService.setConfig('appearance_accent_index', '2');
@@ -294,11 +330,10 @@ void main() {
     }
     await appearance.load(newSession: true);
     expect(appearance.accent, isNot(first));
-    final saved = await dbService.getConfig('appearance_accent_index');
-    await appearance.setEnabled(false);
+    await appearance.selectAccent(4);
     await appearance.load(newSession: true);
-    expect(appearance.accent, googleBlue);
-    expect(await dbService.getConfig('appearance_accent_index'), saved);
+    expect(appearance.accent, AppearanceService.palette[4]);
+    expect(await dbService.getConfig('appearance_accent_index'), '4');
     await appearance.setEnabled(true);
   });
 
@@ -546,7 +581,7 @@ void main() {
     expect(find.byType(AppearanceSettingsPage), findsOneWidget);
     expect(find.text('Adaptive colors'), findsOneWidget);
     expect(find.text('Current accent'), findsOneWidget);
-    expect(find.text('Iris'), findsOneWidget);
+    expect(find.text('Iris'), findsWidgets);
     await savePreview(tester, preview, 'appearance-settings');
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());

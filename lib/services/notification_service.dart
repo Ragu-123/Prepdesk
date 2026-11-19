@@ -78,7 +78,7 @@ class NotificationService {
         const AndroidNotificationChannel(
           studyChannelId,
           studyChannelName,
-          description: 'Alerts and reminders for GATE study tasks, custom reminders, and revisits',
+          description: 'Alerts and reminders for study tasks, custom reminders, and revisits',
           importance: Importance.max,
           playSound: true,
           enableVibration: true,
@@ -225,7 +225,7 @@ class NotificationService {
     final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
       studyChannelId,
       studyChannelName,
-      channelDescription: 'Alerts and reminders for GATE study tasks',
+      channelDescription: 'Alerts and reminders for study tasks',
       icon: 'ic_nyro_notification',
       largeIcon: const DrawableResourceAndroidBitmap('nyro_notification_logo'),
       color: AppearanceService.instance.colorFor(title),
@@ -290,7 +290,7 @@ class NotificationService {
       targetChannelName,
       channelDescription: isAlarm
           ? 'Full-screen study alarm ringing overlay'
-          : 'Alerts and reminders for GATE study tasks',
+          : 'Alerts and reminders for study tasks',
       icon: 'ic_nyro_notification',
       largeIcon: const DrawableResourceAndroidBitmap('nyro_notification_logo'),
       color: AppearanceService.instance.colorFor(title),
@@ -669,7 +669,20 @@ class NotificationService {
     final morningClock = (settings['morning_brief_time']?.toString() ?? '05:00').split(':');
     final shieldClock = (settings['shield_time']?.toString() ?? '21:30').split(':');
     final now = tz.TZDateTime.now(tz.local);
+    final fullScreen = await DatabaseService.instance.getConfig('routine_full_screen') == '1';
+    Map<String, bool> access = {};
+    if (fullScreen) {
+      access = await _native.invokeMapMethod<String, bool>('getNotificationAccess') ?? {};
+    }
+    final ring = fullScreen && access['notifications'] == true &&
+        access['exact'] == true && access['fullScreen'] == true;
     Future<void> schedule(int id, bool enabled, int hour, int minute, String title, String body) async {
+      // Stable negative groups cannot collide with IDs from custom reminders.
+      final group = -id;
+      if (!enabled || !ring) {
+        try { await _native.invokeMethod('cancelStudyAlarmGroup', {'group': group}); }
+        on MissingPluginException { /* Native alarms are Android-only. */ }
+      }
       if (!enabled) {
         await flutterLocalNotificationsPlugin.cancel(id);
         return;
@@ -685,6 +698,15 @@ class NotificationService {
       ));
       var next = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
       if (!next.isAfter(now)) next = tz.TZDateTime(tz.local, now.year, now.month, now.day + 1, hour, minute);
+      if (ring) {
+        await _native.invokeMethod('scheduleStudyAlarms', {'alarms': [{
+          'id': 0x30000000 + id, 'group': group,
+          'at': next.millisecondsSinceEpoch, 'intervalDays': 1,
+          'title': title, 'body': body, 'accent': AppearanceService.instance.accent.toARGB32(),
+        }]});
+        await flutterLocalNotificationsPlugin.cancel(id);
+        return;
+      }
       try {
         await flutterLocalNotificationsPlugin.zonedSchedule(id, title, body, next, details,
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,

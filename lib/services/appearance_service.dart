@@ -13,7 +13,8 @@ class AppearanceService extends ChangeNotifier {
   bool enabled = true;
   int _accentIndex = 2;
   static const colorNames = ['Lagoon', 'Iris', 'Blue', 'Rose', 'Olive', 'Clay'];
-  String get colorName => enabled ? colorNames[_accentIndex] : 'Blue';
+  String get colorName => colorNames[_accentIndex];
+  int get selectedIndex => _accentIndex;
 
   static int nextAccentIndex(int previous, Random random) {
     final next = random.nextInt(palette.length - 1);
@@ -21,7 +22,7 @@ class AppearanceService extends ChangeNotifier {
   }
 
   Color colorFor(String _) => accent;
-  Color get accent => enabled ? palette[_accentIndex] : googleBlue;
+  Color get accent => palette[_accentIndex];
   Future<void> load({bool newSession = false}) async {
     enabled = await DatabaseService.instance.getConfig('adaptive_colors') != '0';
     final stored = int.tryParse(await DatabaseService.instance.getConfig('appearance_accent_index') ?? '');
@@ -39,6 +40,13 @@ class AppearanceService extends ChangeNotifier {
     await _syncNative();
     notifyListeners();
   }
+
+  Future<void> selectAccent(int index) async {
+    if (index < 0 || index >= palette.length) throw RangeError.index(index, palette);
+    await DatabaseService.instance.setConfig('appearance_accent_index', index.toString());
+    _accentIndex = index;
+    await setEnabled(false);
+  }
   Future<void> _syncNative() async {
     try {
       await const MethodChannel('io.github.thelazyindian.tasks/native')
@@ -47,7 +55,6 @@ class AppearanceService extends ChangeNotifier {
   }
 
   ThemeData get theme {
-    if (!enabled) return lightTheme;
     return buildLightTheme(accent);
   }
 }

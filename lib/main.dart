@@ -7,6 +7,7 @@ import 'package:tasks/services/notification_service.dart';
 import 'package:tasks/utils/theme.dart';
 import 'services/appearance_service.dart';
 import 'widgets/app_appearance_lifecycle.dart';
+import 'widgets/github_support_prompt.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,11 +33,14 @@ void main() async {
     });
   } catch (_) {}
 
-  runApp(const MyApp());
+  var promptForSupport = false;
+  try { promptForSupport = await countLaunchForSupportPrompt(); } catch (_) {}
+  runApp(MyApp(promptForSupport: promptForSupport));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({Key? key, this.promptForSupport = false}) : super(key: key);
+  final bool promptForSupport;
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +51,7 @@ class MyApp extends StatelessWidget {
         title: 'Prepdesk',
         theme: AppearanceService.instance.theme,
         themeAnimationDuration: MediaQuery.disableAnimationsOf(context) ? Duration.zero : const Duration(milliseconds: 350),
-        home: const HomePage(),
+        home: HomePage(promptForSupport: promptForSupport),
       )),
     ));
   }

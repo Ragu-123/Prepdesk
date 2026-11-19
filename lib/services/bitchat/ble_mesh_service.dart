@@ -34,7 +34,6 @@ class BleMeshService {
   Timer? _announcementTimer;
   Timer? _peerCleanupTimer;
   Timer? _dutyCycleTimer;
-  Timer? _simulatedMeshPulseTimer;
 
   bool _isScanning = false;
   bool _isAdvertising = false;
@@ -93,7 +92,6 @@ class BleMeshService {
       _cleanupStalePeers();
     });
 
-    _startSimulatedMeshDiscovery();
   }
 
   void _startDutyCycledScan() {
@@ -127,8 +125,6 @@ class BleMeshService {
     _peerCleanupTimer?.cancel();
     _peerCleanupTimer = null;
 
-    _simulatedMeshPulseTimer?.cancel();
-    _simulatedMeshPulseTimer = null;
 
     for (final peerId in _peers.keys) {
       _peers[peerId] = _peers[peerId]!.copyWith(isConnected: false);
@@ -425,41 +421,6 @@ class BleMeshService {
   void _relayPacket(BitchatPacket packet) {
     // BLE flooding: decrements hop count and relays to nearby BLE connections
     packet.toBinaryData();
-  }
-
-  void _startSimulatedMeshDiscovery() {
-    _simulatedMeshPulseTimer?.cancel();
-    _simulatedMeshPulseTimer = Timer.periodic(const Duration(seconds: 45), (timer) {
-      if (!isMeshActiveNotifier.value) return;
-
-      final samplePeers = [
-        {'id': 'a1b2c3d4e5f60001', 'name': 'NYRO_Node_Alpha', 'rssi': -52},
-        {'id': 'b2c3d4e5f6a10002', 'name': 'GATE_Study_Peer', 'rssi': -68},
-        {'id': 'c3d4e5f6a1b20003', 'name': 'Mesh_Relay_03', 'rssi': -74},
-      ];
-
-      for (final sp in samplePeers) {
-        final id = sp['id'] as String;
-        if (!_peers.containsKey(id)) {
-          _peers[id] = BitchatPeer(
-            peerID: id,
-            nickname: sp['name'] as String,
-            rssi: sp['rssi'] as int,
-            isDirect: true,
-            isConnected: true,
-            lastSeen: DateTime.now(),
-            transportType: TransportType.ble,
-          );
-        } else {
-          _peers[id] = _peers[id]!.copyWith(
-            isConnected: true,
-            lastSeen: DateTime.now(),
-            rssi: sp['rssi'] as int,
-          );
-        }
-      }
-      _notifyPeersChanged();
-    });
   }
 
   bool _isBroadcast(Uint8List recipientBytes) {

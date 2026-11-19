@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../../data/database_service.dart';
 import '../../data/keep_note_model.dart';
@@ -73,6 +74,23 @@ class _NoteReaderPageState extends State<NoteReaderPage> {
     } finally { _editing = false; }
   }
 
+  Future<void> _copyNote() async {
+    final latest = await DatabaseService.instance.getKeepNoteById(_note.id);
+    if (!mounted || latest == null || _requiresUnlock || _checking) return;
+    if (latest.isLocked && !await VaultService.instance.authenticate(context)) return;
+    if (!mounted) return;
+    final text = [
+      if (latest.title.isNotEmpty) latest.title,
+      if (latest.content.isNotEmpty) latest.content,
+      if (latest.isTodoList && latest.todoItems.isNotEmpty)
+        latest.todoItems.map((item) => '- [${item.checked ? 'x' : ' '}] ${item.text}').join('\n'),
+      if (latest.tags.isNotEmpty) latest.tags.map((tag) => '#$tag').join(' '),
+    ].join('\n\n');
+    await Clipboard.setData(ClipboardData(text: text));
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Note copied to clipboard.')));
+  }
+
   @override
   Widget build(BuildContext context) {
     final background = KeepNoteColors.getColor(_note.color);
@@ -81,7 +99,10 @@ class _NoteReaderPageState extends State<NoteReaderPage> {
       appBar: AppBar(backgroundColor: background, title: const Text('Keep'),
         leading: IconButton(tooltip: 'Back to notes', onPressed: () => Navigator.pop(context),
           icon: const Icon(Icons.arrow_back_rounded)),
-        actions: [if (_note.isLocked) const Padding(padding: EdgeInsets.only(right: 20),
+        actions: [
+          if (!_checking && !_requiresUnlock) IconButton(tooltip: 'Copy note',
+            icon: const Icon(Icons.copy_all_outlined), onPressed: _copyNote),
+          if (_note.isLocked) const Padding(padding: EdgeInsets.only(right: 20),
           child: Icon(Icons.lock_outline_rounded, color: googleTextSecondary))]),
       body: _checking ? const Center(child: CircularProgressIndicator()) : _requiresUnlock ? Center(child: FilledButton.icon(
         icon: const Icon(Icons.lock_outline_rounded), label: const Text('Unlock note'),

@@ -1722,11 +1722,9 @@ class DatabaseService {
       sql += ' AND is_archived = 0';
     }
 
-    if (searchQuery != null && searchQuery.trim().isNotEmpty) {
-      final term = '%${searchQuery.trim()}%';
+    final query = searchQuery?.trim().toLowerCase() ?? '';
+    if (query.isNotEmpty) {
       sql += ' AND is_locked = 0';
-      sql += ' AND (lower(title) LIKE lower(?) OR lower(content) LIKE lower(?) OR lower(todo_items_json) LIKE lower(?))';
-      args.addAll([term, term, term]);
     }
 
     if (tag != null && tag.trim().isNotEmpty) {
@@ -1739,7 +1737,15 @@ class DatabaseService {
 
     try {
       final rows = await db.rawQuery(sql, args);
-      return rows.map((r) => KeepNote.fromMap(r)).toList();
+      final notes = rows.map(KeepNote.fromMap);
+      if (query.isEmpty) return notes.toList();
+      final tagQuery = query.startsWith('#') && query.length > 1 ? query.substring(1) : query;
+      return notes.where((note) => !note.isLocked && (
+        note.title.toLowerCase().contains(query) ||
+        note.content.toLowerCase().contains(query) ||
+        note.todoItems.any((item) => item.text.toLowerCase().contains(query)) ||
+        note.tags.any((tag) => tag.toLowerCase().contains(tagQuery))
+      )).toList();
     } catch (e) {
       debugPrint('getKeepNotes error: $e');
       return [];

@@ -130,7 +130,7 @@ class DatabaseSchemaGuidePage extends StatelessWidget {
           _buildTableCard(
             context: context,
             tableName: 'quiz_items (Quizzes & Tests)',
-            description: 'Weekly quizzes and Test Series mocks for GATE prep.',
+            description: 'Weekly quizzes and Test Series mocks for exam prep.',
             schemaSql: '''CREATE TABLE quiz_items (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   quiz_type VARCHAR,       -- "WEEKLY_QUIZ" or "TEST_SERIES"

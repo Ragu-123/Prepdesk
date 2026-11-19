@@ -11,10 +11,10 @@ class AppearanceSettingsPage extends StatefulWidget {
 class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
   bool _saving = false;
 
-  Future<void> _change(bool enabled) async {
+  Future<void> _change(Future<void> Function() apply) async {
     setState(() => _saving = true);
     try {
-      await AppearanceService.instance.setEnabled(enabled);
+      await apply();
       await NotificationService.instance.refreshNotificationAppearance();
     } catch (_) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
@@ -43,8 +43,9 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                 contentPadding: const EdgeInsets.fromLTRB(20, 12, 16, 12),
                 secondary: Icon(Icons.palette_outlined, color: colors.primary),
                 title: const Text('Adaptive colors'),
-                subtitle: const Text('A different accent each time you open Prepdesk.'),
-                value: appearance.enabled, onChanged: _saving ? null : _change),
+                subtitle: const Text('Choose a random accent each time you open Prepdesk.'),
+                value: appearance.enabled,
+                onChanged: _saving ? null : (value) => _change(() => appearance.setEnabled(value))),
               Divider(height: 1, indent: 20, endIndent: 20, color: colors.outlineVariant),
               ListTile(contentPadding: const EdgeInsets.all(20),
                 leading: Semantics(label: '${appearance.colorName} accent', child: Container(
@@ -54,9 +55,21 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                 title: const Text('Current accent'), subtitle: Text(appearance.colorName)),
             ])),
           const SizedBox(height: 20),
+          Text('Lock an accent', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          Wrap(spacing: 8, runSpacing: 8, children: [
+            for (var i = 0; i < AppearanceService.palette.length; i++)
+              ChoiceChip(
+                avatar: CircleAvatar(backgroundColor: AppearanceService.palette[i]),
+                label: Text(AppearanceService.colorNames[i]),
+                selected: !appearance.enabled && appearance.selectedIndex == i,
+                onSelected: _saving ? null : (_) => _change(() => appearance.selectAccent(i)),
+              ),
+          ]),
+          const SizedBox(height: 20),
           Text(appearance.enabled
               ? 'Your accent stays the same while you use the app. Buttons, forms, calendars, desktop and notifications all follow it.'
-              : 'The fixed blue theme is used throughout the app and notifications.',
+              : '${appearance.colorName} stays selected across app launches.',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colors.onSurfaceVariant)),
           if (_saving) const Padding(padding: EdgeInsets.only(top: 20), child: LinearProgressIndicator()),
         ]));

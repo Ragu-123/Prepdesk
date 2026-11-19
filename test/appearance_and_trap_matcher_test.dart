@@ -19,7 +19,7 @@ void main() {
     final appearance = AppearanceService.instance;
     appearance.enabled = false;
     expect(appearance.colorFor('Linear Algebra'), googleBlue);
-    expect(appearance.theme, lightTheme);
+    expect(appearance.theme.colorScheme.primary, googleBlue);
     appearance.enabled = true;
     expect(AppearanceService.palette, contains(appearance.colorFor('Linear Algebra')));
     expect(appearance.colorFor('Linear Algebra'), appearance.colorFor('Thermodynamics'));
