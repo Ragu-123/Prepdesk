@@ -94,6 +94,7 @@ fun VoiceRecordButton(
     val haptic = LocalHapticFeedback.current
     val view = LocalView.current
     val micPermission = rememberPermissionState(Manifest.permission.RECORD_AUDIO)
+    val latestMicPermission = rememberUpdatedState(micPermission)
 
     var isCapturing by remember { mutableStateOf(false) }
     var recorder by remember { mutableStateOf<VoiceRecorder?>(null) }
@@ -161,8 +162,9 @@ fun VoiceRecordButton(
                     // Guard 2: never start a second capture on top of a live one.
                     if (isCapturing) return@awaitEachGesture
 
-                    if (micPermission.status !is PermissionStatus.Granted) {
-                        micPermission.launchPermissionRequest()
+                    val permission = latestMicPermission.value
+                    if (permission.status !is PermissionStatus.Granted) {
+                        permission.launchPermissionRequest()
                         return@awaitEachGesture
                     }
 

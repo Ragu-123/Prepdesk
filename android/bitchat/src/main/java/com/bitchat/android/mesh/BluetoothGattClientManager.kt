@@ -43,7 +43,8 @@ class BluetoothGattClientManager(
     private val bluetoothManager: BluetoothManager =
         context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
     private val bluetoothAdapter: BluetoothAdapter? = bluetoothManager.adapter
-    private val bleScanner: BluetoothLeScanner? = bluetoothAdapter?.bluetoothLeScanner
+    private val bleScanner: BluetoothLeScanner?
+        get() = bluetoothAdapter?.bluetoothLeScanner
 
     private fun isBleTransportEnabled(): Boolean {
         return try {
@@ -183,6 +184,7 @@ class BluetoothGattClientManager(
      */
     @Suppress("DEPRECATION")
     private fun startScanning() {
+        val bleScanner = this.bleScanner
         // Respect debug setting
         val enabled = isClientRoleEnabled()
         if (!permissionManager.hasBluetoothPermissions() || bleScanner == null || !isActive || !enabled) return
@@ -278,6 +280,7 @@ class BluetoothGattClientManager(
      */
     @Suppress("DEPRECATION")
     private fun stopScanning() {
+        val bleScanner = this.bleScanner
         if (!permissionManager.hasBluetoothPermissions() || bleScanner == null) return
 
         if (isCurrentlyScanning) {

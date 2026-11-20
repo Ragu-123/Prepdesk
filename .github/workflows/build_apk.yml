@@ -55,9 +55,9 @@ jobs:
         timeout-minutes: 5
         run: flutter test --reporter expanded
       - name: Build GitHub APK
-        run: flutter build apk --release --flavor github --no-tree-shake-icons
+        run: flutter build apk --release --flavor github --target-platform android-arm64,android-x64 --no-tree-shake-icons
       - name: Build Google Play bundle
-        run: flutter build appbundle --release --flavor play --no-tree-shake-icons --dart-define=NYRO_PLAY_STORE=true
+        run: flutter build appbundle --release --flavor play --target-platform android-arm64,android-x64 --no-tree-shake-icons --dart-define=NYRO_PLAY_STORE=true
       - name: Prepare release assets
         run: |
           mkdir -p release

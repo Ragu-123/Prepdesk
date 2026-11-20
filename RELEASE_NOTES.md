@@ -1,11 +1,8 @@
-# Prepdesk v1.1.22
+# Prepdesk v1.1.23
 
-- Daily routines can ring as full-screen alarms when Android grants the required access. Enable this in Reminders & Routine Alerts.
-- The Today ring changes with Schedule, Revisit, and Quizzes.
-- Quiz and revisit entries open the same mistake drawer with topic and subject tabs. Resolve mistakes as you review them.
-- Keep searches note tags. Open a note to copy its text, checklist, and tags together.
-- Appearance offers six fixed colors and an option to rotate colors on launch. The accent also applies to notifications and alarms.
-- Settings shows the installed release notes, lets you name the exam you are preparing for, and links to GitHub. The default study views are exam-neutral.
-- Opens the native BitChat Android chat and settings inside Prepdesk. It includes nearby mesh, encrypted private conversations, relay channels, and conversation deletion. BitChat starts when opened, background chat is off by default, and the screens share Prepdesk’s Noto Sans font and light accent.
-- Keep and Reminders use the active accent in the navigation drawer. BitChat notifications use the Prepdesk icon and the current accent.
-- Android 8.0 or later is required.
+- Smaller 64-bit Android downloads. ARM64 and x86-64 retain the same feature set.
+- BitChat settings open from the gear. Chat follows Prepdesk appearance and uses the original BitChat mark in the drawer.
+- Keep BitChat listening enables background private-message alerts. Turn it off to disconnect and close chat.
+- Updated Bluetooth startup, voice recording and camera handling. Relay private messages can show notifications, and incoming chat banners use the app accent.
+- Prepdesk uses separate nearby discovery and public relay channels. Both peers should update. Teleport keeps the map and checks the destination against the country reported by the device location.
+- The second mistake tab shows only the current subject. Swipe in-app notifications to dismiss them.

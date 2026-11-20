@@ -48,23 +48,28 @@ class VoiceRecorder(
                 return liveFile
             }
         }
-        return startClassic()
+        return startClassic(compact = true) ?: startClassic(compact = false)
     }
 
-    private fun startClassic(): File? {
+    private fun startClassic(compact: Boolean): File? {
+        var pendingRecorder: MediaRecorder? = null
+        var pendingFile: File? = null
         return try {
             val dir = File(context.chatFilesDir, "voicenotes/outgoing").apply { mkdirs() }
             val name = "voice_" + SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date()) + ".m4a"
             val file = File(dir, name)
-            val rec = MediaRecorder()
+            pendingFile = file
+            val rec = MediaRecorder().also { pendingRecorder = it }
             rec.setAudioSource(MediaRecorder.AudioSource.MIC)
             rec.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
             rec.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
             rec.setAudioChannels(1)
             // Target: 16 kHz AAC @ 20 kbps ≈ 2.5 KB/sec
             // Lower sample rate and bitrate for compact, speech-optimized recordings
-            rec.setAudioSamplingRate(16000)
-            rec.setAudioEncodingBitRate(20_000)
+            if (compact) {
+                rec.setAudioSamplingRate(16000)
+                rec.setAudioEncodingBitRate(20_000)
+            }
             rec.setOutputFile(file.absolutePath)
             rec.prepare()
             rec.start()
@@ -72,6 +77,8 @@ class VoiceRecorder(
             outFile = file
             file
         } catch (e: Exception) {
+            runCatching { pendingRecorder?.release() }
+            pendingFile?.delete()
             Log.e(TAG, "Failed to start recording: ${e.message}")
             null
         }

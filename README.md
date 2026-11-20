@@ -66,3 +66,7 @@ The app uses Flutter and Dart for the interface, SQLite for local study data, Ko
 [GitHub Actions](https://github.com/Ragu-123/nyro-tasks/actions/workflows/build_apk.yml) runs Flutter analysis and tests, then builds the GitHub APK and Play bundle. Version tags publish both packages and their checksums to [GitHub Releases](https://github.com/Ragu-123/nyro-tasks/releases). Local source checks and agent instructions are documented in [AGENTS.md](AGENTS.md).
 
 Prepdesk is distributed under the [GNU General Public License v3.0](LICENSE). The [BitChat integration notes](docs/BITCHAT_ANDROID_INTEGRATION.md) record the upstream revision and the changes for Prepdesk.
+
+Thanks to the [BitChat Android contributors](https://github.com/permissionlesstech/bitchat-android) for the mesh transport, private messaging, and native chat interface that Prepdesk builds on.
+
+See [Contributing](CONTRIBUTING.md) for the pull request and release process.

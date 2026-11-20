@@ -75,7 +75,7 @@ data class NostrFilter(
          */
         fun textNotesFrom(authors: List<String>, since: Long? = null, limit: Int = 50): NostrFilter {
             return NostrFilter(
-                kinds = listOf(NostrKind.TEXT_NOTE),
+                kinds = listOf(NostrKind.GEOHASH_TEXT_NOTE),
                 authors = authors,
                 since = since?.let { (it / 1000).toInt() },
                 limit = limit
@@ -87,7 +87,7 @@ data class NostrFilter(
          */
         fun geohashNotes(geohash: String, since: Long? = null, limit: Int = 200): NostrFilter {
             return NostrFilter(
-                kinds = listOf(NostrKind.TEXT_NOTE),
+                kinds = listOf(NostrKind.GEOHASH_TEXT_NOTE),
                 since = since?.let { (it / 1000).toInt() },
                 tagFilters = mapOf("g" to listOf(geohash)),
                 limit = limit

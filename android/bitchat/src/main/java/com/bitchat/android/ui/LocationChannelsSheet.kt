@@ -141,8 +141,7 @@ fun LocationChannelsSheet(
         val channel = channelForManualGeohash(value)
         if (channel != null) {
             customError = null
-            locationManager.selectManual(channel)
-            onDismiss()
+            locationManager.selectManual(channel, onSelected = onDismiss)
         } else {
             customGeohash = value.trim().lowercase().replace("#", "")
             customError = context.getString(R.string.invalid_geohash)
@@ -168,10 +167,7 @@ fun LocationChannelsSheet(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == android.app.Activity.RESULT_OK) {
-            val gh = result.data?.getStringExtra(GeohashPickerActivity.EXTRA_RESULT_GEOHASH)
-            if (!gh.isNullOrBlank()) {
-                teleportToGeohash(gh)
-            }
+            onDismiss()
         }
     }
 
@@ -366,9 +362,9 @@ fun LocationChannelsSheet(
                                                         channel = channel,
                                                         teleported = !appLocationEnabled ||
                                                             availableChannels.isEmpty() ||
-                                                            !inRegional
+                                                        !inRegional,
+                                                        onSelected = onDismiss
                                                     )
-                                                    onDismiss()
                                                 }
                                             )
                                             LaunchedEffect(gh) {

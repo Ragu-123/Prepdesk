@@ -777,6 +777,10 @@ private fun MainHeader(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(2.dp)
             ) {
+                HeaderIconButton(onClick = onTitleClick, contentDescription = "BitChat settings") {
+                    Icon(Icons.Outlined.Settings, contentDescription = null,
+                        modifier = Modifier.size(HeaderIconSize), tint = colorScheme.primary)
+                }
                 if (hasUnreadPrivateMessages.isNotEmpty()) {
                     HeaderIconButton(
                         onClick = { viewModel.openLatestUnreadPrivateChat() },

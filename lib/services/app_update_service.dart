@@ -129,7 +129,7 @@ class AppUpdateProgress {
 
 class AppUpdateService {
   static const isPlayStore = bool.fromEnvironment('NYRO_PLAY_STORE');
-  static const String currentVersion = '1.1.22';
+  static const String currentVersion = '1.1.23';
   static const String defaultGithubRepo = 'Ragu-123/nyro-tasks';
   static const MethodChannel _nativeChannel = MethodChannel('io.github.thelazyindian.tasks/native');
 

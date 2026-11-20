@@ -192,6 +192,8 @@ class _TopBannerWidgetState extends State<_TopBannerWidget>
   late AnimationController _controller;
   late Animation<Offset> _offsetAnimation;
   late Animation<double> _fadeAnimation;
+  bool _dismissing = false;
+  double _drag = 0;
 
   @override
   void initState() {
@@ -218,10 +220,11 @@ class _TopBannerWidgetState extends State<_TopBannerWidget>
     });
   }
 
-  void _dismissWithAnimation() async {
-    if (!mounted) return;
-    await _controller.reverse();
-    widget.onDismiss();
+  Future<void> _dismissWithAnimation() async {
+    if (!mounted || _dismissing) return;
+    _dismissing = true;
+    await _controller.reverse().orCancel.catchError((Object _) {});
+    if (mounted) widget.onDismiss();
   }
 
   @override
@@ -233,6 +236,7 @@ class _TopBannerWidgetState extends State<_TopBannerWidget>
   @override
   Widget build(BuildContext context) {
     final topPadding = MediaQuery.of(context).padding.top + 8;
+    final colors = Theme.of(context).colorScheme;
 
     return Positioned(
       top: topPadding,
@@ -245,10 +249,15 @@ class _TopBannerWidgetState extends State<_TopBannerWidget>
           child: FadeTransition(
             opacity: _fadeAnimation,
             child: GestureDetector(
-              onVerticalDragUpdate: (details) {
-                if (details.primaryDelta != null && details.primaryDelta! < -4) {
-                  _dismissWithAnimation();
-                }
+              onVerticalDragStart: (_) => _drag = 0,
+              onVerticalDragUpdate: (details) => _drag += details.primaryDelta ?? 0,
+              onVerticalDragEnd: (details) {
+                if (_drag < -24 || (details.primaryVelocity ?? 0) < -250) _dismissWithAnimation();
+              },
+              onHorizontalDragStart: (_) => _drag = 0,
+              onHorizontalDragUpdate: (details) => _drag += details.primaryDelta ?? 0,
+              onHorizontalDragEnd: (details) {
+                if (_drag.abs() > 32 || (details.primaryVelocity ?? 0).abs() > 300) _dismissWithAnimation();
               },
               onTap: () {
                 if (widget.onTap != null) {
@@ -259,7 +268,7 @@ class _TopBannerWidgetState extends State<_TopBannerWidget>
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Color.alphaBlend(widget.color.withOpacity(0.10), colors.surface),
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(

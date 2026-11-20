@@ -74,6 +74,13 @@ class UnifiedMeshService(
         try { WifiAwareController.stop() } catch (_: Exception) { }
     }
 
+    fun pauseVisibleSession() {
+        announcementJob?.cancel()
+        announcementJob = null
+        bluetooth.setBleTransportEnabled(false)
+        WifiAwareController.stop()
+    }
+
     private fun startAnnouncementScheduler() {
         if (announcementJob?.isActive == true) return
         announcementJob = serviceScope.launch {

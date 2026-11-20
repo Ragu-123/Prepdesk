@@ -1747,9 +1747,12 @@ fun PrivateChatSheet(
     val fingerprint = activeMeshPeerID?.let { peerFingerprints[it] }
         ?: peerFingerprints[peerID]
         ?: ContactIdentityResolver.fingerprintFromContactConversationId(peerID)
-    val isFavorite = remember(favoritePeers, fingerprint, peerID, favoriteRelationship) {
+    val pinnedConversations by viewModel.pinnedConversations.collectAsStateWithLifecycle()
+    val canFavoriteIdentity = fingerprint != null || contactResolution.noisePublicKey != null
+    val isFavoriteIdentity = remember(favoritePeers, fingerprint, peerID, favoriteRelationship) {
         if (fingerprint != null) favoritePeers.contains(fingerprint) else viewModel.isFavorite(peerID)
     }
+    val isFavorite = if (canFavoriteIdentity) isFavoriteIdentity else conversationID.lowercase() in pinnedConversations
     val theyFavoritedUs = remember(peerFavoritedUs, fingerprint, favoriteRelationship) {
         (fingerprint != null && peerFavoritedUs.contains(fingerprint)) ||
             favoriteRelationship?.theyFavoritedUs == true
@@ -1911,7 +1914,10 @@ fun PrivateChatSheet(
                         title = titleText
                     ) {
                         ConversationHeaderAction(
-                            onClick = { viewModel.toggleFavorite(peerID) },
+                            onClick = {
+                                if (canFavoriteIdentity) viewModel.toggleFavorite(peerID)
+                                else viewModel.toggleConversationPinned(conversationID)
+                            },
                             contentDescription = if (isFavorite) {
                                 stringResource(R.string.cd_remove_favorite)
                             } else {

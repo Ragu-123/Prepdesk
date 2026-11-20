@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import com.bitchat.android.integration.PrepdeskAppearance
+import com.bitchat.android.integration.chatAccent
 
 // Standard UI semantics live in Material so stock components and custom Bitchat composables
 // share one source of truth. LocalBitchatPalette below only supplies app-specific extra colors.
@@ -74,21 +75,25 @@ fun BitchatTheme(
     // App-level override from ThemePreferenceManager
     val themePref by ThemePreferenceManager.themeFlow.collectAsState(initial = ThemePreference.System)
     val prepdesk by PrepdeskAppearance.current.collectAsState()
-    val shouldUseDark = when (darkTheme) {
+    val embedded = LocalView.current.context.packageName == "com.nyro.gate.tasks"
+    val shouldUseDark = if (embedded) false else when (darkTheme) {
         true -> true
         false -> false
         null -> when (themePref) {
             ThemePreference.Dark -> true
             ThemePreference.Light -> false
-            ThemePreference.System -> prepdesk == null && isSystemInDarkTheme()
+            ThemePreference.System -> isSystemInDarkTheme()
         }
     }
 
+    val view = LocalView.current
+    val fallbackAccent = androidx.compose.runtime.remember(view.context) { Color(chatAccent(view.context)) }
     val colorScheme = if (shouldUseDark) DarkBitchatColorScheme
-        else prepdesk?.applyTo(LightBitchatColorScheme) ?: LightBitchatColorScheme
+        else prepdesk?.applyTo(LightBitchatColorScheme) ?: LightBitchatColorScheme.copy(
+            primary = fallbackAccent, secondary = fallbackAccent
+        )
     val palette = if (shouldUseDark) DarkBitchatPalette else LightBitchatPalette
 
-    val view = LocalView.current
     SideEffect {
         (view.context as? Activity)?.window?.let { window ->
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {

@@ -19,6 +19,9 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ProcessLifecycleOwner
 import com.bitchat.android.mesh.BluetoothMeshService
 import com.bitchat.android.mesh.MeshService
 import com.bitchat.android.geohash.LocationChannelManager
@@ -61,6 +64,35 @@ class MainActivity : OrientationAwareActivity() {
     // Core mesh service - provided by the foreground service holder
     private lateinit var meshService: BluetoothMeshService
     private lateinit var unifiedMeshService: MeshService
+    private var pausedTransports = false
+    private val visibleSessionObserver = object : DefaultLifecycleObserver {
+        override fun onStop(owner: LifecycleOwner) {
+            if (isFinishing || !::unifiedMeshService.isInitialized ||
+                com.bitchat.android.service.MeshServicePreferences.isBackgroundEnabled()) return
+            pausedTransports = true
+            (unifiedMeshService as? com.bitchat.android.mesh.UnifiedMeshService)?.pauseVisibleSession()
+            com.bitchat.android.nostr.NostrRelayManager.shared.disconnect()
+            LocationChannelManager.getInstance(applicationContext).endLiveRefresh()
+            lifecycleScope.launch {
+                com.bitchat.android.net.ArtiTorManager.getInstance()
+                    .applyMode(application, com.bitchat.android.net.TorMode.OFF)
+            }
+        }
+
+        override fun onStart(owner: LifecycleOwner) {
+            if (!pausedTransports || isFinishing) return
+            pausedTransports = false
+            lifecycleScope.launch {
+                com.bitchat.android.net.ArtiTorManager.getInstance()
+                    .applyMode(application, com.bitchat.android.net.TorPreferenceManager.get(this@MainActivity))
+            }
+            com.bitchat.android.nostr.NostrRelayManager.shared.connect()
+            com.bitchat.android.nostr.NostrBackgroundRuntime.resetSubscriptions()
+            if (mainViewModel.onboardingState.value == OnboardingState.COMPLETE) {
+                unifiedMeshService.startServices()
+            }
+        }
+    }
     private val mainViewModel: MainViewModel by viewModels()
     private var pendingMeshForegroundServiceStart = false
     private val chatViewModel: ChatViewModel by viewModels {
@@ -126,6 +158,7 @@ class MainActivity : OrientationAwareActivity() {
         startMeshForegroundServiceBestEffort()
         meshService = com.bitchat.android.service.MeshServiceHolder.getOrCreate(applicationContext)
         unifiedMeshService = com.bitchat.android.service.MeshServiceHolder.getUnifiedOrCreate(applicationContext)
+        ProcessLifecycleOwner.get().lifecycle.addObserver(visibleSessionObserver)
         // Expose BLE mesh to Wi‑Fi Aware controller for cross-transport relays - DEPRECATED
         // Bridging is now handled by TransportBridgeService automatically
 
@@ -865,6 +898,7 @@ class MainActivity : OrientationAwareActivity() {
 
 
     override fun onDestroy() {
+        ProcessLifecycleOwner.get().lifecycle.removeObserver(visibleSessionObserver)
         super.onDestroy()
 
         try { unregisterReceiver(forceFinishReceiver) } catch (_: Exception) { }

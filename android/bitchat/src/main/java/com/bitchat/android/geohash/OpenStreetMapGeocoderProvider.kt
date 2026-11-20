@@ -89,6 +89,7 @@ class OpenStreetMapGeocoderProvider : GeocoderProvider {
         val a = res.address ?: return address
 
         address.countryName = a.country
+        address.countryCode = a.country_code
         address.adminArea = a.state
         address.subAdminArea = a.county
 
@@ -116,6 +117,7 @@ class OpenStreetMapGeocoderProvider : GeocoderProvider {
 
     private data class OsmAddress(
         val country: String?,
+        val country_code: String?,
         val state: String?,
         val county: String?,
         val city: String?,
