@@ -54,6 +54,8 @@ class LocationChannelManager private constructor(private val context: Context) {
     private val locationProvider: LocationProvider
     private val geocoderProvider: GeocoderProvider = GeocoderFactory.get(context)
     private var geocodingJob: Job? = null
+    private var teleportJob: Job? = null
+    private var currentCountry: String? = null
     private val gson = Gson()
     private var dataManager: com.bitchat.android.ui.DataManager? = null
     private var selectedLocationSource: LocationSelectionSource? = null
@@ -245,12 +247,37 @@ class LocationChannelManager private constructor(private val context: Context) {
         return true
     }
 
-    fun selectManual(channel: GeohashChannel, teleported: Boolean = true) {
-        selectInternal(
-            ChannelID.Location(channel),
-            source = LocationSelectionSource.MANUAL,
-            teleported = teleported || !LiveLocationPrivacyGate.isEnabled
-        )
+    fun selectManual(channel: GeohashChannel, teleported: Boolean = true, onSelected: () -> Unit = {}) {
+        teleportJob?.cancel()
+        val token = LiveLocationPrivacyGate.captureToken()
+        val country = currentCountry
+        if (token == null || country == null || !canUseLiveLocation(token)) {
+            android.widget.Toast.makeText(context, "Enable location and wait for your country to be detected.", android.widget.Toast.LENGTH_LONG).show()
+            return
+        }
+        teleportJob = scope.launch {
+            val (latitude, longitude) = runCatching { Geohash.decodeToCenter(channel.geohash) }.getOrNull()
+                ?: return@launch
+            val destination = withTimeoutOrNull(6_000) {
+                try {
+                    geocoderProvider.getFromLocation(latitude, longitude, 1, liveLocationToken = token)
+                        .firstOrNull()?.countryCode
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    null
+                }
+            }
+            if (!canUseLiveLocation(token) || currentCountry != country) return@launch
+            if (destination == null || !destination.equals(country, ignoreCase = true)) {
+                val message = if (destination == null) "Could not verify this destination's country."
+                    else "Choose a destination in your current country."
+                android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_LONG).show()
+                return@launch
+            }
+            selectInternal(ChannelID.Location(channel), source = LocationSelectionSource.MANUAL, teleported = teleported)
+            onSelected()
+        }
     }
 
     /**
@@ -289,8 +316,7 @@ class LocationChannelManager private constructor(private val context: Context) {
 
     fun canUseSelectedLocationChannel(channel: GeohashChannel): Boolean {
         if (_selectedChannel.value != ChannelID.Location(channel)) return false
-        return selectedLocationSource == LocationSelectionSource.MANUAL ||
-            LiveLocationPrivacyGate.captureToken() != null
+        return LiveLocationPrivacyGate.captureToken() != null
     }
 
     fun isSelectedChannelLiveDerived(channel: GeohashChannel): Boolean =
@@ -332,21 +358,16 @@ class LocationChannelManager private constructor(private val context: Context) {
         _locationNames.value = emptyMap()
 
         when {
-            _selectedChannel.value is ChannelID.Location &&
-                selectedLocationSource == LocationSelectionSource.NEARBY -> {
-                selectInternal(ChannelID.Mesh, source = null, teleported = false)
-            }
             _selectedChannel.value is ChannelID.Location -> {
-                // Manual channels remain usable for teleports, bookmarks, and DMs. Never use
-                // a previously retained GPS fix to classify them while live access is off.
-                selectedLocationSource = LocationSelectionSource.MANUAL
-                _teleported.value = true
-                saveChannelSelection(_selectedChannel.value, selectedLocationSource)
+                selectInternal(ChannelID.Mesh, source = null, teleported = false)
             }
         }
     }
 
     private fun cancelLiveLocationWork() {
+        currentCountry = null
+        teleportJob?.cancel()
+        teleportJob = null
         locationProvider.cancel()
         activeLocationUpdateCallback = null
         geocodingJob?.cancel()
@@ -492,6 +513,7 @@ class LocationChannelManager private constructor(private val context: Context) {
                     val names = namesByLevel(address)
                     LiveLocationPrivacyGate.runIfAllowed(token) {
                         if (_systemLocationEnabled.value && hasRuntimeLocationPermission()) {
+                            currentCountry = address.countryCode
                             _locationNames.value = names
                         }
                     }
@@ -587,8 +609,7 @@ class LocationChannelManager private constructor(private val context: Context) {
                 val channel = persisted?.toChannel()
                 val source = persisted?.selectionSource()
                 val canRestore = channel !is ChannelID.Location ||
-                    source == LocationSelectionSource.MANUAL ||
-                    (LiveLocationPrivacyGate.isEnabled &&
+                    (source == LocationSelectionSource.NEARBY && LiveLocationPrivacyGate.isEnabled &&
                         _systemLocationEnabled.value &&
                         _permissionState.value == PermissionState.AUTHORIZED)
 

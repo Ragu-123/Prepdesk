@@ -45,6 +45,7 @@ class MainActivity: FlutterFragmentActivity() {
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
+                "getUpdateAbi" -> result.success(Build.SUPPORTED_64_BIT_ABIS.firstOrNull())
                 "openBitChat" -> {
                     val appearance = call.arguments as? Map<*, *>
                     val chat = Intent()

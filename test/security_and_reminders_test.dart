@@ -481,10 +481,10 @@ void main() {
     await tester.tap(find.text('Review mistakes (1)'));
     await tester.pump();
     await settleDatabase(tester, find.text('No mistakes logged for this topic.'));
-    await tester.tap(find.text('All subject mistakes'));
+    await tester.tap(find.text('This subject'));
     await tester.pumpAndSettle();
     expect(find.text('Rank'), findsOneWidget);
-    Navigator.of(tester.element(find.text('All subject mistakes'))).pop();
+    Navigator.of(tester.element(find.text('This subject'))).pop();
     await tester.pumpAndSettle();
     expect(find.byTooltip('quiz options'), findsNothing);
     await tester.tap(find.text('Next matrices quiz'));

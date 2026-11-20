@@ -412,7 +412,7 @@ class LocationNotesManager private constructor() {
         if (token == null || !LiveLocationPrivacyGate.accepts(token)) return
 
         // Validate event
-        if (event.kind != NostrKind.TEXT_NOTE) {
+        if (event.kind != NostrKind.GEOHASH_TEXT_NOTE) {
             Log.v(TAG, "Ignoring non-text-note event: kind=${event.kind}")
             return
         }

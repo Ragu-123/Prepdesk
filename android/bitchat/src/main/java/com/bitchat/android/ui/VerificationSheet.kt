@@ -432,10 +432,15 @@ private fun ScannerView(
     DisposableEffect(Unit) {
         val executor = ContextCompat.getMainExecutor(context)
         var cameraProvider: ProcessCameraProvider? = null
+        var disposed = false
 
         cameraProviderFuture.addListener(
-            {
-                val provider = cameraProviderFuture.get()
+            listener@{
+                if (disposed) return@listener
+                val provider = runCatching { cameraProviderFuture.get() }.getOrElse {
+                    Log.w("VerificationSheet", "Camera could not initialize", it)
+                    return@listener
+                }
                 cameraProvider = provider
                 val preview = Preview.Builder().build().also {
                     it.setSurfaceProvider { request -> surfaceRequests.value = request }
@@ -461,6 +466,7 @@ private fun ScannerView(
         )
 
         onDispose {
+            disposed = true
             surfaceRequests.value = null
             runCatching { cameraProvider?.unbindAll() }
             cameraExecutor.shutdown()

@@ -852,6 +852,8 @@ class ChatViewModel(
         return true
     }
 
+    internal val pinnedConversations get() = conversationListPreferences.pinned
+
     internal fun toggleConversationPinned(conversationID: String) {
         conversationListPreferences.togglePinned(conversationID)
     }

@@ -333,7 +333,7 @@ fun AboutSheet(
 
     val colorScheme = MaterialTheme.colorScheme
     val palette = LocalBitchatPalette.current
-    var selectedTab by remember { mutableStateOf(AboutTab.Info) }
+    var selectedTab by remember(isPresented) { mutableStateOf(AboutTab.Settings) }
     val supportedLanguages = remember(context) {
         LanguagePreferenceManager.supportedLanguages(context)
     }
@@ -387,7 +387,6 @@ fun AboutSheet(
                     item(key = "appearance") {
                         Column {
                             AboutSectionLabel(text = stringResource(R.string.about_section_theme))
-                            val themePref by com.bitchat.android.ui.theme.ThemePreferenceManager.themeFlow.collectAsState()
                             val chatUiMode by com.bitchat.android.ui.theme.ChatUiModeManager.modeFlow.collectAsState()
                             Surface(
                                 modifier = Modifier
@@ -402,29 +401,7 @@ fun AboutSheet(
                                         .padding(12.dp),
                                     verticalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        ThemeChip(
-                                            label = stringResource(R.string.about_system),
-                                            selected = themePref.isSystem,
-                                            onClick = { com.bitchat.android.ui.theme.ThemePreferenceManager.set(context, com.bitchat.android.ui.theme.ThemePreference.System) },
-                                            modifier = Modifier.weight(1f)
-                                        )
-                                        ThemeChip(
-                                            label = stringResource(R.string.about_light),
-                                            selected = themePref.isLight,
-                                            onClick = { com.bitchat.android.ui.theme.ThemePreferenceManager.set(context, com.bitchat.android.ui.theme.ThemePreference.Light) },
-                                            modifier = Modifier.weight(1f)
-                                        )
-                                        ThemeChip(
-                                            label = stringResource(R.string.about_dark),
-                                            selected = themePref.isDark,
-                                            onClick = { com.bitchat.android.ui.theme.ThemePreferenceManager.set(context, com.bitchat.android.ui.theme.ThemePreference.Dark) },
-                                            modifier = Modifier.weight(1f)
-                                        )
-                                    }
+                                    Text("Uses Prepdesk appearance", style = MaterialTheme.typography.bodyMedium)
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -533,14 +510,14 @@ fun AboutSheet(
                                     // Background Mode Toggle
                                     SettingsToggleRow(
                                         icon = Icons.Filled.Bluetooth,
-                                        title = stringResource(R.string.about_background_title),
-                                        subtitle = stringResource(R.string.about_background_desc),
+                                        title = "Keep BitChat listening",
+                                        subtitle = "Stay connected for private-message alerts. Turn off to close chat and disconnect.",
                                         checked = backgroundEnabled,
                                         onCheckedChange = { enabled ->
                                             backgroundEnabled = enabled
                                             com.bitchat.android.service.MeshServicePreferences.setBackgroundEnabled(enabled)
                                             if (!enabled) {
-                                                com.bitchat.android.service.MeshForegroundService.stop(context)
+                                                (context as? android.app.Activity)?.finish()
                                             } else {
                                                 com.bitchat.android.service.MeshForegroundService.start(context)
                                             }

@@ -45,7 +45,7 @@ These screenshots show an earlier build of Prepdesk. Private details are obscure
 
 ## Install and get started
 
-1. Open the [latest release](https://github.com/Ragu-123/nyro-tasks/releases/latest) and download `app-release.apk`. The release also includes `SHA256SUMS.txt` and a Play build in Android App Bundle format.
+1. Open the [latest release](https://github.com/Ragu-123/nyro-tasks/releases/latest). Choose `prepdesk-arm64-v8a.apk` for ARM64 phones, `prepdesk-x86_64.apk` for x86-64 devices, or `app-release.apk` if you need the universal 64-bit file. The release includes checksums and a Play bundle.
 2. Open **Today** to see your study day. Use the plus button to add an entry for the section you’re in. Open **Timetable** to browse the wider schedule.
 3. Open **Settings → Reminders & Routine** if you want system notifications or ringing alarms. Android controls the permissions for each alert type.
 4. To pair a browser, open **Settings → Desktop Companion Studio**, start the local server, and use the address and pairing code shown on your phone.
@@ -66,3 +66,7 @@ The app uses Flutter and Dart for the interface, SQLite for local study data, Ko
 [GitHub Actions](https://github.com/Ragu-123/nyro-tasks/actions/workflows/build_apk.yml) runs Flutter analysis and tests, then builds the GitHub APK and Play bundle. Version tags publish both packages and their checksums to [GitHub Releases](https://github.com/Ragu-123/nyro-tasks/releases). Local source checks and agent instructions are documented in [AGENTS.md](AGENTS.md).
 
 Prepdesk is distributed under the [GNU General Public License v3.0](LICENSE). The [BitChat integration notes](docs/BITCHAT_ANDROID_INTEGRATION.md) record the upstream revision and the changes for Prepdesk.
+
+Thanks to the [BitChat Android contributors](https://github.com/permissionlesstech/bitchat-android) for the mesh transport, private messaging, and native chat interface that Prepdesk builds on.
+
+See [Contributing](CONTRIBUTING.md) for the pull request and release process.

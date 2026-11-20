@@ -90,16 +90,13 @@ class _MistakeReviewSheetState extends State<_MistakeReviewSheet> {
     final subjects = await _db.getOnlySubjectsForDropdown();
     final normalized = QuizTrapMatcher.normalize(widget.subject ?? '');
     final hasSubject = normalized.isNotEmpty && normalized != 'all subjects';
-    final subjectRows = rows.where((row) => QuizTrapMatcher.matches(row,
-      quizTitle: widget.quizTitle ?? '', subject: widget.subject, syllabus: widget.topics.join(' '))).toList();
-    final topicRows = (hasSubject || widget.quizTitle != null ? subjectRows : rows)
-        .where((row) => QuizTrapMatcher.matchesTopic(row, quizTitle: widget.quizTitle, topics: widget.topics)).toList();
-    if (!hasSubject && widget.quizTitle == null) {
-      final matchedSubjects = topicRows.map((row) => QuizTrapMatcher.normalize(row['subject']?.toString() ?? ''))
-          .where((subject) => subject.isNotEmpty).toSet();
-      subjectRows.addAll(rows.where((row) => matchedSubjects.contains(
-        QuizTrapMatcher.normalize(row['subject']?.toString() ?? '')) && !subjectRows.contains(row)));
-    }
+    String subjectOf(Map<String, dynamic> row) => QuizTrapMatcher.normalize(row['subject']?.toString() ?? '');
+    final topicRows = rows.where((row) =>
+      (!hasSubject || subjectOf(row) == normalized || subjectOf(row).isEmpty) &&
+      QuizTrapMatcher.matchesTopic(row, quizTitle: widget.quizTitle, topics: widget.topics)).toList();
+    final matchedSubjects = topicRows.map(subjectOf).where((value) => value.isNotEmpty && value != 'all subjects').toSet();
+    final selected = hasSubject ? normalized : (matchedSubjects.length == 1 ? matchedSubjects.single : null);
+    final subjectRows = selected == null ? <Map<String, dynamic>>[] : rows.where((row) => subjectOf(row) == selected).toList();
     return _MistakeReviewResults(topicRows, subjectRows, subjects);
   }
 
@@ -147,7 +144,7 @@ class _MistakeReviewSheetState extends State<_MistakeReviewSheet> {
                   )),
               ],
             )),
-            const TabBar(tabs: [Tab(text: 'This topic'), Tab(text: 'All subject mistakes')]),
+            const TabBar(tabs: [Tab(text: 'This topic'), Tab(text: 'This subject')]),
             Expanded(child: results == null
               ? Center(child: snapshot.hasError ? const Text('Could not load mistakes.') : const CircularProgressIndicator())
               : TabBarView(children: [

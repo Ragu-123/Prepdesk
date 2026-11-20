@@ -55,14 +55,22 @@ jobs:
         timeout-minutes: 5
         run: flutter test --reporter expanded
       - name: Build GitHub APK
-        run: flutter build apk --release --flavor github --no-tree-shake-icons
+        run: |
+          mkdir -p release
+          flutter build apk --release --flavor github --target-platform android-arm64,android-x64
+          cp build/app/outputs/flutter-apk/app-github-release.apk release/app-release.apk
+          PREPDESK_APK_ABI=arm64-v8a flutter build apk --release --flavor github --target-platform android-arm64
+          cp build/app/outputs/flutter-apk/app-github-release.apk release/prepdesk-arm64-v8a.apk
+          PREPDESK_APK_ABI=x86_64 flutter build apk --release --flavor github --target-platform android-x64
+          cp build/app/outputs/flutter-apk/app-github-release.apk release/prepdesk-x86_64.apk
       - name: Build Google Play bundle
-        run: flutter build appbundle --release --flavor play --no-tree-shake-icons --dart-define=NYRO_PLAY_STORE=true
+        run: flutter build appbundle --release --flavor play --target-platform android-arm64,android-x64 --dart-define=NYRO_PLAY_STORE=true
       - name: Prepare release assets
         run: |
           mkdir -p release
-          cp build/app/outputs/flutter-apk/app-github-release.apk release/app-release.apk
           cp build/app/outputs/bundle/playRelease/app-play-release.aab release/prepdesk-play.aab
+          sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          python3 scripts/check_release_packages.py release "$sdk_root/build-tools/37.0.0/aapt"
           sha256sum release/* > release/SHA256SUMS.txt
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4

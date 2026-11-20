@@ -68,7 +68,7 @@ class AppReleaseInfo {
     }
   }
 
-  factory AppReleaseInfo.fromJson(Map<String, dynamic> json) {
+  factory AppReleaseInfo.fromJson(Map<String, dynamic> json, {String? androidAbi}) {
     final tagName = json['tag_name'] as String? ?? 'v1.0.0';
     final name = json['name'] as String? ?? 'Prepdesk Update';
     final body = json['body'] as String? ?? 'No release notes provided.';
@@ -76,19 +76,25 @@ class AppReleaseInfo {
     final publishedAt = publishedAtStr != null ? DateTime.tryParse(publishedAtStr) ?? DateTime.now() : DateTime.now();
 
     final assets = json['assets'] as List<dynamic>? ?? [];
+    const deviceApks = {'prepdesk-arm64-v8a.apk', 'prepdesk-x86_64.apk'};
+    final preferredApk = 'prepdesk-$androidAbi.apk';
     String? downloadUrl;
     int size = 0;
 
+    int priority = -1;
     for (final asset in assets) {
       if (asset is Map<String, dynamic>) {
         final assetName = (asset['name'] as String? ?? '').toLowerCase();
-        if (assetName.endsWith('.apk')) {
-          downloadUrl = asset['browser_download_url'] as String?;
-          size = (asset['size'] as num?)?.toInt() ?? 0;
-          if (assetName.contains('app-release') || assetName.contains('tasks') || assetName.contains('nyro')) {
-            break; // Preferred asset match
-          }
-        }
+        if (!assetName.endsWith('.apk')) continue;
+        if (deviceApks.contains(assetName) && assetName != preferredApk) continue;
+        final score = assetName == preferredApk ? 3
+            : assetName == 'app-release.apk' ? 2
+            : assetName.contains('tasks') || assetName.contains('nyro') ? 1 : 0;
+        final url = asset['browser_download_url'] as String?;
+        if (score <= priority || url == null || url.isEmpty) continue;
+        priority = score;
+        downloadUrl = url;
+        size = (asset['size'] as num?)?.toInt() ?? 0;
       }
     }
 
@@ -129,7 +135,7 @@ class AppUpdateProgress {
 
 class AppUpdateService {
   static const isPlayStore = bool.fromEnvironment('NYRO_PLAY_STORE');
-  static const String currentVersion = '1.1.22';
+  static const String currentVersion = '1.1.23';
   static const String defaultGithubRepo = 'Ragu-123/nyro-tasks';
   static const MethodChannel _nativeChannel = MethodChannel('io.github.thelazyindian.tasks/native');
 
@@ -160,7 +166,15 @@ class AppUpdateService {
 
       final bodyStr = await response.transform(utf8.decoder).join();
       final Map<String, dynamic> data = jsonDecode(bodyStr);
-      return AppReleaseInfo.fromJson(data);
+      String? abi;
+      if (Platform.isAndroid) {
+        try {
+          abi = await _nativeChannel.invokeMethod<String>('getUpdateAbi');
+        } on MissingPluginException {
+          // Older Android hosts continue to use the universal package.
+        }
+      }
+      return AppReleaseInfo.fromJson(data, androidAbi: abi);
     } catch (e) {
       debugPrint('Check update error: $e');
       rethrow;

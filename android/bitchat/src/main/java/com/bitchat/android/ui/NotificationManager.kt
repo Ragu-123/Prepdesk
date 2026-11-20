@@ -1,6 +1,7 @@
 package com.bitchat.android.ui
 
 import com.bitchat.android.integration.prepdeskChatNotification
+import com.bitchat.android.integration.withPrepdeskChatBanner
 
 import android.Manifest
 import android.app.NotificationChannel
@@ -269,6 +270,7 @@ class NotificationManager(
 
             .setContentTitle(contentTitle)
             .setContentText(contentText)
+            .withPrepdeskChatBanner(context, contentTitle, contentText)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -399,6 +401,7 @@ class NotificationManager(
 
             .setContentTitle(title)
             .setContentText(body)
+            .withPrepdeskChatBanner(context, title, body)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -588,6 +591,7 @@ class NotificationManager(
 
             .setContentTitle(contentTitle)
             .setContentText(contentText)
+            .withPrepdeskChatBanner(context, contentTitle, contentText)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .setPriority(if (latestNotification.isMention) NotificationCompat.PRIORITY_HIGH else NotificationCompat.PRIORITY_DEFAULT)
@@ -668,6 +672,7 @@ class NotificationManager(
 
             .setContentTitle(contentTitle)
             .setContentText(contentText)
+            .withPrepdeskChatBanner(context, contentTitle, contentText)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -801,6 +806,7 @@ class NotificationManager(
 
             .setContentTitle(contentTitle)
             .setContentText(contentText)
+            .withPrepdeskChatBanner(context, contentTitle, contentText)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_HIGH)

@@ -31,6 +31,7 @@ class NostrDirectMessageHandler(
     private val scope: CoroutineScope,
     private val repo: GeohashRepository,
     private val dataManager: com.bitchat.android.ui.DataManager,
+    private val onMessageReceived: (BitchatMessage) -> Unit = {},
     private val seenStoreProvider: () -> SeenMessageStore = {
         SeenMessageStore.getInstance(application)
     }
@@ -172,6 +173,7 @@ class NostrDirectMessageHandler(
                     )
                 }
                 if (!admitted) return
+                if (!suppressUnread) withContext(Dispatchers.Main) { onMessageReceived(message) }
 
                 if (!seenStore.hasDelivered(pm.messageID)) {
                     val nostrTransport = NostrTransport.getInstance(application)
@@ -235,7 +237,7 @@ class NostrDirectMessageHandler(
                             application,
                             listOf(savedPath)
                         )
-                    }
+                    } else withContext(Dispatchers.Main) { onMessageReceived(message) }
                 } else {
                     Log.w(TAG, "Failed to decode Nostr file transfer from $conversationID")
                 }

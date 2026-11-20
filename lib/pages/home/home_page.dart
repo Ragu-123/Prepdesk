@@ -1395,7 +1395,8 @@ class _HomePageState extends State<HomePage> {
                   ),
                   // 5. BitChat P2P Mesh
                   ListTile(
-                    leading: const Icon(Icons.hub_outlined, color: googleTextSecondary, size: 22),
+                    leading: Image.asset('assets/images/bitchat_mark.png',
+                      width: 22, height: 22, color: accent, filterQuality: FilterQuality.none),
                     title: const Text('BitChat', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: googleTextPrimary)),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     onTap: () {

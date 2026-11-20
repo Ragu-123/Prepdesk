@@ -190,6 +190,7 @@ class PrivateChatManager(
     fun toggleFavorite(peerID: String) {
         var fingerprint = fingerprintManager.getFingerprintForPeer(peerID)
             ?: ContactIdentityResolver.fingerprintFromContactConversationId(ContactDirectory.canonicalConversationId(peerID))
+            ?: ContactDirectory.resolve(peerID).noisePublicKey?.let(ContactIdentityResolver::fingerprintHex)
 
         if (fingerprint == null && ContactIdentityResolver.isNoiseKeyHex(peerID)) {
             try {
@@ -234,6 +235,7 @@ class PrivateChatManager(
     fun isFavorite(peerID: String): Boolean {
         val fingerprint = fingerprintManager.getFingerprintForPeer(peerID)
             ?: ContactIdentityResolver.fingerprintFromContactConversationId(ContactDirectory.canonicalConversationId(peerID))
+            ?: ContactDirectory.resolve(peerID).noisePublicKey?.let(ContactIdentityResolver::fingerprintHex)
             ?: if (ContactIdentityResolver.isNoiseKeyHex(peerID)) {
                 ContactIdentityResolver.bytesFromHex(peerID)?.let { ContactIdentityResolver.fingerprintHex(it) }
             } else {

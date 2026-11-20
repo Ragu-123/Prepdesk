@@ -266,9 +266,11 @@ class GeohashPickerActivity : OrientationAwareActivity() {
                 }
 
                 fun join(geohash: String) {
-                    if (geohash.isEmpty()) return
-                    setResult(Activity.RESULT_OK, Intent().apply { putExtra(EXTRA_RESULT_GEOHASH, geohash) })
-                    finish()
+                    val channel = channelForManualGeohash(geohash) ?: return
+                    LocationChannelManager.getInstance(applicationContext).selectManual(channel) {
+                        setResult(Activity.RESULT_OK, Intent().apply { putExtra(EXTRA_RESULT_GEOHASH, geohash) })
+                        finish()
+                    }
                 }
 
                 Box(

@@ -40,7 +40,8 @@ class BluetoothGattServerManager(
     private val bluetoothManager: BluetoothManager =
         context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
     private val bluetoothAdapter: BluetoothAdapter? = bluetoothManager.adapter
-    private val bleAdvertiser: BluetoothLeAdvertiser? = bluetoothAdapter?.bluetoothLeAdvertiser
+    private val bleAdvertiser: BluetoothLeAdvertiser?
+        get() = bluetoothAdapter?.bluetoothLeAdvertiser
 
     // GATT server for peripheral mode
     private var gattServer: BluetoothGattServer? = null
@@ -108,8 +109,6 @@ class BluetoothGattServerManager(
 
         connectionScope.launch {
             setupGattServer()
-            delay(300) // Brief delay to ensure GATT server is ready
-            startAdvertising()
         }
 
         return true
@@ -222,6 +221,8 @@ class BluetoothGattServerManager(
 
                 if (status != BluetoothGatt.GATT_SUCCESS) {
                     Log.e(TAG, "Server: Failed to add service: ${service.uuid}, status: $status")
+                } else if (service.uuid == AppConstants.Mesh.Gatt.SERVICE_UUID) {
+                    connectionScope.launch { startAdvertising() }
                 }
             }
 
@@ -356,6 +357,7 @@ class BluetoothGattServerManager(
      */
     @Suppress("DEPRECATION")
     private fun startAdvertising() {
+        val bleAdvertiser = this.bleAdvertiser
         // Respect debug setting
         val enabled = isServerRoleEnabled()
 
@@ -450,6 +452,7 @@ class BluetoothGattServerManager(
      */
     @Suppress("DEPRECATION")
     private fun stopAdvertising() {
+        val bleAdvertiser = this.bleAdvertiser
         if (!permissionManager.hasBluetoothPermissions() || bleAdvertiser == null) return
         try {
             advertiseCallback?.let { cb -> bleAdvertiser.stopAdvertising(cb) }

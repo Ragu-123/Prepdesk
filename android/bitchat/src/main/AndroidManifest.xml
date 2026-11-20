@@ -75,6 +75,14 @@
         android:protectionLevel="signature" />
 
     <application>
+        <provider
+            android:name=".integration.ChatInitializationProvider"
+            android:authorities="${applicationId}.bitchat.startup"
+            android:exported="false"
+            android:process=":bitchat">
+            <meta-data android:name="androidx.lifecycle.ProcessLifecycleInitializer" android:value="androidx.startup" />
+            <meta-data android:name="androidx.work.WorkManagerInitializer" android:value="androidx.startup" />
+        </provider>
         <service
             android:name="androidx.appcompat.app.AppLocalesMetadataHolderService"
             android:enabled="false"

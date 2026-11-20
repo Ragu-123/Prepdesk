@@ -66,7 +66,7 @@ class WifiAwareMeshService(private val context: Context) : MeshService, Transpor
     companion object {
         private const val TAG = "WifiAwareMeshService"
         private const val MAX_TTL: UByte = 7u
-        private const val SERVICE_NAME = "bitchat"
+        private const val SERVICE_NAME = "prepdesk-chat"
         private const val PSK = "bitchat_secret"
         // Network request / socket timeouts
         private const val NETWORK_REQUEST_TIMEOUT_MS = 30_000

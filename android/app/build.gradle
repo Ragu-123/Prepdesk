@@ -55,6 +55,16 @@ android {
         targetSdkVersion 36
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
+        ndk {
+            // Flutter adds its default ABIs before this block is evaluated.
+            abiFilters.clear()
+            def apkAbi = System.getenv('PREPDESK_APK_ABI')
+            if (apkAbi in ['arm64-v8a', 'x86_64']) {
+                abiFilters apkAbi
+            } else {
+                abiFilters 'arm64-v8a', 'x86_64'
+            }
+        }
         multiDexEnabled true
     }
 
@@ -80,6 +90,12 @@ android {
             minifyEnabled false
             shrinkResources false
         }
+    }
+}
+
+androidComponents {
+    onVariants(selector().withName('githubRelease')) { variant ->
+        variant.packaging.jniLibs.useLegacyPackaging.set(true)
     }
 }
 

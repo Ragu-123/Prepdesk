@@ -122,7 +122,8 @@ class PermissionManager(private val context: Context) {
      * Must be requested after foreground location permissions are granted.
      */
     fun needsBackgroundLocationPermission(): Boolean {
-        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+            com.bitchat.android.service.MeshServicePreferences.isBackgroundEnabled()
     }
 
     fun getBackgroundLocationPermission(): String? {

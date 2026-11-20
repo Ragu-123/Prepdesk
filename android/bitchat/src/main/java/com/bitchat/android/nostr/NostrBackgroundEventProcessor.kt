@@ -34,6 +34,9 @@ internal class NostrBackgroundEventProcessor(
         loadGeohashBlockedUsers()
     }
     private val messageManager = MessageManager(state)
+    private val notifications = com.bitchat.android.ui.NotificationManager(
+        application, androidx.core.app.NotificationManagerCompat.from(application)
+    )
     private val geohashRepository = GeohashRepository(application, state, dataManager, scope, participantStore)
     private val privateChatManager = PrivateChatManager(
         state = state,
@@ -60,7 +63,17 @@ internal class NostrBackgroundEventProcessor(
         updateDeliveryStatus = ::updateDeliveryStatus,
         scope = scope,
         repo = geohashRepository,
-        dataManager = dataManager
+        dataManager = dataManager,
+        onMessageReceived = { message ->
+            message.senderPeerID?.let { peer ->
+                val visible = androidx.lifecycle.ProcessLifecycleOwner.get().lifecycle.currentState
+                    .isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED)
+                notifications.setAppBackgroundState(!visible)
+                notifications.setCurrentPrivateChatPeer(AppStateStore.selectedPrivateChatPeer.value)
+                notifications.showPrivateMessageNotification(peer, message.sender,
+                    com.bitchat.android.ui.NotificationTextUtils.buildPrivateMessagePreview(message))
+            }
+        }
     )
 
     init {

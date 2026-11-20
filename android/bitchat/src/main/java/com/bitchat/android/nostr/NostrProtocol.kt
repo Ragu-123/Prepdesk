@@ -120,7 +120,7 @@ object NostrProtocol {
         val event = NostrEvent(
             pubkey = senderIdentity.publicKeyHex,
             createdAt = (System.currentTimeMillis() / 1000).toInt(),
-            kind = NostrKind.TEXT_NOTE,
+            kind = NostrKind.GEOHASH_TEXT_NOTE,
             tags = tags,
             content = content
         )
