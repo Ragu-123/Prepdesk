@@ -20,7 +20,6 @@ dependencies:
   flutter_timezone: 3.0.1
   url_launcher: ^6.3.0
   intl: ^0.19.0
-  community_material_icon: ^5.9.55
   flutter_markdown: ^0.7.4+1
   http: ^1.2.1
   crypto: ^3.0.3
