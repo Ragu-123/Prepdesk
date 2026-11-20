@@ -80,13 +80,16 @@ class _NotificationAccessPanelState extends State<NotificationAccessPanel> with 
           _row('exact', Icons.schedule_rounded, 'Precise timing', 'Required for ringing alarms. Banner reminders can use approximate timing.'),
           _row('fullScreen', Icons.alarm_rounded, 'Full-screen alarms', 'Required to show ringing alarms over the lock screen.'),
           if (_access?['notifications'] == true && _access?['studyHeadsUp'] == false)
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(_access?['studyAlerts'] == false
-                  ? 'Study alerts are blocked' : 'Study alerts are set to silent'),
-              subtitle: const Text('Allow banners in the Android notification category.'),
-              trailing: const Icon(Icons.open_in_new_rounded),
-              onTap: () => _native.invokeMethod('openStudyNotificationSettings'),
+            Material(
+              color: Colors.transparent,
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(_access?['studyAlerts'] == false
+                    ? 'Study alerts are blocked' : 'Study alerts are set to silent'),
+                subtitle: const Text('Allow banners in the Android notification category.'),
+                trailing: const Icon(Icons.open_in_new_rounded),
+                onTap: () => _native.invokeMethod('openStudyNotificationSettings'),
+              ),
             ),
         ],
         if (_error != null) Padding(padding: const EdgeInsets.symmetric(vertical: 12),
