@@ -205,8 +205,7 @@ class ArtiTorManager private constructor() {
                             bootstrapPercent = 0,
                             state = TorState.STOPPING
                         )
-                        stopArti()
-                        waitForStateTransition(target = TorState.OFF, timeoutMs = STOP_TIMEOUT_MS)
+                        stopArtiAndWait()
                         socksAddr = null
                         _statusFlow.value = _statusFlow.value.copy(
                             mode = TorMode.OFF,
@@ -238,7 +237,7 @@ class ArtiTorManager private constructor() {
                         )
                         socksAddr = InetSocketAddress("127.0.0.1", currentSocksPort)
                         resetNetworkConnections()
-                        startArti(application, useDelay = false)
+                        startArti(application)
                         appScope.launch {
                             waitUntilBootstrapped()
                             if (_statusFlow.value.running && desiredMode == TorMode.ON) {
@@ -255,22 +254,15 @@ class ArtiTorManager private constructor() {
         }
     }
 
-    private suspend fun startArti(application: Application, useDelay: Boolean = false) {
+    private fun startArti(application: Application) {
         try {
-            stopArtiAndWait()
-            if (useDelay) {
-                delay(RESTART_DELAY_MS)
-            }
-
             val proxy = artiProxy ?: run {
                 Log.e(TAG, "ArtiProxy not initialized! This should not happen.")
                 _statusFlow.update { it.copy(state = TorState.ERROR) }
                 return
             }
 
-            proxy.start()
             lastLogTime.set(System.currentTimeMillis())
-
             _statusFlow.update {
                 it.copy(
                     running = true,
@@ -279,6 +271,7 @@ class ArtiTorManager private constructor() {
                 )
             }
             lifecycleState = LifecycleState.RUNNING
+            proxy.start()
             startInactivityMonitoring()
 
         } catch (e: Exception) {
@@ -294,7 +287,7 @@ class ArtiTorManager private constructor() {
                 artiProxy = buildProxy(application)
                 socksAddr = InetSocketAddress("127.0.0.1", currentSocksPort)
                 resetNetworkConnections()
-                startArti(application, useDelay = false)
+                startArti(application)
             } else if (isBindError) {
                 Log.e(TAG, "Max bind retry attempts reached ($MAX_RETRY_ATTEMPTS), giving up")
                 lifecycleState = LifecycleState.STOPPED
@@ -306,7 +299,7 @@ class ArtiTorManager private constructor() {
                     )
                 }
             } else {
-                scheduleRetry(application)
+                scheduleRetry()
             }
         }
     }
@@ -351,27 +344,24 @@ class ArtiTorManager private constructor() {
         }
     }
 
-    private fun stopArti() {
-        stopArtiInternal()
-        socksAddr = null
+    private suspend fun stopArtiAndWait() {
+        lifecycleState = LifecycleState.STOPPING
         _statusFlow.value = _statusFlow.value.copy(
             running = false,
             bootstrapPercent = 0,
             state = TorState.STOPPING
         )
-    }
-
-    private suspend fun stopArtiAndWait(timeoutMs: Long = STOP_TIMEOUT_MS) {
         stopArtiInternal()
-        waitForStateTransition(target = TorState.OFF, timeoutMs = timeoutMs)
+        waitForStateTransition(target = TorState.OFF, timeoutMs = STOP_TIMEOUT_MS)
         delay(200)
+        lifecycleState = LifecycleState.STOPPED
     }
 
     private suspend fun restartArti(application: Application) {
         Log.i(TAG, "Restarting Arti (keeping SOCKS proxy enabled)...")
         stopArtiAndWait()
         delay(RESTART_DELAY_MS)
-        startArti(application, useDelay = false)
+        startArti(application)
     }
 
     suspend fun reconnectThroughTor() {
@@ -408,7 +398,8 @@ class ArtiTorManager private constructor() {
                 lifecycleState == LifecycleState.RUNNING
             ) {
                 Log.w(TAG, "Bootstrap inactivity detected (${timeSinceLastActivity}ms), restarting Arti")
-                currentApplication?.let { restartArti(it) }
+                inactivityJob = null
+                reconnectThroughTor()
             }
         }
     }
@@ -418,7 +409,7 @@ class ArtiTorManager private constructor() {
         inactivityJob = null
     }
 
-    private fun scheduleRetry(application: Application) {
+    private fun scheduleRetry() {
         retryJob?.cancel()
         if (retryAttempts < MAX_RETRY_ATTEMPTS) {
             retryAttempts++
@@ -428,7 +419,8 @@ class ArtiTorManager private constructor() {
                 delay(delayMs)
                 val currentMode = _statusFlow.value.mode
                 if (currentMode == TorMode.ON) {
-                    restartArti(application)
+                    retryJob = null
+                    reconnectThroughTor()
                 }
             }
         } else {
