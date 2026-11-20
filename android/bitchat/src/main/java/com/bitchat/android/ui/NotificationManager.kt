@@ -247,7 +247,7 @@ class NotificationManager(
             .setKey(senderPeerID)
             .build()
         val shortcutID = conversationShortcutID(senderPeerID)
-        publishConversationShortcut(
+        val hasShortcut = publishConversationShortcut(
             shortcutID = shortcutID,
             person = person,
             contentIntent = intent
@@ -276,11 +276,10 @@ class NotificationManager(
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
             .addPerson(person)
-            .setShortcutId(shortcutID)
-            .setLocusId(LocusIdCompat(shortcutID))
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
             .setShowWhen(true)
             .setWhen(latestNotification.timestamp)
+        if (hasShortcut) builder.setShortcutId(shortcutID).setLocusId(LocusIdCompat(shortcutID))
 
         val markReadIntent = Intent(context, ConversationNotificationReceiver::class.java).apply {
             action = ACTION_MARK_CONVERSATION_READ
@@ -368,9 +367,10 @@ class NotificationManager(
         shortcutID: String,
         person: Person,
         contentIntent: Intent
-    ) {
+    ): Boolean = runCatching {
         val shortcut = ShortcutInfoCompat.Builder(context, shortcutID)
-            .setShortLabel(person.name?.toString()?.take(40).orEmpty())
+            .setShortLabel(person.name?.toString()?.take(40)?.takeIf { it.isNotBlank() }
+                ?: context.getString(R.string.prepdesk_chat_notification))
             .setLongLived(true)
             .setPerson(person)
             .setLocusId(LocusIdCompat(shortcutID))
@@ -378,7 +378,18 @@ class NotificationManager(
             .setIntent(Intent(contentIntent).apply { action = Intent.ACTION_VIEW })
             .build()
         ShortcutManagerCompat.pushDynamicShortcut(context, shortcut)
-    }
+    }.onFailure { Log.w(TAG, "Notification shortcut could not be published", it) }.getOrDefault(false)
+
+    fun postTestAlert() = showVerificationNotification(
+        context.getString(R.string.prepdesk_chat_notification),
+        context.getString(R.string.prepdesk_chat_test_body)
+    )
+
+    val privateAlertsChannel get() = CHANNEL_ID
+
+    fun canPostPrivateAlerts(): Boolean =
+        notificationManager.areNotificationsEnabled() &&
+            systemNotificationManager.getNotificationChannel(CHANNEL_ID)?.importance != AndroidNotificationManager.IMPORTANCE_NONE
 
     fun showVerificationNotification(title: String, body: String, peerID: String? = null) {
         val intent = Intent(context, MainActivity::class.java).apply {

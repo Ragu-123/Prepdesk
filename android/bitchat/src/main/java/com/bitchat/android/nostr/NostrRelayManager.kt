@@ -898,6 +898,13 @@ class NostrRelayManager private constructor() {
         }
 
         try {
+            val tor = com.bitchat.android.net.ArtiTorManager.getInstance()
+            if (!tor.awaitSelectedRoute(30_000L)) {
+                handleConnectionCreationFailure(urlString, java.io.IOException("Tor route is not ready"), connectionToken)
+                return
+            }
+            if (!desiredConnected.get() || connections.containsKey(urlString)) return
+
             val request = Request.Builder()
                 .url(urlString)
                 .build()

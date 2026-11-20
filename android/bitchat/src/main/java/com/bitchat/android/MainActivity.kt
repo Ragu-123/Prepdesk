@@ -85,9 +85,11 @@ class MainActivity : OrientationAwareActivity() {
             lifecycleScope.launch {
                 com.bitchat.android.net.ArtiTorManager.getInstance()
                     .applyMode(application, com.bitchat.android.net.TorPreferenceManager.get(this@MainActivity))
+                if (!pausedTransports && !isFinishing) {
+                    com.bitchat.android.nostr.NostrRelayManager.shared.connect()
+                    com.bitchat.android.nostr.NostrBackgroundRuntime.resetSubscriptions()
+                }
             }
-            com.bitchat.android.nostr.NostrRelayManager.shared.connect()
-            com.bitchat.android.nostr.NostrBackgroundRuntime.resetSubscriptions()
             if (mainViewModel.onboardingState.value == OnboardingState.COMPLETE) {
                 unifiedMeshService.startServices()
             }
@@ -783,6 +785,7 @@ class MainActivity : OrientationAwareActivity() {
 
     override fun onResume() {
         super.onResume()
+        com.bitchat.android.services.AppStateStore.isChatActivityResumed = true
         // Revoke stale live-location work before any resumed UI can use cached channels.
         LocationChannelManager.getInstance(applicationContext).syncPermissionState()
 
@@ -817,6 +820,7 @@ class MainActivity : OrientationAwareActivity() {
     }
 
     override fun onPause() {
+        com.bitchat.android.services.AppStateStore.isChatActivityResumed = false
         super.onPause()
         // Only set background state if app is fully initialized
         if (mainViewModel.onboardingState.value == OnboardingState.COMPLETE) {

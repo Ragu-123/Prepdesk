@@ -19,11 +19,21 @@ class StudyReviewActions extends StatelessWidget {
     children: [
       TextButton.icon(
         onPressed: onReview,
-        icon: const Icon(Icons.fact_check_outlined, size: 18),
+        style: TextButton.styleFrom(
+          minimumSize: const Size(0, 36),
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          tapTargetSize: MaterialTapTargetSize.padded,
+        ),
+        icon: const Icon(Icons.fact_check_outlined, size: 16),
         label: Text(count == null || count == 0 ? 'Review mistakes' : 'Review mistakes ($count)'),
       ),
       if (onStart != null) FilledButton.tonalIcon(
         onPressed: onStart,
+        style: FilledButton.styleFrom(
+          minimumSize: const Size(0, 36),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          tapTargetSize: MaterialTapTargetSize.padded,
+        ),
         icon: const Icon(Icons.open_in_new_rounded, size: 16),
         label: Text(startLabel),
       ),

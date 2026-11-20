@@ -127,45 +127,38 @@ class ArtiTorManager private constructor() {
             currentApplication = application
             TorPreferenceManager.init(application)
 
-            val logListener = ArtiLogListener { logLine ->
-                val text = logLine ?: return@ArtiLogListener
-                val s = text
-                lastLogTime.set(System.currentTimeMillis())
-                _statusFlow.update { it.copy(lastLogLine = s) }
-                handleArtiLogLine(s)
-                if (_statusFlow.value.bootstrapPercent < 100) {
-                    armBootstrapInactivityWatchdog()
-                }
-            }
-
-            artiProxy = ArtiProxy.Builder(application)
-                .setSocksPort(currentSocksPort)
-                .setDnsPort(currentSocksPort + 1)
-                .setLogListener(logListener)
-                .build()
+            artiProxy = buildProxy(application)
 
             val savedMode = TorPreferenceManager.get(application)
             if (savedMode == TorMode.ON) {
-                if (currentSocksPort < DEFAULT_SOCKS_PORT) {
-                    currentSocksPort = DEFAULT_SOCKS_PORT
-                }
                 desiredMode = savedMode
                 socksAddr = InetSocketAddress("127.0.0.1", currentSocksPort)
-                try {
-                    OkHttpProvider.reset()
-                } catch (_: Throwable) {
-                }  // Only reset OkHttp during init
+                OkHttpProvider.reset()
             }
-            appScope.launch {
-                applyMode(application, savedMode)
-            }
-
             appScope.launch {
                 TorPreferenceManager.modeFlow.collect { mode ->
                     applyMode(application, mode)
                 }
             }
         }
+    }
+
+    private fun buildProxy(application: Application): ArtiProxy {
+        val logListener = ArtiLogListener { logLine ->
+            val text = logLine ?: return@ArtiLogListener
+            lastLogTime.set(System.currentTimeMillis())
+            _statusFlow.update { it.copy(lastLogLine = text) }
+            handleArtiLogLine(text)
+            if (_statusFlow.value.bootstrapPercent < 100) {
+                armBootstrapInactivityWatchdog()
+            }
+        }
+
+        return ArtiProxy.Builder(application)
+            .setSocksPort(currentSocksPort)
+            .setDnsPort(currentSocksPort + 1)
+            .setLogListener(logListener)
+            .build()
     }
 
     fun currentSocksAddress(): InetSocketAddress? = socksAddr
@@ -221,7 +214,10 @@ class ArtiTorManager private constructor() {
                             bootstrapPercent = 0,
                             state = TorState.OFF
                         )
-                        currentSocksPort = DEFAULT_SOCKS_PORT
+                        if (currentSocksPort != DEFAULT_SOCKS_PORT) {
+                            currentSocksPort = DEFAULT_SOCKS_PORT
+                            artiProxy = buildProxy(application)
+                        }
                         bindRetryAttempts = 0
                         lifecycleState = LifecycleState.STOPPED
                         resetNetworkConnections()
@@ -294,6 +290,8 @@ class ArtiTorManager private constructor() {
                 bindRetryAttempts++
                 currentSocksPort++
                 Log.w(TAG, "Port bind failed (attempt $bindRetryAttempts/$MAX_RETRY_ATTEMPTS), retrying with port $currentSocksPort")
+                stopArtiInternal()
+                artiProxy = buildProxy(application)
                 socksAddr = InetSocketAddress("127.0.0.1", currentSocksPort)
                 resetNetworkConnections()
                 startArti(application, useDelay = false)
@@ -374,6 +372,16 @@ class ArtiTorManager private constructor() {
         stopArtiAndWait()
         delay(RESTART_DELAY_MS)
         startArti(application, useDelay = false)
+    }
+
+    suspend fun reconnectThroughTor() {
+        applyMutex.withLock {
+            val application = currentApplication ?: return
+            if (desiredMode != TorMode.ON) return
+            _statusFlow.update { it.copy(lastLogLine = "", bootstrapPercent = 0, state = TorState.STARTING) }
+            restartArti(application)
+            resetNetworkConnections()
+        }
     }
 
     private fun startInactivityMonitoring() {

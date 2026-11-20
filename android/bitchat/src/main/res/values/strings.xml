@@ -484,6 +484,16 @@
 
   <string name="verify_title">Verify</string>
   <string name="verify_my_qr_title">Scan to verify me</string>
+  <string name="verify_camera_unavailable">Camera unavailable</string>
+  <string name="verify_camera_retry">Try again</string>
+  <string name="prepdesk_chat_notification">BitChat message</string>
+  <string name="prepdesk_chat_test_body">Private-message alerts can reach this device.</string>
+  <string name="prepdesk_chat_test_action">Send test alert</string>
+  <string name="prepdesk_chat_manage_alerts">Android settings</string>
+  <string name="prepdesk_tor_connecting">Tor starting (%1$d%%)</string>
+  <string name="prepdesk_tor_relay_connected">Connected to BitChat relays through Tor</string>
+  <string name="prepdesk_tor_no_relays">Tor is ready. BitChat relays are unavailable.</string>
+  <string name="prepdesk_tor_retry">Retry Tor connection</string>
   <string name="verify_scan_prompt_friend">Scan someone else\'s QR</string>
   <string name="verify_scan_someone">Scan someone else\'s QR</string>
   <string name="verify_show_my_qr">Show my QR</string>

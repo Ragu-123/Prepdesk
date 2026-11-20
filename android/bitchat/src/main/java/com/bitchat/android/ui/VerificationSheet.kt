@@ -77,6 +77,7 @@ import com.bitchat.android.services.VerificationService
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
+import com.google.mlkit.common.MlKit
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
@@ -85,7 +86,6 @@ import com.google.zxing.BarcodeFormat
 import com.google.zxing.common.BitMatrix
 import com.google.zxing.qrcode.QRCodeWriter
 import kotlinx.coroutines.flow.MutableStateFlow
-import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -412,54 +412,71 @@ private fun ScannerView(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var lastValid by remember { mutableStateOf<String?>(null) }
-    val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
-    val cameraExecutor: ExecutorService = remember { Executors.newSingleThreadExecutor() }
+    var cameraUnavailable by remember { mutableStateOf(false) }
+    var cameraAttempt by remember { mutableStateOf(0) }
     val surfaceRequests = remember { MutableStateFlow<SurfaceRequest?>(null) }
     val surfaceRequest by surfaceRequests.collectAsState(initial = null)
     val mainHandler = remember { Handler(Looper.getMainLooper()) }
 
     val onCodeState = rememberUpdatedState(onScan)
-    val analyzer = remember {
-        QRCodeAnalyzer { text ->
-            mainHandler.post {
-                if (text == lastValid) return@post
-                lastValid = text
-                onCodeState.value(text)
+    DisposableEffect(lifecycleOwner, cameraAttempt) {
+        var disposed = false
+        val cameraExecutor = Executors.newSingleThreadExecutor()
+        val analyzer = runCatching {
+            // The library's automatic provider starts in Prepdesk's main process.
+            VerificationMlKit.initialize(context.applicationContext)
+            QRCodeAnalyzer { text ->
+                mainHandler.post {
+                    if (disposed || text == lastValid) return@post
+                    lastValid = text
+                    onCodeState.value(text)
+                }
             }
+        }.onFailure {
+            Log.w("VerificationSheet", "QR scanner could not initialize", it)
+            cameraUnavailable = true
+        }.getOrNull()
+        val cameraProviderFuture = analyzer?.let {
+            runCatching { ProcessCameraProvider.getInstance(context) }.onFailure { error ->
+                Log.w("VerificationSheet", "Camera could not initialize", error)
+                cameraUnavailable = true
+            }.getOrNull()
         }
-    }
-
-    DisposableEffect(Unit) {
         val executor = ContextCompat.getMainExecutor(context)
         var cameraProvider: ProcessCameraProvider? = null
-        var disposed = false
-
-        cameraProviderFuture.addListener(
+        var preview: Preview? = null
+        var analysis: ImageAnalysis? = null
+        cameraProviderFuture?.addListener(
             listener@{
                 if (disposed) return@listener
                 val provider = runCatching { cameraProviderFuture.get() }.getOrElse {
                     Log.w("VerificationSheet", "Camera could not initialize", it)
+                    cameraUnavailable = true
                     return@listener
                 }
                 cameraProvider = provider
-                val preview = Preview.Builder().build().also {
+                val previewUseCase = Preview.Builder().build().also {
                     it.setSurfaceProvider { request -> surfaceRequests.value = request }
+                    preview = it
                 }
-                val analysis = ImageAnalysis.Builder()
+                val analysisUseCase = ImageAnalysis.Builder()
                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                     .build()
-                    .also { it.setAnalyzer(cameraExecutor, analyzer) }
+                    .also {
+                        it.setAnalyzer(cameraExecutor, checkNotNull(analyzer))
+                        analysis = it
+                    }
 
                 runCatching {
-                    provider.unbindAll()
                     provider.bindToLifecycle(
                         lifecycleOwner,
                         CameraSelector.DEFAULT_BACK_CAMERA,
-                        preview,
-                        analysis
+                        previewUseCase,
+                        analysisUseCase
                     )
                 }.onFailure {
-                    Log.w("VerificationSheet", "Failed to bind camera: ${it.message}")
+                    Log.w("VerificationSheet", "Failed to bind camera", it)
+                    cameraUnavailable = true
                 }
             },
             executor
@@ -468,17 +485,40 @@ private fun ScannerView(
         onDispose {
             disposed = true
             surfaceRequests.value = null
-            runCatching { cameraProvider?.unbindAll() }
+            analysis?.clearAnalyzer()
+            runCatching { cameraProvider?.unbind(*listOfNotNull(preview, analysis).toTypedArray()) }
+            analyzer?.close()
             cameraExecutor.shutdown()
         }
     }
 
-    surfaceRequest?.let { request ->
+    if (cameraUnavailable) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(stringResource(R.string.verify_camera_unavailable), color = Color.White)
+            Button(onClick = {
+                cameraUnavailable = false
+                cameraAttempt++
+            }) {
+                Text(stringResource(R.string.verify_camera_retry))
+            }
+        }
+    } else surfaceRequest?.let { request ->
         CameraXViewfinder(
             surfaceRequest = request,
             implementationMode = ImplementationMode.EMBEDDED,
             modifier = Modifier.fillMaxSize()
         )
+    }
+}
+
+private object VerificationMlKit {
+    private var initialized = false
+
+    @Synchronized
+    fun initialize(context: android.content.Context) {
+        if (initialized) return
+        MlKit.initialize(context)
+        initialized = true
     }
 }
 
@@ -527,14 +567,21 @@ internal class QRCodeAnalyzer(
             .build()
     )
 
+    fun close() = scanner.close()
+
     @ExperimentalGetImage
     override fun analyze(imageProxy: ImageProxy) {
         val mediaImage = imageProxy.image ?: run {
             imageProxy.close()
             return
         }
-        val input = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
-        scanner.process(input)
+        val task = runCatching {
+            scanner.process(InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees))
+        }.getOrElse {
+            imageProxy.close()
+            return
+        }
+        task
             .addOnSuccessListener { barcodes ->
                 val text = barcodes.firstOrNull()?.rawValue
                 if (!text.isNullOrBlank()) onCode(text)

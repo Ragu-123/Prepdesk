@@ -57,6 +57,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
@@ -489,6 +493,10 @@ fun AboutSheet(
                         val powDifficulty by PoWPreferenceManager.powDifficulty.collectAsState()
                         val spamFilterEnabled by SpamFilterPreferences.enabled.collectAsState()
                         var backgroundEnabled by remember { mutableStateOf(com.bitchat.android.service.MeshServicePreferences.isBackgroundEnabled(false)) }
+                        val notifications = remember(context) {
+                            androidx.core.app.NotificationManagerCompat.from(context)
+                        }
+                        val requestAlerts = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
                         var liveVoiceEnabled by remember {
                             mutableStateOf(com.bitchat.android.features.voice.LiveVoicePreferences.isEnabled(context))
                         }
@@ -520,9 +528,15 @@ fun AboutSheet(
                                                 (context as? android.app.Activity)?.finish()
                                             } else {
                                                 com.bitchat.android.service.MeshForegroundService.start(context)
+                                                if (android.os.Build.VERSION.SDK_INT >= 33 && !notifications.areNotificationsEnabled()) {
+                                                    requestAlerts.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                                                }
                                             }
                                         }
                                     )
+                                    if (backgroundEnabled) {
+                                        BitChatNotificationActions(context)
+                                    }
 
                                     HorizontalDivider(
                                         modifier = Modifier.padding(start = 54.dp),
@@ -1172,11 +1186,15 @@ fun AboutSheet(
 
                     // Tor Status (when enabled)
                     item(key = "tor_status") {
-                        val torMode = remember { mutableStateOf(TorPreferenceManager.get(context)) }
+                        val torMode by TorPreferenceManager.modeFlow.collectAsState()
                         val torProvider = remember { ArtiTorManager.getInstance() }
                         val torStatus by torProvider.statusFlow.collectAsState()
+                        val relayManager = com.bitchat.android.nostr.NostrRelayManager.shared
+                        val relaysConnected by relayManager.isConnected.collectAsState()
+                        val scope = rememberCoroutineScope()
+                        var reconnecting by remember { mutableStateOf(false) }
 
-                        if (torMode.value == TorMode.ON) {
+                        if (torMode == TorMode.ON) {
                             Column(modifier = Modifier.padding(top = 12.dp)) {
                                 Surface(
                                     modifier = Modifier
@@ -1194,16 +1212,17 @@ fun AboutSheet(
                                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
                                             val statusColor = when {
-                                                torStatus.running && torStatus.bootstrapPercent >= 100 -> colorScheme.primary
+                                                relaysConnected -> colorScheme.primary
                                                 torStatus.running -> palette.accentOrange
                                                 else -> colorScheme.error
                                             }
                                             Surface(color = statusColor, shape = CircleShape, modifier = Modifier.size(10.dp)) {}
                                             Text(
-                                                text = if (torStatus.running) {
-                                                    stringResource(R.string.about_tor_connected, torStatus.bootstrapPercent)
-                                                } else {
-                                                    stringResource(R.string.about_tor_disconnected)
+                                                text = when {
+                                                    !torStatus.running -> stringResource(R.string.about_tor_disconnected)
+                                                    torStatus.bootstrapPercent < 100 -> stringResource(R.string.prepdesk_tor_connecting, torStatus.bootstrapPercent)
+                                                    relaysConnected -> stringResource(R.string.prepdesk_tor_relay_connected)
+                                                    else -> stringResource(R.string.prepdesk_tor_no_relays)
                                                 },
                                                 fontFamily = BitchatFontFamily,
                                                 fontSize = 14.sp,
@@ -1211,14 +1230,19 @@ fun AboutSheet(
                                                 color = colorScheme.onSurface
                                             )
                                         }
-                                        if (torStatus.lastLogLine.isNotEmpty()) {
-                                            Text(
-                                                text = torStatus.lastLogLine.take(120),
-                                                fontSize = 11.sp,
-                                                fontFamily = BitchatFontFamily,
-                                                color = palette.textTertiary,
-                                                maxLines = 2
-                                            )
+                                        if (!relaysConnected) {
+                                            TextButton(enabled = !reconnecting, onClick = {
+                                                scope.launch {
+                                                    reconnecting = true
+                                                    try {
+                                                        torProvider.reconnectThroughTor()
+                                                    } finally {
+                                                        reconnecting = false
+                                                    }
+                                                }
+                                            }) {
+                                                Text(stringResource(R.string.prepdesk_tor_retry))
+                                            }
                                         }
                                     }
                                 }

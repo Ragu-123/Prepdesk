@@ -23,6 +23,10 @@ internal fun prepdeskChatNotification(context: Context, channel: String): Notifi
         .setLargeIcon(BitmapFactory.decodeResource(context.resources, R.drawable.nyro_notification_logo))
         .setColor(chatAccent(context))
         .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+        .setPublicVersion(NotificationCompat.Builder(context, channel)
+            .setSmallIcon(R.drawable.ic_nyro_notification)
+            .setContentTitle(context.getString(R.string.prepdesk_chat_notification))
+            .build())
 
 internal fun NotificationCompat.Builder.withPrepdeskChatBanner(
     context: Context, title: CharSequence, body: CharSequence
@@ -36,5 +40,5 @@ internal fun NotificationCompat.Builder.withPrepdeskChatBanner(
         setTextColor(R.id.chat_banner_title, text)
         setTextColor(R.id.chat_banner_body, text)
     }
-    return setCustomHeadsUpContentView(banner)
+    return setCustomContentView(banner).setCustomHeadsUpContentView(banner)
 }
