@@ -56,6 +56,8 @@ android {
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
         ndk {
+            // Flutter adds its default ABIs before this block is evaluated.
+            abiFilters.clear()
             def apkAbi = System.getenv('PREPDESK_APK_ABI')
             if (apkAbi in ['arm64-v8a', 'x86_64']) {
                 abiFilters apkAbi
