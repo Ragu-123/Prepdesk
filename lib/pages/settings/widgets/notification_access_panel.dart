@@ -79,18 +79,26 @@ class _NotificationAccessPanelState extends State<NotificationAccessPanel> with 
           _row('notifications', Icons.notifications_none_rounded, 'Notifications', 'Banners and reminder alerts'),
           _row('exact', Icons.schedule_rounded, 'Precise timing', 'Required for ringing alarms. Banner reminders can use approximate timing.'),
           _row('fullScreen', Icons.alarm_rounded, 'Full-screen alarms', 'Required to show ringing alarms over the lock screen.'),
+          if (_access?['notifications'] == true && _access?['studyHeadsUp'] == false)
+            Material(
+              color: Colors.transparent,
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(_access?['studyAlerts'] == false
+                    ? 'Study alerts are blocked' : 'Study alerts are set to silent'),
+                subtitle: const Text('Allow banners in the Android notification category.'),
+                trailing: const Icon(Icons.open_in_new_rounded),
+                onTap: () => _native.invokeMethod('openStudyNotificationSettings'),
+              ),
+            ),
         ],
         if (_error != null) Padding(padding: const EdgeInsets.symmetric(vertical: 12),
           child: Text(_error!, style: const TextStyle(color: googleRed))),
         const Divider(height: 24),
         Wrap(spacing: 12, runSpacing: 8, children: [
           OutlinedButton.icon(
-            onPressed: _access?['notifications'] == true && !_busy ? () async {
-              await NotificationService.instance.showInstantNotification(
-                title: 'Prepdesk', body: 'Your notification test is ready.');
-              if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Test sent. Check your notification shade.')));
-            } : null,
+            onPressed: _access?['notifications'] == true && _access?['studyAlerts'] != false && !_busy
+                ? _sendTest : null,
             icon: const Icon(Icons.notifications_active_outlined, size: 18),
             label: const Text('Send test'),
           ),
@@ -100,6 +108,26 @@ class _NotificationAccessPanelState extends State<NotificationAccessPanel> with 
       ]),
     );
   }
+
+  Future<void> _sendTest() async {
+    setState(() => _busy = true);
+    try {
+      final service = NotificationService.instance;
+      final id = await service.showInstantNotification(
+        title: 'Prepdesk', body: 'Your notification test is ready.');
+      final active = await service.flutterLocalNotificationsPlugin.getActiveNotifications();
+      if (!mounted) return;
+      final message = active.any((notification) => notification.id == id)
+          ? 'Test posted. Check your notification shade.'
+          : 'Android did not post the test. Check the study notification category.';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    } catch (_) {
+      if (mounted) setState(() => _error = 'Unable to send the Android notification test.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Widget _row(String key, IconData icon, String title, String subtitle) {
     final enabled = _access?[key] == true;
     return Padding(padding: const EdgeInsets.symmetric(vertical: 12), child: Row(children: [

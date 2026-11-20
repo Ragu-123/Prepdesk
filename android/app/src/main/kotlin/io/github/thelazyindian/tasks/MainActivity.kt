@@ -117,11 +117,20 @@ class MainActivity: FlutterFragmentActivity() {
                 "getNotificationAccess" -> {
                     val alarms = getSystemService(android.content.Context.ALARM_SERVICE) as android.app.AlarmManager
                     val notifications = getSystemService(android.content.Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+                    val studyImportance = notifications.getNotificationChannel("nyro_study_channel")?.importance
                     result.success(mapOf(
                         "notifications" to androidx.core.app.NotificationManagerCompat.from(this).areNotificationsEnabled(),
+                        "studyAlerts" to (studyImportance != android.app.NotificationManager.IMPORTANCE_NONE),
+                        "studyHeadsUp" to (studyImportance == null || studyImportance >= android.app.NotificationManager.IMPORTANCE_HIGH),
                         "exact" to (Build.VERSION.SDK_INT < 31 || alarms.canScheduleExactAlarms()),
                         "fullScreen" to (Build.VERSION.SDK_INT < 34 || notifications.canUseFullScreenIntent())
                     ))
+                }
+                "openStudyNotificationSettings" -> {
+                    startActivity(Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
+                        .putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+                        .putExtra(Settings.EXTRA_CHANNEL_ID, "nyro_study_channel"))
+                    result.success(null)
                 }
                 "openNotificationSettings" -> {
                     val intent = if (Build.VERSION.SDK_INT >= 26) {

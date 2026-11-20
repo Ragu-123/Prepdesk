@@ -216,7 +216,7 @@ class NotificationService {
   }
 
   // Instant notification for testing permissions & channels
-  Future<void> showInstantNotification({
+  Future<int> showInstantNotification({
     required String title,
     required String body,
     String? payload,
@@ -257,6 +257,7 @@ class NotificationService {
         type: type,
       );
     } catch (_) {}
+    return id;
   }
 
   Future<void> scheduleReminder({

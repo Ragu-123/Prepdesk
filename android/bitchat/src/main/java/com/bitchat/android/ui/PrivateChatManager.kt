@@ -446,7 +446,7 @@ class PrivateChatManager(
             val accepted = messageManager.addPrivateMessageDurably(
                 peerID = conversationID,
                 message = message,
-                forceRead = suppressUnread || !trackUnreadMessages
+                forceRead = suppressUnread
             )
             if (!accepted) return false
         }

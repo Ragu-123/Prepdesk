@@ -66,9 +66,7 @@ internal class NostrBackgroundEventProcessor(
         dataManager = dataManager,
         onMessageReceived = { message ->
             message.senderPeerID?.let { peer ->
-                val visible = androidx.lifecycle.ProcessLifecycleOwner.get().lifecycle.currentState
-                    .isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED)
-                notifications.setAppBackgroundState(!visible)
+                notifications.setAppBackgroundState(!AppStateStore.isChatActivityResumed)
                 notifications.setCurrentPrivateChatPeer(AppStateStore.selectedPrivateChatPeer.value)
                 notifications.showPrivateMessageNotification(peer, message.sender,
                     com.bitchat.android.ui.NotificationTextUtils.buildPrivateMessagePreview(message))

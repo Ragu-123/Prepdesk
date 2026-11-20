@@ -334,9 +334,7 @@ object AppStateStore {
         val isRead = forceRead ||
             msg.sender == "system" ||
             msg.sender == _nickname.value ||
-            _selectedPrivateChatPeer.value
-                ?.let(ContactDirectory::canonicalConversationId)
-                ?.equals(conversationID, ignoreCase = true) == true
+            isConversationVisible(conversationID)
         if (isRead) {
             _readPrivateMessageIDs.value = _readPrivateMessageIDs.value + msg.id
         } else {
@@ -367,6 +365,14 @@ object AppStateStore {
         return true
     }
 
+    @Volatile
+    var isChatActivityResumed: Boolean = false
+
+    fun isConversationVisible(conversationID: String): Boolean = isChatActivityResumed &&
+        _selectedPrivateChatPeer.value
+            ?.let(ContactDirectory::canonicalConversationId)
+            ?.equals(conversationID, ignoreCase = true) == true
+
     private fun privateMessagePersistence(
         peerID: String,
         msg: BitchatMessage,
@@ -377,9 +383,7 @@ object AppStateStore {
         val isRead = forceRead ||
             msg.sender == "system" ||
             msg.sender == _nickname.value ||
-            _selectedPrivateChatPeer.value
-                ?.let(ContactDirectory::canonicalConversationId)
-                ?.equals(conversationID, ignoreCase = true) == true
+            isConversationVisible(conversationID)
         val aliases = privateConversationAliases(peerID, conversationID)
         val displayName = ContactDirectory.resolve(conversationID).displayName
             ?: (existingMessages + msg)

@@ -1,8 +1,8 @@
-# Prepdesk v1.1.23
+# Prepdesk v1.1.24
 
-- Smaller 64-bit Android downloads. GitHub APKs compress their native libraries and use only the icon glyphs the app needs. Choose the APK for your device to download just its libraries. The universal 64-bit APK is also available.
-- BitChat settings open from the gear. Chat follows Prepdesk appearance and uses the original BitChat mark in the drawer.
-- Keep BitChat listening enables background private-message alerts. Turn it off to disconnect and close chat.
-- Updated Bluetooth startup, voice recording and camera handling. Relay private messages can show notifications, and incoming chat banners use the app accent.
-- Prepdesk uses separate nearby discovery and public relay channels. Both peers should update. Teleport keeps the map and checks the destination against the country reported by the device location.
-- The second mistake tab shows only the current subject. Swipe in-app notifications to dismiss them.
+- BitChat waits for Tor to bootstrap before opening relay connections. Settings now distinguishes Tor startup from a live relay connection and offers a retry.
+- The verification scanner initializes in the chat process and shows a retry button if the camera is unavailable.
+- Tap the BitChat logo to open settings. The extra gear has been removed.
+- Private messages that arrive while chat is in the background stay unread. BitChat applies the Prepdesk accent to Android notification cards and includes an alert test under Keep BitChat listening.
+- Prepdesk shows when Android blocks or silences the study notification category. Send test checks whether Android posted the test to the shade.
+- Start quiz and Review mistakes use more compact buttons.

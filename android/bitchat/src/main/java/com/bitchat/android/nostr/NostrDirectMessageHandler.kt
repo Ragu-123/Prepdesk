@@ -162,7 +162,6 @@ class NostrDirectMessageHandler(
                     deliveryStatus = DeliveryStatus.Delivered(to = state.getNicknameValue() ?: "Unknown", at = Date())
                 )
 
-                val isViewing = state.getSelectedPrivateChatPeerValue() == conversationID
                 val suppressUnread = seenStore.hasBeenReadLocally(pm.messageID)
 
                 val admitted = withContext(Dispatchers.Main) {
@@ -181,7 +180,7 @@ class NostrDirectMessageHandler(
                     seenStore.markDelivered(pm.messageID)
                 }
 
-                if (isViewing && !suppressUnread) {
+                if (!suppressUnread && com.bitchat.android.services.AppStateStore.isConversationVisible(conversationID)) {
                     val nostrTransport = NostrTransport.getInstance(application)
                     nostrTransport.sendReadReceiptGeohash(pm.messageID, senderPubkey, recipientIdentity)
                     seenStore.markReadLocally(pm.messageID)

@@ -11,6 +11,8 @@ import 'package:tasks/widgets/task_navigation_bar.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   var enabled = true;
+  var studyAlerts = true;
+  var studyHeadsUp = true;
   setUpAll(() async {
     final regular = FontLoader('NotoSans')..addFont(rootBundle.load('assets/google_fonts/NotoSans-Regular.ttf'));
     final icons = FontLoader('MaterialIcons')..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
@@ -18,10 +20,13 @@ void main() {
     await icons.load();
   });
   setUp(() {
+    studyAlerts = true;
+    studyHeadsUp = true;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
       const MethodChannel('io.github.thelazyindian.tasks/native'), (call) async {
         if (call.method == 'getNotificationAccess') return {
           'notifications': enabled, 'exact': enabled, 'fullScreen': enabled,
+          'studyAlerts': studyAlerts, 'studyHeadsUp': studyHeadsUp,
         };
         return null;
       });
@@ -68,5 +73,20 @@ void main() {
     expect(find.text('Enable'), findsNWidgets(3));
     expect(find.text('Enabled'), findsNothing);
     expect(tester.takeException(), isNull);
+  });
+  testWidgets('Blocked study channel disables test even with app notification permission', (tester) async {
+    enabled = true;
+    studyAlerts = false;
+    studyHeadsUp = false;
+    await tester.pumpWidget(const MaterialApp(home: Scaffold(
+      body: SingleChildScrollView(child: NotificationAccessPanel()),
+    )));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Study alerts are blocked'), findsOneWidget);
+    final testButton = find.ancestor(
+      of: find.text('Send test'), matching: find.bySubtype<OutlinedButton>(),
+    );
+    expect(tester.widget<OutlinedButton>(testButton).onPressed, isNull);
   });
 }
