@@ -21,7 +21,8 @@
 3. **Active Repository & Working Directory**:
    - Root project folder: `c:\Users\SEC\Downloads\gate2027\tasksapp\android\Tasks`.
    - Git remote: `gh-origin` -> `https://github.com/Ragu-123/nyro-tasks.git`.
-   - Branch: `master`.
+   - `master` is protected. Use `pre-prod` for all changes and open pull requests from `pre-prod` into `master`.
+   - Keep these two branches in the repository. Use version tags for releases.
    - **Never touch or navigate to `slip-app`** — `Tasks` is the only active application repository.
 
 4. **Modular Architecture — Never Bloat Monolithic Files**:
@@ -202,27 +203,37 @@ $emojiRegex = '[\uD83C-\uDBFF\uDC00-\uDFFF\u2600-\u26FF\u2700-\u27BF]'
   static const String currentVersion = '1.0.18';
   ```
 
-### Step 3: Git Commit & Tag
+### Step 3: Prepare and Verify the Pull Request
+
+Fetch `gh-origin` and fast-forward `pre-prod` to `gh-origin/master` before starting work. Commit the intended changes on `pre-prod`.
+
 ```powershell
-cd c:\Users\SEC\Downloads\gate2027\tasksapp\android\Tasks
-git add -A
-git commit -m "feat(v1.0.18): <concise summary of changes>"
-git tag -a v1.0.18 -m "Release v1.0.18: <release notes>"
+git push gh-origin pre-prod
+gh pr create --repo Ragu-123/nyro-tasks --base master --head pre-prod
+gh workflow run build_apk.yml --repo Ragu-123/nyro-tasks --ref pre-prod
 ```
 
-### Step 4: Push to GitHub & Trigger CI
+Wait for the workflow to succeed for the exact pull request commit before merging. Merge into `master` through the pull request and confirm the merged source matches the tested source.
+
+### Step 4: Tag the Merged Release
+
+Set `$releaseTag` to the agreed version tag and `$mergedCommit` to the pull request's merge commit. Then run:
+
 ```powershell
-git push gh-origin master
-git push gh-origin v1.0.18
+git fetch gh-origin
+git tag -a $releaseTag $mergedCommit -m "Prepdesk $releaseTag"
+git push gh-origin "refs/tags/$releaseTag"
 ```
 
-### Step 5: Monitor GitHub Actions Workflow
-- Use GitHub API with the repository Personal Access Token to poll workflow runs until completed:
+### Step 5: Verify Publication
+
+Use the tagged run's ID as `$runId`.
+
 ```powershell
-$headers = @{ "Authorization" = "Bearer <GH_TOKEN>"; "Accept" = "application/vnd.github+json" }
-$run = Invoke-RestMethod -Uri "https://api.github.com/repos/Ragu-123/nyro-tasks/actions/runs?per_page=1" -Headers $headers
+gh run watch $runId --repo Ragu-123/nyro-tasks --exit-status
 ```
-- Wait for `conclusion == 'success'` (typically 2 to 4 minutes).
+
+Confirm GitHub published the files and checksums. Fast-forward `pre-prod` to the merged `master` and keep it for the next change.
 
 ### Step 6: Download & Mirror Release APK
 - Download the generated `app-release.apk` from the GitHub Release into both:
