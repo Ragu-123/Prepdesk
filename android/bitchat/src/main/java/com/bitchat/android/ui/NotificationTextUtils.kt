@@ -16,6 +16,9 @@ object NotificationTextUtils {
      * - Text: original message content
      */
     fun buildPrivateMessagePreview(message: BitchatMessage): String {
+        if (message.isPrivate) {
+            com.bitchat.android.blend.BlendProtocol.decode(message.content)?.let { return it.event.description }
+        }
         return try {
             when (message.type) {
                 BitchatMessageType.Image -> " sent an image"

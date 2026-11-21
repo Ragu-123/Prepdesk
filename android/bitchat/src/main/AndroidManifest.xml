@@ -114,7 +114,7 @@
             android:exported="false"
             android:excludeFromRecents="true"
             android:taskAffinity="${applicationId}.bitchat"
-            android:label="@string/bitchat_app_name"
+            android:label="@string/prepchat_brand"
             android:theme="@style/Theme.BitchatAndroid"
             android:windowSoftInputMode="adjustResize"
             android:launchMode="singleTop" />

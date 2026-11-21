@@ -435,6 +435,17 @@ fun MessageItem(
     onImageClick: ((String, List<String>, Int) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    if (message.isPrivate) {
+        val studyFrame = remember(message.content) {
+            com.bitchat.android.blend.BlendProtocol.decode(message.content)
+        }
+        if (studyFrame != null) {
+            com.bitchat.android.blend.BlendMessageCard(
+                frame = studyFrame, message = message, modifier = modifier.padding(top = topSpacing)
+            )
+            return
+        }
+    }
     val colorScheme = MaterialTheme.colorScheme
     val timeFormatter = remember { SimpleDateFormat(CHAT_TIMESTAMP_PATTERN, Locale.getDefault()) }
     val spamModifier = if (spamVerdict != null) {

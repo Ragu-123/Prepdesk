@@ -6,6 +6,7 @@ import com.bitchat.android.ui.theme.BitchatFontFamily
 
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.filled.*
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -322,6 +323,7 @@ fun MessageInput(
     activePublicTalker: String? = null,
     modifier: Modifier = Modifier
 ) {
+    val openBlend = com.bitchat.android.blend.LocalBlendNavigation.current
     val palette = LocalBitchatPalette.current
     val colorScheme = MaterialTheme.colorScheme
     val isFocused = remember { mutableStateOf(false) }
@@ -584,6 +586,14 @@ fun MessageInput(
                 } else {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         if (showMediaButtons) {
+                            if (selectedPrivatePeer != null && !isRecording) {
+                                androidx.compose.material3.IconButton(onClick = {
+                                    openBlend(com.bitchat.android.blend.BlendOpen(
+                                        peer = selectedPrivatePeer, shareSchedule = true))
+                                }) {
+                                    androidx.compose.material3.Icon(Icons.Outlined.CalendarToday, "Share schedule")
+                                }
+                            }
                             // The camera steps aside while recording so the microphone is the
                             // only thing that can be released.
                             AnimatedVisibility(

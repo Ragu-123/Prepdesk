@@ -103,7 +103,7 @@ private fun BatteryOptimizationEnabledContent(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                     Text(
-                        text = stringResource(R.string.bitchat_app_name),
+                        text = stringResource(R.string.prepchat_brand),
                     style = MaterialTheme.typography.headlineLarge.copy(
                         fontFamily = BitchatFontFamily,
                         fontWeight = FontWeight.Bold,
@@ -282,7 +282,7 @@ private fun BatteryOptimizationCheckingContent(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = stringResource(R.string.bitchat_app_name),
+                text = stringResource(R.string.prepchat_brand),
                 style = MaterialTheme.typography.headlineLarge.copy(
                     fontFamily = BitchatFontFamily,
                     fontWeight = FontWeight.Bold,
@@ -345,7 +345,7 @@ private fun BatteryOptimizationNotSupportedContent(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = stringResource(R.string.bitchat_app_name),
+                text = stringResource(R.string.prepchat_brand),
                 style = MaterialTheme.typography.headlineLarge.copy(
                     fontFamily = BitchatFontFamily,
                     fontWeight = FontWeight.Bold,

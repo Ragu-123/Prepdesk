@@ -6,6 +6,12 @@ import android.os.Bundle
 import android.util.Log
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.mutableStateOf
+import com.bitchat.android.blend.BlendController
+import com.bitchat.android.blend.BlendOpen
+import com.bitchat.android.blend.BlendPage
+import com.bitchat.android.blend.LocalBlendNavigation
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
@@ -54,6 +60,15 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class MainActivity : OrientationAwareActivity() {
+    private val blendEntry = mutableStateOf<BlendOpen?>(null)
+
+    private fun readBlendIntent(intent: Intent) {
+        when (intent.getStringExtra("prepdesk.destination")) {
+            "blend" -> blendEntry.value = BlendOpen()
+            "shareSchedule" -> blendEntry.value = BlendOpen(shareSchedule = true)
+            else -> blendEntry.value = null
+        }
+    }
 
     private lateinit var permissionManager: PermissionManager
     private lateinit var onboardingCoordinator: OnboardingCoordinator
@@ -192,6 +207,8 @@ class MainActivity : OrientationAwareActivity() {
             onOnboardingFailed = ::handleOnboardingFailed
         )
 
+        readBlendIntent(intent)
+        BlendController.get(this).bind(chatViewModel.privateChatManager)
         setContent {
             BitchatTheme {
                 Scaffold(
@@ -351,6 +368,10 @@ class MainActivity : OrientationAwareActivity() {
             }
 
             OnboardingState.CHECKING, OnboardingState.INITIALIZING, OnboardingState.COMPLETE -> {
+                val entry = blendEntry.value
+                if (entry != null) {
+                    BlendPage(entry, BlendController.get(this), chatViewModel) { blendEntry.value = null }
+                } else {
                 // Set up back navigation handling for the chat screen
                 val backCallback = object : OnBackPressedCallback(true) {
                     override fun handleOnBackPressed() {
@@ -368,7 +389,10 @@ class MainActivity : OrientationAwareActivity() {
 
                 // Add the callback - this will be automatically removed when the activity is destroyed
                 onBackPressedDispatcher.addCallback(this, backCallback)
-                ChatScreen(viewModel = chatViewModel)
+                CompositionLocalProvider(LocalBlendNavigation provides { blendEntry.value = it }) {
+                    ChatScreen(viewModel = chatViewModel)
+                }
+                }
             }
 
             OnboardingState.ERROR -> {
@@ -759,6 +783,7 @@ class MainActivity : OrientationAwareActivity() {
         PrepdeskAppearance.read(intent)
         super.onNewIntent(intent)
         setIntent(intent)
+        readBlendIntent(intent)
 
         // Check if this is a quit request from the notification
         if (intent.getBooleanExtra("ACTION_QUIT_APP", false)) {

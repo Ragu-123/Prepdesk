@@ -1677,6 +1677,7 @@ fun PrivateChatSheet(
     viewModel: ChatViewModel,
     onDismiss: () -> Unit
 ) {
+    val openBlend = com.bitchat.android.blend.LocalBlendNavigation.current
     val colorScheme = MaterialTheme.colorScheme
     val privateChats by viewModel.privateChats.collectAsStateWithLifecycle()
     val peerNicknames by viewModel.peerNicknames.collectAsStateWithLifecycle()
@@ -1818,6 +1819,11 @@ fun PrivateChatSheet(
                     Spacer(modifier = Modifier.height(ChatHeaderHeight))
 
                     HorizontalDivider(thickness = 1.dp, color = colorScheme.outlineVariant)
+
+                    androidx.compose.material3.TextButton(
+                        onClick = { openBlend(com.bitchat.android.blend.BlendOpen(peer = conversationID)) },
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    ) { Text("Study tools") }
 
                     // Messages list
                     var forceScrollToBottom by remember { mutableStateOf(false) }

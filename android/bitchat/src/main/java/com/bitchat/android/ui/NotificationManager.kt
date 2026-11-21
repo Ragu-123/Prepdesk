@@ -445,7 +445,7 @@ class NotificationManager(
 
         val builder = prepdeskChatNotification(context, CHANNEL_ID)
 
-            .setContentTitle(context.getString(R.string.bitchat_app_name))
+            .setContentTitle(context.getString(R.string.prepchat_brand))
             .setContentText(context.getString(R.string.notification_messages_from_people, totalMessages, senderCount))
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)

@@ -4,7 +4,7 @@
 
 # Prepdesk
 
-Prepdesk is an Android study planner for exam preparation. Plan lectures, revisit material on a schedule, and turn past mistakes into a checklist for your next test.
+Prepdesk is an Android study planner for exam preparation. Plan lectures, revisit material on a schedule, review past mistakes, and study with a partner in PrepChat.
 
 [Download the Android APK](https://github.com/Ragu-123/nyro-tasks/releases/latest) · [Build history](https://github.com/Ragu-123/nyro-tasks/actions/workflows/build_apk.yml)
 
@@ -39,9 +39,21 @@ These screenshots show an earlier build of Prepdesk. Private details are obscure
 | **Mistake notebook** | Record the question, your answer, the correction, why you missed it, and the takeaway. Mark mistakes resolved as you improve. |
 | **Keep notes** | Write notes and checklists, add tags and reminders, and protect selected notes with a PIN or an explicit biometric unlock. |
 | **Reminders** | Set single or recurring reminders, add checkpoints, and choose notification banners or ringing alarms with snooze controls. |
-| **BitChat** | Open the native BitChat Android experience from Prepdesk for nearby mesh, encrypted private conversations, relay channels, media, and conversation management. |
+| **PrepChat** | Chat nearby or through private relays, share a schedule, and follow a study partner’s day in Blend. |
 | **Desktop Companion** | Pair a browser on the same network to read and edit regular notes and log mistakes. Protected notes stay on the phone. |
 | **Appearance and backup** | Choose adaptive accents or a fixed theme. Back up and restore the database through a configured Hugging Face Hub account. |
+
+## PrepChat and Blend
+
+Open **PrepChat** from the side drawer for nearby messaging, encrypted private conversations, and study check-ins. Tap the PrepChat logo to open its settings. Use QR verification to confirm a partner’s identity before starting a Blend.
+
+- **Share a schedule.** Choose **Share schedule** in Timetable or in a private chat. Pick the days and study items, preview the card, and send it. The card is a snapshot of your selection.
+- **Compare timetables.** Open **Today → Blend** to compare completion and see which shared lectures, revisits, and quizzes are left. Each person manages their own timetable.
+- **Use a shared checklist.** The owner sets the tasks. Each participating partner marks their own progress.
+- **Watch only.** Choose this role in either mode to see the approved plan and request fresh progress without sharing your own schedule or completion. You can still send a private check-in.
+- **Choose when to update.** Manual updates show a preview before sending. Automatic updates run around the chosen daily time or when a partner requests one. Enable **Keep PrepChat listening** for background updates.
+
+Both partners need a version with Blend support. Updates can travel over Bluetooth or through private relays when both partners have starred each other and the relay route is available. Offline updates remain queued, and Blend shows when your partner’s last update arrived. Only the study fields you approve are shared.
 
 ## Install and get started
 
@@ -52,7 +64,7 @@ These screenshots show an earlier build of Prepdesk. Private details are obscure
 
 ## Development
 
-The app uses Flutter and Dart for the interface, SQLite for local study data, Kotlin for native Android alarms and notification controls, and HTML, CSS, and JavaScript for Desktop Companion.
+The app uses Flutter and Dart for the main interface, SQLite for local study data, Kotlin and Jetpack Compose for PrepChat, and HTML, CSS, and JavaScript for Desktop Companion.
 
 | Path | Responsibility |
 | --- | --- |
@@ -60,10 +72,11 @@ The app uses Flutter and Dart for the interface, SQLite for local study data, Ko
 | `lib/data/` | SQLite storage, migrations, and study models |
 | `lib/services/` | Notifications, desktop pairing, vault credentials, and backups |
 | `android/app/src/main/` | Android manifest, launcher and splash resources, and alarm code |
+| `android/bitchat/` | PrepChat interface, private messaging transports, and Blend features |
 | `test/` | Regression tests for study flows, reminders, and privacy |
 | `images/demo/` | Reviewed screenshots used in this README |
 
-[GitHub Actions](https://github.com/Ragu-123/nyro-tasks/actions/workflows/build_apk.yml) runs Flutter analysis and tests, then builds the GitHub APK and Play bundle. Version tags publish both packages and their checksums to [GitHub Releases](https://github.com/Ragu-123/nyro-tasks/releases). Local source checks and agent instructions are documented in [AGENTS.md](AGENTS.md).
+GitHub Actions runs Flutter checks and PrepChat packet tests, builds the GitHub APKs and Play bundle, and publishes the tagged packages with checksums. Local source checks are documented in AGENTS.md. [Workflow](https://github.com/Ragu-123/nyro-tasks/actions/workflows/build_apk.yml) · [Releases](https://github.com/Ragu-123/nyro-tasks/releases) · [Agent guide](AGENTS.md)
 
 Prepdesk is distributed under the [GNU General Public License v3.0](LICENSE). The [BitChat integration notes](docs/BITCHAT_ANDROID_INTEGRATION.md) record the upstream revision and the changes for Prepdesk.
 

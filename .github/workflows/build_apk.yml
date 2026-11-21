@@ -65,6 +65,9 @@ jobs:
           cp build/app/outputs/flutter-apk/app-github-release.apk release/prepdesk-x86_64.apk
       - name: Build Google Play bundle
         run: flutter build appbundle --release --flavor play --target-platform android-arm64,android-x64 --dart-define=NYRO_PLAY_STORE=true
+      - name: Test PrepChat packet compatibility
+        working-directory: android
+        run: ./gradlew :bitchat:testDebugUnitTest
       - name: Prepare release assets
         run: |
           mkdir -p release

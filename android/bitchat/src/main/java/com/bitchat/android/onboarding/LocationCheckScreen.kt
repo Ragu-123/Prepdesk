@@ -243,7 +243,7 @@ private fun LocationCheckingContent(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = stringResource(R.string.bitchat_app_name),
+            text = stringResource(R.string.prepchat_brand),
             style = MaterialTheme.typography.headlineLarge.copy(
                 fontFamily = BitchatFontFamily,
                 fontWeight = FontWeight.Bold,

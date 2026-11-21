@@ -930,6 +930,26 @@ class ChatViewModel(
 
     // MARK: - Message Sending
 
+    internal fun retryPrivateText(peerID: String) {
+        val peer = com.bitchat.android.services.ContactDirectory.canonicalConversationId(peerID)
+        if (privateChatManager.isPeerBlocked(peer)) return
+        val pending = com.bitchat.android.services.AppStateStore.privateMessages.value[peer].orEmpty()
+            .filter {
+                it.senderPeerID == mesh.myPeerID &&
+                    it.type == com.bitchat.android.model.BitchatMessageType.Message &&
+                    (it.deliveryStatus is com.bitchat.android.model.DeliveryStatus.Sending ||
+                        it.deliveryStatus is com.bitchat.android.model.DeliveryStatus.Failed) &&
+                    com.bitchat.android.blend.BlendProtocol.decode(it.content) == null
+            }
+        val router = com.bitchat.android.services.MessageRouter.getInstance(getApplication(), mesh)
+        for (message in pending) {
+            val route = router.sendPrivate(message.content, peer, nicknameForPeer(peer).orEmpty(), message.id)
+            if (route == com.bitchat.android.services.MessageRouter.RouteResult.NOSTR) {
+                messageManager.updateMessageDeliveryStatus(message.id, com.bitchat.android.model.DeliveryStatus.Sent)
+            }
+        }
+    }
+
     fun sendMessage(
         content: String,
         onAccepted: (Boolean) -> Unit = {}
@@ -1471,6 +1491,7 @@ class ChatViewModel(
         // Every stage that wipes data at rest reports here. The success message is a
         // security assurance, so it requires all of them, not just the conversation database.
         var wipeComplete = true
+        if (!com.bitchat.android.blend.BlendController.get(getApplication()).panicClear()) wipeComplete = false
 
         // Clear seen message store and MessageRouter outbox
         try {

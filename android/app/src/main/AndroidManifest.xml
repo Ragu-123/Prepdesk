@@ -82,6 +82,9 @@
         <provider android:name=".AppearanceProvider"
             android:authorities="${applicationId}.appearance"
             android:exported="false" />
+        <provider android:name=".BlendStudyProvider"
+            android:authorities="${applicationId}.blend.study"
+            android:exported="false" />
 
         <!-- Scheduled Notification Receivers for flutter_local_notifications -->
         <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ActionBroadcastReceiver" />

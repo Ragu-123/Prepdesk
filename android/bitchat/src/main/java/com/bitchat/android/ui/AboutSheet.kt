@@ -518,7 +518,7 @@ fun AboutSheet(
                                     // Background Mode Toggle
                                     SettingsToggleRow(
                                         icon = Icons.Filled.Bluetooth,
-                                        title = "Keep BitChat listening",
+                                        title = "Keep PrepChat listening",
                                         subtitle = "Stay connected for private-message alerts. Turn off to close chat and disconnect.",
                                         checked = backgroundEnabled,
                                         onCheckedChange = { enabled ->

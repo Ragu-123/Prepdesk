@@ -46,13 +46,17 @@ class MainActivity: FlutterFragmentActivity() {
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
                 "getUpdateAbi" -> result.success(Build.SUPPORTED_64_BIT_ABIS.firstOrNull())
-                "openBitChat" -> {
+                "openBitChat", "openBlend", "shareScheduleInPrepChat" -> {
                     val appearance = call.arguments as? Map<*, *>
                     val chat = Intent()
                         .setClassName(packageName, "com.bitchat.android.MainActivity")
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                     appearance?.forEach { (key, value) ->
                         if (key is String && value is Number) chat.putExtra("prepdesk.$key", value.toInt())
+                    }
+                    when (call.method) {
+                        "openBlend" -> chat.putExtra("prepdesk.destination", "blend")
+                        "shareScheduleInPrepChat" -> chat.putExtra("prepdesk.destination", "shareSchedule")
                     }
                     startActivity(chat)
                     result.success(null)
