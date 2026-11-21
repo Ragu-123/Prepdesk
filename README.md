@@ -48,10 +48,13 @@ These screenshots show an earlier build of Prepdesk. Private details are obscure
 Open **PrepChat** from the side drawer for nearby messaging, encrypted private conversations, and study check-ins. Tap the PrepChat logo to open its settings. Use QR verification to confirm a partner’s identity before starting a Blend.
 
 - **Share a schedule.** Choose **Share schedule** in Timetable or in a private chat. Pick the days and study items, preview the card, and send it. The card is a snapshot of your selection.
-- **Compare timetables.** Open **Today → Blend** to compare completion and see which shared lectures, revisits, and quizzes are left. Each person manages their own timetable.
+- **Request a Blend.** Tap the overlapping-circles icon beside the star in a private chat. Choose a plan and a role, then send the request. In timetable mode, each person manages their own schedule and can share completion and what’s left.
 - **Use a shared checklist.** The owner sets the tasks. Each participating partner marks their own progress.
-- **Watch only.** Choose this role in either mode to see the approved plan and request fresh progress without sharing your own schedule or completion. You can still send a private check-in.
-- **Choose when to update.** Manual updates show a preview before sending. Automatic updates run around the chosen daily time or when a partner requests one. Enable **Keep PrepChat listening** for background updates.
+- **Watch only.** Choose this role in either mode or type `/spectate` in a private chat. You can suggest manual, on-request, or daily updates. Your partner chooses what they share and accepts the request.
+- **See progress.** Type `/prepprogress` in the private chat to see the latest approved progress. Check when it arrived or request a fresh update.
+- **Choose when to update.** Open the PrepChat logo, then **Settings → Blend settings** to manage each session. Choose manual preview, automatic replies to requests, or daily updates with automatic replies. Enable **Keep PrepChat listening** for background updates.
+
+Use the offline sharing section in PrepChat settings to prepare the signed Prepdesk APK or share it over a local hotspot.
 
 Both partners need a version with Blend support. Updates can travel over Bluetooth or through private relays when both partners have starred each other and the relay route is available. Offline updates remain queued, and Blend shows when your partner’s last update arrived. Only the study fields you approve are shared.
 
@@ -76,7 +79,7 @@ The app uses Flutter and Dart for the main interface, SQLite for local study dat
 | `test/` | Regression tests for study flows, reminders, and privacy |
 | `images/demo/` | Reviewed screenshots used in this README |
 
-GitHub Actions runs Flutter checks and PrepChat packet tests, builds the GitHub APKs and Play bundle, and publishes the tagged packages with checksums. Local source checks are documented in AGENTS.md. [Workflow](https://github.com/Ragu-123/nyro-tasks/actions/workflows/build_apk.yml) · [Releases](https://github.com/Ragu-123/nyro-tasks/releases) · [Agent guide](AGENTS.md)
+GitHub Actions runs Flutter checks and PrepChat packet tests and builds the APKs and Play bundle on `pre-prod`. After merge, the release tag publishes those same packages and checksums. [Workflow](https://github.com/Ragu-123/nyro-tasks/actions/workflows/build_apk.yml) · [Releases](https://github.com/Ragu-123/nyro-tasks/releases) · [Agent guide](AGENTS.md)
 
 Prepdesk is distributed under the [GNU General Public License v3.0](LICENSE). The [BitChat integration notes](docs/BITCHAT_ANDROID_INTEGRATION.md) record the upstream revision and the changes for Prepdesk.
 

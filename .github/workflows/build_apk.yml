@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: android-${{ github.ref }}
@@ -14,6 +14,7 @@ concurrency:
 
 jobs:
   build:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/pre-prod'
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -89,11 +90,55 @@ jobs:
             build/ui-previews/*.png
             build/desktop-preview/**
           if-no-files-found: ignore
+  publish:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Match release tag to the successful pre-prod build
+        id: provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(git cat-file -t "$GITHUB_REF")" = tag
+          run_id="$(git for-each-ref --format='%(contents:trailers:key=Build-Run,valueonly)' "$GITHUB_REF" | tr -d '[:space:]')"
+          [[ "$run_id" =~ ^[0-9]+$ ]]
+          run="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id")"
+          workflow_id="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/build_apk.yml" --jq .id)"
+          jq -e --argjson workflow "$workflow_id" '
+            .workflow_id == $workflow and .head_branch == "pre-prod" and
+            .event == "workflow_dispatch" and .conclusion == "success"
+          ' <<< "$run" > /dev/null
+          build_sha="$(jq -er .head_sha <<< "$run")"
+          build_tree="$(gh api "repos/$GITHUB_REPOSITORY/git/commits/$build_sha" --jq .tree.sha)"
+          test "$build_tree" = "$(git rev-parse 'HEAD^{tree}')"
+          version="$(sed -n 's/^version: \([^+]*\).*/\1/p' pubspec.yaml)"
+          test "v$version" = "$GITHUB_REF_NAME"
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+      - name: Download tested release packages
+        uses: actions/download-artifact@v4
+        with:
+          name: Prepdesk-Android-Release
+          path: release
+          github-token: ${{ github.token }}
+          run-id: ${{ steps.provenance.outputs.run_id }}
+      - name: Verify release files
+        run: |
+          sha256sum -c release/SHA256SUMS.txt
+          for package in app-release.apk prepdesk-arm64-v8a.apk prepdesk-x86_64.apk prepdesk-play.aab; do
+            test -s "release/$package"
+          done
       - name: Publish tagged release
-        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           files: release/*
+          fail_on_unmatched_files: true
           name: Prepdesk ${{ github.ref_name }}
           draft: false
           prerelease: false

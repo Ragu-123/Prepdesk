@@ -20,6 +20,14 @@ internal enum class BlendRole(val label: String) {
     PARTICIPATE("Participate"), SPECTATOR("Watch only")
 }
 
+internal enum class BlendUpdateMode(val label: String) {
+    MANUAL("Manual"), ON_REQUEST("On request"), DAILY("Daily and on request");
+
+    companion object {
+        fun parse(value: String): BlendUpdateMode? = entries.firstOrNull { it.name == value }
+    }
+}
+
 internal enum class BlendEvent(val description: String) {
     SCHEDULE("Shared a Prepdesk schedule"),
     INVITE("Invited you to a Blend"),

@@ -10,7 +10,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import com.bitchat.android.blend.BlendController
 import com.bitchat.android.blend.BlendOpen
-import com.bitchat.android.blend.BlendPage
+import com.bitchat.android.blend.BlendPanel
 import com.bitchat.android.blend.LocalBlendNavigation
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
@@ -64,7 +64,6 @@ class MainActivity : OrientationAwareActivity() {
 
     private fun readBlendIntent(intent: Intent) {
         when (intent.getStringExtra("prepdesk.destination")) {
-            "blend" -> blendEntry.value = BlendOpen()
             "shareSchedule" -> blendEntry.value = BlendOpen(shareSchedule = true)
             else -> blendEntry.value = null
         }
@@ -368,10 +367,6 @@ class MainActivity : OrientationAwareActivity() {
             }
 
             OnboardingState.CHECKING, OnboardingState.INITIALIZING, OnboardingState.COMPLETE -> {
-                val entry = blendEntry.value
-                if (entry != null) {
-                    BlendPage(entry, BlendController.get(this), chatViewModel) { blendEntry.value = null }
-                } else {
                 // Set up back navigation handling for the chat screen
                 val backCallback = object : OnBackPressedCallback(true) {
                     override fun handleOnBackPressed() {
@@ -391,7 +386,9 @@ class MainActivity : OrientationAwareActivity() {
                 onBackPressedDispatcher.addCallback(this, backCallback)
                 CompositionLocalProvider(LocalBlendNavigation provides { blendEntry.value = it }) {
                     ChatScreen(viewModel = chatViewModel)
-                }
+                    blendEntry.value?.let { entry ->
+                        BlendPanel(entry, BlendController.get(this), chatViewModel) { blendEntry.value = null }
+                    }
                 }
             }
 

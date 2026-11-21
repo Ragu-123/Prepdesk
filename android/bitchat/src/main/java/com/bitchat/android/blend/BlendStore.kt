@@ -16,6 +16,8 @@ internal data class BlendSession(
     val active: Boolean = false,
     val stopped: Boolean = false,
     val automaticAt: String? = null,
+    val autoReply: Boolean = automaticAt != null,
+    val requestedUpdates: BlendUpdateMode? = null,
     val categories: Set<String> = BlendProtocol.categories.toSet(),
     val tasks: List<BlendItem> = emptyList(),
     val mineDone: Set<String> = emptySet(),
@@ -30,6 +32,7 @@ internal data class BlendSession(
     fun json() = JSONObject().put("id", id).put("peer", peer).put("mode", mode.name)
         .put("owner", owner).put("role", role.name).put("peerRole", peerRole.name)
         .put("active", active).put("stopped", stopped).put("auto", automaticAt)
+        .put("autoReply", autoReply).put("requestedUpdates", requestedUpdates?.name)
         .put("categories", JSONArray(categories.toList())).put("tasks", BlendProtocol.pack(tasks))
         .put("mine", JSONArray(mineDone.toList())).put("theirs", BlendProtocol.pack(theirs))
         .put("receivedAt", receivedAt).put("remoteRevision", remoteRevision)
@@ -37,17 +40,28 @@ internal data class BlendSession(
         .put("scheduledDay", scheduledDay).put("requested", requested)
 
     companion object {
-        fun parse(row: JSONObject) = BlendSession(
+        fun parse(row: JSONObject): BlendSession {
+            val time = row.optString("auto").takeIf { it.isNotBlank() }
+            return BlendSession(
             id = row.getString("id"), peer = row.getString("peer"), mode = BlendMode.valueOf(row.getString("mode")),
             owner = row.getBoolean("owner"), role = BlendRole.valueOf(row.getString("role")),
             peerRole = BlendRole.valueOf(row.getString("peerRole")), active = row.optBoolean("active"),
-            stopped = row.optBoolean("stopped"), automaticAt = row.optString("auto").takeIf { it.isNotBlank() },
+            stopped = row.optBoolean("stopped"), automaticAt = time,
+            autoReply = row.optBoolean("autoReply", time != null),
+            requestedUpdates = BlendUpdateMode.parse(row.optString("requestedUpdates")),
             categories = row.optJSONArray("categories").strings().toSet(), tasks = BlendProtocol.items(row.optJSONArray("tasks")),
             mineDone = row.optJSONArray("mine").strings().toSet(), theirs = BlendProtocol.items(row.optJSONArray("theirs")),
             receivedAt = row.optLong("receivedAt"), remoteRevision = row.optLong("remoteRevision"),
             remotePlanRevision = row.optLong("remotePlanRevision"), localRevision = row.optLong("localRevision"),
             scheduledDay = row.optString("scheduledDay"), requested = row.optBoolean("requested")
-        )
+            )
+        }
+    }
+
+    val updateMode: BlendUpdateMode get() = when {
+        automaticAt != null -> BlendUpdateMode.DAILY
+        autoReply -> BlendUpdateMode.ON_REQUEST
+        else -> BlendUpdateMode.MANUAL
     }
 }
 
