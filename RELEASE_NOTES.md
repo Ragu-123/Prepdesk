@@ -4,4 +4,4 @@
 - Type `/spectate` for watch-only setup or `/prepprogress` to see the latest shared progress and request an update.
 - Manage update times, sharing choices, and watch-only sessions from Blend settings between Spam Filter and Tor.
 - Offline APK downloads and hotspot sharing use the signed Prepdesk release.
-- GitHub Releases publishes the already-tested APKs and Play bundle from pre-prod.
+- GitHub Releases includes the APKs tested on `pre-prod` and their SHA-256 checksums.

@@ -173,6 +173,8 @@ In `settings_page.dart`, the categories must be ordered:
 
 ## 5. Step-by-Step GitHub Actions Release Procedure
 
+Build and publish only APKs and their SHA-256 checksums. Skip the Google Play bundle.
+
 When asked to update the app, fix bugs, or build a new version:
 
 ### Step 1: Code Changes & AST Verification
