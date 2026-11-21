@@ -60,7 +60,7 @@ Both partners need a version with Blend support. Updates can travel over Bluetoo
 
 ## Install and get started
 
-1. Open the [latest release](https://github.com/Ragu-123/nyro-tasks/releases/latest). Choose `prepdesk-arm64-v8a.apk` for ARM64 phones, `prepdesk-x86_64.apk` for x86-64 devices, or `app-release.apk` if you need the universal 64-bit file. The release includes checksums and a Play bundle.
+1. Open the [latest release](https://github.com/Ragu-123/nyro-tasks/releases/latest). Choose `prepdesk-arm64-v8a.apk` for ARM64 phones, `prepdesk-x86_64.apk` for x86-64 devices, or `app-release.apk` if you need the universal 64-bit file. SHA-256 checksums are included.
 2. Open **Today** to see your study day. Use the plus button to add an entry for the section you’re in. Open **Timetable** to browse the wider schedule.
 3. Open **Settings → Reminders & Routine** if you want system notifications or ringing alarms. Android controls the permissions for each alert type.
 4. To pair a browser, open **Settings → Desktop Companion Studio**, start the local server, and use the address and pairing code shown on your phone.
@@ -79,7 +79,7 @@ The app uses Flutter and Dart for the main interface, SQLite for local study dat
 | `test/` | Regression tests for study flows, reminders, and privacy |
 | `images/demo/` | Reviewed screenshots used in this README |
 
-GitHub Actions runs Flutter checks and PrepChat packet tests and builds the APKs and Play bundle on `pre-prod`. After merge, the release tag publishes those same packages and checksums. [Workflow](https://github.com/Ragu-123/nyro-tasks/actions/workflows/build_apk.yml) · [Releases](https://github.com/Ragu-123/nyro-tasks/releases) · [Agent guide](AGENTS.md)
+GitHub Actions runs Flutter checks and PrepChat packet tests and builds APKs on `pre-prod`. After merge, the release tag publishes those same APKs and checksums. [Workflow](https://github.com/Ragu-123/nyro-tasks/actions/workflows/build_apk.yml) · [Releases](https://github.com/Ragu-123/nyro-tasks/releases) · [Agent guide](AGENTS.md)
 
 Prepdesk is distributed under the [GNU General Public License v3.0](LICENSE). The [BitChat integration notes](docs/BITCHAT_ANDROID_INTEGRATION.md) record the upstream revision and the changes for Prepdesk.
 

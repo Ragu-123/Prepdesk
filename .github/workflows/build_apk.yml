@@ -64,23 +64,23 @@ jobs:
           cp build/app/outputs/flutter-apk/app-github-release.apk release/prepdesk-arm64-v8a.apk
           PREPDESK_APK_ABI=x86_64 flutter build apk --release --flavor github --target-platform android-x64
           cp build/app/outputs/flutter-apk/app-github-release.apk release/prepdesk-x86_64.apk
-      - name: Build Google Play bundle
-        run: flutter build appbundle --release --flavor play --target-platform android-arm64,android-x64 --dart-define=NYRO_PLAY_STORE=true
       - name: Test PrepChat packet compatibility
         working-directory: android
         run: ./gradlew :bitchat:testDebugUnitTest
       - name: Prepare release assets
         run: |
           mkdir -p release
-          cp build/app/outputs/bundle/playRelease/app-play-release.aab release/prepdesk-play.aab
           sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
           python3 scripts/check_release_packages.py release "$sdk_root/build-tools/37.0.0/aapt"
-          sha256sum release/* > release/SHA256SUMS.txt
+          sha256sum release/*.apk > release/SHA256SUMS.txt
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: Prepdesk-Android-Release
-          path: release/*
+          path: |
+            release/*.apk
+            release/SHA256SUMS.txt
+          if-no-files-found: error
       - name: Upload UI previews
         if: always()
         uses: actions/upload-artifact@v4
@@ -99,14 +99,15 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       - name: Match release tag to the successful pre-prod build
         id: provenance
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # Checkout may recreate the local tag as a reference to the event commit.
+          git fetch --no-tags origin "+$GITHUB_REF:$GITHUB_REF"
           test "$(git cat-file -t "$GITHUB_REF")" = tag
+          test "$(git rev-parse "$GITHUB_REF^{commit}")" = "$(git rev-parse HEAD)"
           run_id="$(git for-each-ref --format='%(contents:trailers:key=Build-Run,valueonly)' "$GITHUB_REF" | tr -d '[:space:]')"
           [[ "$run_id" =~ ^[0-9]+$ ]]
           run="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id")"
@@ -131,13 +132,15 @@ jobs:
       - name: Verify release files
         run: |
           sha256sum -c release/SHA256SUMS.txt
-          for package in app-release.apk prepdesk-arm64-v8a.apk prepdesk-x86_64.apk prepdesk-play.aab; do
+          for package in app-release.apk prepdesk-arm64-v8a.apk prepdesk-x86_64.apk; do
             test -s "release/$package"
           done
       - name: Publish tagged release
         uses: softprops/action-gh-release@v2
         with:
-          files: release/*
+          files: |
+            release/*.apk
+            release/SHA256SUMS.txt
           fail_on_unmatched_files: true
           name: Prepdesk ${{ github.ref_name }}
           draft: false
