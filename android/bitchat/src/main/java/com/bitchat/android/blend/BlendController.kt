@@ -75,19 +75,22 @@ internal class BlendController private constructor(private val app: Context) {
         return BlendProtocol.items(JSONArray(data), limit = 2_000)
     }
 
-    fun invite(peer: String, mode: BlendMode, role: BlendRole, at: String?, categories: Set<String>) = action {
+    fun invite(peer: String, mode: BlendMode, role: BlendRole, updates: BlendUpdateMode, at: String?, categories: Set<String>) = action {
         require(sessions.value.none {
             !it.stopped && it.mode == mode && it.role == role && canonical(it.peer) == canonical(peer)
         }) { "You already have a Blend with this role and plan." }
         val id = id()
+        val preference = updates.takeIf { role == BlendRole.SPECTATOR }
         val session = BlendSession(id, canonical(peer), mode, true, role = role,
-            automaticAt = at.takeIf { role == BlendRole.PARTICIPATE }, categories = categories)
+            automaticAt = at.takeIf { role == BlendRole.PARTICIPATE && updates == BlendUpdateMode.DAILY },
+            autoReply = role == BlendRole.PARTICIPATE && updates != BlendUpdateMode.MANUAL,
+            requestedUpdates = preference, categories = categories)
         queue(session.peer, BlendFrame(BlendEvent.INVITE, id,
-            JSONObject().put("mode", mode.name).put("role", role.name)))
+            JSONObject().put("mode", mode.name).put("role", role.name).put("updates", preference?.name)))
         put(session)
     }
 
-    fun accept(session: BlendSession, role: BlendRole, at: String?, categories: Set<String>) = action {
+    fun accept(session: BlendSession, role: BlendRole, updates: BlendUpdateMode, at: String?, categories: Set<String>) = action {
         val current = current(session.id)
         require(!current.owner && !current.active && !current.stopped)
         require(role != BlendRole.SPECTATOR || current.peerRole != BlendRole.SPECTATOR) {
@@ -95,13 +98,16 @@ internal class BlendController private constructor(private val app: Context) {
         }
         queue(current.peer, BlendFrame(BlendEvent.ACCEPT, current.id, JSONObject().put("role", role.name)))
         put(current.copy(active = true, role = role,
-            automaticAt = at.takeIf { role == BlendRole.PARTICIPATE }, categories = categories))
+            automaticAt = at.takeIf { role == BlendRole.PARTICIPATE && updates == BlendUpdateMode.DAILY },
+            autoReply = role == BlendRole.PARTICIPATE && updates != BlendUpdateMode.MANUAL, categories = categories,
+            requested = role == BlendRole.PARTICIPATE && current.peerRole == BlendRole.SPECTATOR))
     }
 
-    fun updateSettings(session: BlendSession, at: String?, categories: Set<String>) = action {
+    fun updateSettings(session: BlendSession, updates: BlendUpdateMode, at: String?, categories: Set<String>) = action {
         val current = current(session.id)
         require(current.active && !current.stopped && current.role == BlendRole.PARTICIPATE)
-        if (current.automaticAt != at || current.categories != categories) {
+        val dailyAt = at.takeIf { updates == BlendUpdateMode.DAILY }
+        if (current.updateMode != updates || current.automaticAt != dailyAt || current.categories != categories) {
             pending.values.removeAll {
                 val frame = BlendProtocol.decode(it.text)
                 if (it.peer != current.peer || frame == null || frame.blend != current.id ||
@@ -113,7 +119,7 @@ internal class BlendController private constructor(private val app: Context) {
                 }
             }
         }
-        put(current.copy(automaticAt = at, categories = categories))
+        put(current.copy(automaticAt = dailyAt, autoReply = updates != BlendUpdateMode.MANUAL, categories = categories))
     }
 
     fun shareSchedule(peer: String, items: List<BlendItem>) = action {
@@ -180,12 +186,15 @@ internal class BlendController private constructor(private val app: Context) {
         val day = LocalDate.now().toString()
         val now = LocalTime.now()
         val due = sessions.value.filter {
-            it.active && !it.stopped && it.role == BlendRole.PARTICIPATE && it.automaticAt != null &&
-                (it.requested || it.scheduledDay != day && now >= LocalTime.parse(it.automaticAt))
+            it.active && !it.stopped && it.role == BlendRole.PARTICIPATE &&
+                (it.requested && it.autoReply ||
+                    it.automaticAt != null && it.scheduledDay != day && now >= LocalTime.parse(it.automaticAt))
         }
         for (session in due) guarded {
             sendSnapshot(session)
-            if (now >= LocalTime.parse(session.automaticAt)) put(current(session.id).copy(scheduledDay = day))
+            if (session.automaticAt != null && now >= LocalTime.parse(session.automaticAt)) {
+                put(current(session.id).copy(scheduledDay = day))
+            }
             persist()
         }
     }
@@ -233,7 +242,8 @@ internal class BlendController private constructor(private val app: Context) {
         if (frame.event == BlendEvent.INVITE && session == null) {
             val mode = runCatching { BlendMode.valueOf(frame.data.getString("mode")) }.getOrNull() ?: return
             val role = remoteRole(frame) ?: return
-            put(BlendSession(frame.blend, peer, mode, false, peerRole = role))
+            put(BlendSession(frame.blend, peer, mode, false, peerRole = role,
+                requestedUpdates = BlendUpdateMode.parse(frame.data.optString("updates")).takeIf { role == BlendRole.SPECTATOR }))
             return
         }
         if (session == null || canonical(session.peer) != peer || session.stopped) return
@@ -241,7 +251,8 @@ internal class BlendController private constructor(private val app: Context) {
             BlendEvent.ACCEPT -> if (session.owner && !session.active) {
                 val role = remoteRole(frame) ?: return
                 if (role != BlendRole.SPECTATOR || session.role != BlendRole.SPECTATOR)
-                    put(session.copy(active = true, peerRole = role))
+                    put(session.copy(active = true, peerRole = role,
+                        requested = session.role == BlendRole.PARTICIPATE && role == BlendRole.SPECTATOR))
             }
             BlendEvent.PLAN -> if (session.active && !session.owner && session.mode == BlendMode.CHECKLIST) {
                 val revision = frame.data.optLong("revision")
@@ -256,8 +267,11 @@ internal class BlendController private constructor(private val app: Context) {
             }
             BlendEvent.REQUEST -> if (session.active && session.role == BlendRole.PARTICIPATE) {
                 put(session.copy(requested = true))
-                if (session.automaticAt != null) scope.launch {
-                    action { sendSnapshot(current(session.id)) }
+                if (session.autoReply) scope.launch {
+                    action {
+                        val latest = current(session.id)
+                        if (latest.autoReply && latest.requested && latest.active && !latest.stopped) sendSnapshot(latest)
+                    }
                 }
             }
             BlendEvent.STOP -> {

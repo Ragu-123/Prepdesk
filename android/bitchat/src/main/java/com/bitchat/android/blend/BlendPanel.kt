@@ -37,7 +37,7 @@ import java.util.UUID
 internal data class BlendOpen(
     val peer: String? = null, val shareSchedule: Boolean = false, val frame: BlendFrame? = null,
     val start: Boolean = false, val watchOnly: Boolean = false, val settings: Boolean = false,
-    val sessionId: String? = null
+    val sessionId: String? = null, val progressOnly: Boolean = false
 )
 
 internal val LocalBlendNavigation = staticCompositionLocalOf<(BlendOpen) -> Unit> { {} }
@@ -66,8 +66,10 @@ internal fun BlendPanel(
     }
     val existing = eligible.firstOrNull {
         it.active && (!entry.watchOnly || it.peerRole == BlendRole.PARTICIPATE)
-    } ?: eligible.firstOrNull()
-    var opened by remember(entry) { mutableStateOf(entry.sessionId ?: entry.frame?.blend ?: existing?.id.takeIf { entry.start }) }
+    } ?: eligible.firstOrNull().takeUnless { entry.progressOnly }
+    var opened by remember(entry) {
+        mutableStateOf(entry.sessionId ?: entry.frame?.blend ?: existing?.id.takeIf { entry.start || entry.progressOnly })
+    }
     var action by remember(entry) { mutableStateOf(if (entry.shareSchedule) PageAction.SHARE else PageAction.NONE) }
     var taskToEdit by remember { mutableStateOf<BlendItem?>(null) }
     var showConnection by remember { mutableStateOf(false) }
@@ -94,6 +96,7 @@ internal fun BlendPanel(
             onClose = onExit,
             title = { BitchatSheetTitle(when {
                 entry.settings -> "Blend settings"
+                entry.progressOnly -> "Shared progress"
                 selected != null -> selected.mode.label
                 entry.frame?.event == BlendEvent.SCHEDULE -> "Shared schedule"
                 else -> "Blend"
@@ -116,12 +119,23 @@ internal fun BlendPanel(
                     StudyGroups(BlendProtocol.items(frame.data.optJSONArray("items")))
                 }
                 frame?.event == BlendEvent.CHECK_IN -> Text(frame.data.optString("label").take(120))
+                entry.progressOnly && selected == null -> {
+                    Text("No shared progress yet", style = MaterialTheme.typography.titleMedium)
+                    Text("Progress appears here after your partner accepts a request and shares an update.")
+                    if (person != null) Button(onClick = {
+                        if (peerVerified(person)) action = PageAction.SETUP else {
+                            onExit()
+                            viewModel.showVerificationSheet()
+                        }
+                    }) { Text(if (peerVerified(person)) "Request to watch" else "Verify partner by QR") }
+                }
                 selected != null -> {
                     val partner = name(selected.peer)
                     Text(partner, style = MaterialTheme.typography.titleLarge)
                     Text(if (selected.stopped) "Blend ended" else if (selected.active) selected.role.label else "Invitation pending")
                     if (!selected.active && !selected.stopped && !selected.owner) {
                         Text("${partner} wants to ${selected.peerRole.label.lowercase()}. Choose what you share before accepting.")
+                        selected.requestedUpdates?.let { Text("Requested updates · ${it.label}") }
                         Button(onClick = {
                             if (peerVerified(selected.peer)) action = PageAction.SETUP else {
                                 onExit()
@@ -132,7 +146,7 @@ internal fun BlendPanel(
                         Text("Your partner needs an updated PrepChat to accept this invitation.")
                     }
                     if (selected.active) {
-                        if (selected.role == BlendRole.PARTICIPATE) {
+                        if (!entry.progressOnly && selected.role == BlendRole.PARTICIPATE) {
                             var myItems by remember(selected) { mutableStateOf<List<BlendItem>?>(null) }
                             LaunchedEffect(selected) {
                                 myItems = withContext(Dispatchers.IO) {
@@ -153,14 +167,19 @@ internal fun BlendPanel(
                             StudyGroups(selected.theirs)
                         }
                         if (!selected.stopped && selected.peerRole == BlendRole.PARTICIPATE) {
-                            OutlinedButton(onClick = { controller.request(selected) }) { Text("Request update") }
+                            var updateRequested by remember(selected.id, selected.receivedAt) { mutableStateOf(false) }
+                            OutlinedButton(onClick = {
+                                controller.request(selected)
+                                updateRequested = true
+                            }) { Text(if (updateRequested) "Request again" else "Request update") }
+                            if (updateRequested) Text("Waiting for shared progress.", style = MaterialTheme.typography.bodySmall)
                         }
-                        if (!selected.stopped && selected.role == BlendRole.PARTICIPATE) {
+                        if (!entry.progressOnly && !selected.stopped && selected.role == BlendRole.PARTICIPATE) {
                             if (selected.requested) Text("$partner requested an update.")
                             Button(onClick = { action = PageAction.PROGRESS }) { Text("Preview my update") }
                             TextButton(onClick = { action = PageAction.SETTINGS }) { Text("Sharing settings") }
                         }
-                        if (!selected.stopped && selected.mode == BlendMode.CHECKLIST) {
+                        if (!entry.progressOnly && !selected.stopped && selected.mode == BlendMode.CHECKLIST) {
                             Text("Shared checklist", style = MaterialTheme.typography.titleMedium)
                             selected.tasks.forEach { item ->
                                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -180,7 +199,7 @@ internal fun BlendPanel(
                             }) { Text("Add task") }
                         }
                     }
-                    if (!selected.stopped) TextButton(onClick = { stop = true }) { Text("End Blend") }
+                    if (!entry.progressOnly && !selected.stopped) TextButton(onClick = { stop = true }) { Text("End Blend") }
                 }
                 person != null && action != PageAction.SHARE -> {
                     Text(name(person), style = MaterialTheme.typography.headlineSmall)
@@ -264,11 +283,12 @@ internal fun BlendPanel(
     when (action) {
         PageAction.SETUP, PageAction.SETTINGS -> if (peer != null) {
             val editing = action == PageAction.SETTINGS
-            BlendSetup(selected, editing, entry.watchOnly, onDismiss = { action = PageAction.NONE }) { mode, role, time, categories ->
+            BlendSetup(selected, editing, entry.watchOnly || entry.progressOnly,
+                onDismiss = { action = PageAction.NONE }) { mode, role, updates, time, categories ->
                 when {
-                    editing && selected != null -> controller.updateSettings(selected, time, categories)
-                    selected != null -> controller.accept(selected, role, time, categories)
-                    else -> controller.invite(checkNotNull(peer), mode, role, time, categories)
+                    editing && selected != null -> controller.updateSettings(selected, updates, time, categories)
+                    selected != null -> controller.accept(selected, role, updates, time, categories)
+                    else -> controller.invite(checkNotNull(peer), mode, role, updates, time, categories)
                 }
                 action = PageAction.NONE
             }
@@ -387,7 +407,7 @@ private fun StudyGroups(items: List<BlendItem>) {
 @Composable
 private fun BlendSetup(
     session: BlendSession?, editing: Boolean, watchOnly: Boolean, onDismiss: () -> Unit,
-    onSave: (BlendMode, BlendRole, String?, Set<String>) -> Unit
+    onSave: (BlendMode, BlendRole, BlendUpdateMode, String?, Set<String>) -> Unit
 ) {
     val context = LocalContext.current
     var mode by remember { mutableStateOf(session?.mode ?: BlendMode.TIMETABLE) }
@@ -398,14 +418,21 @@ private fun BlendSetup(
             else -> BlendRole.PARTICIPATE
         })
     }
-    var automatic by remember { mutableStateOf(session?.automaticAt != null) }
+    var updates by remember {
+        mutableStateOf(when {
+            editing -> session?.updateMode ?: BlendUpdateMode.MANUAL
+            session?.requestedUpdates != null -> session.requestedUpdates
+            watchOnly -> BlendUpdateMode.ON_REQUEST
+            else -> BlendUpdateMode.MANUAL
+        })
+    }
     var time by remember { mutableStateOf(LocalTime.parse(session?.automaticAt ?: "19:00")) }
     var categories by remember { mutableStateOf(session?.categories ?: BlendProtocol.categories.toSet()) }
     val valid = !(role == BlendRole.SPECTATOR && session?.peerRole == BlendRole.SPECTATOR && session != null) &&
         (role == BlendRole.SPECTATOR || mode == BlendMode.CHECKLIST || categories.isNotEmpty())
-    BlendDialog(if (editing) "Sharing settings" else if (session == null) "Start a Blend" else "Accept Blend",
-        onDismiss, if (editing) "Save" else if (session == null) "Send invitation" else "Accept", valid, {
-            onSave(mode, role, if (automatic && role == BlendRole.PARTICIPATE) time.toString() else null, categories)
+    BlendDialog(if (editing) "Sharing settings" else if (session == null) "Request a Blend" else "Accept Blend",
+        onDismiss, if (editing) "Save" else if (session == null) "Send request" else "Accept", valid, {
+            onSave(mode, role, updates, if (updates == BlendUpdateMode.DAILY && role == BlendRole.PARTICIPATE) time.toString() else null, categories)
         }) {
         if (session == null) FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             BlendMode.entries.forEach { option -> FilterChip(mode == option, { mode = option }, { Text(option.label) }) }
@@ -425,6 +452,13 @@ private fun BlendSetup(
                 }
             }
         }
+        Text(if (role == BlendRole.SPECTATOR) "Request updates" else "Send updates",
+            style = MaterialTheme.typography.titleSmall)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            BlendUpdateMode.entries.forEach { option ->
+                FilterChip(updates == option, { updates = option }, { Text(option.label) })
+            }
+        }
         if (role == BlendRole.PARTICIPATE) {
             if (mode == BlendMode.TIMETABLE) {
                 Text("Share titles, dates, and completion for")
@@ -436,20 +470,17 @@ private fun BlendSetup(
                     }
                 }
             }
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(!automatic, { automatic = false }, { Text("Manual") })
-                FilterChip(automatic, { automatic = true }, { Text("Automatic") })
-            }
-            if (automatic) {
-                Text("Send daily and when your partner requests an update.")
+            if (updates != BlendUpdateMode.MANUAL) {
+                Text(if (updates == BlendUpdateMode.DAILY) "Send daily and when your partner requests an update."
+                    else "Automatically reply when your partner requests an update.")
                 Text("For updates while you’re away, enable Keep PrepChat listening.",
                     style = MaterialTheme.typography.bodySmall)
-                TextButton(onClick = {
+                if (updates == BlendUpdateMode.DAILY) TextButton(onClick = {
                     TimePickerDialog(context, { _, hour, minute -> time = LocalTime.of(hour, minute) },
                         time.hour, time.minute, android.text.format.DateFormat.is24HourFormat(context)).show()
                 }) { Text("Daily update at $time") }
             } else Text("Review each update before it leaves your device.")
-        }
+        } else Text("Your partner chooses what to share and accepts before any progress appears.")
     }
 }
 

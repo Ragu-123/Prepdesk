@@ -48,10 +48,11 @@ These screenshots show an earlier build of Prepdesk. Private details are obscure
 Open **PrepChat** from the side drawer for nearby messaging, encrypted private conversations, and study check-ins. Tap the PrepChat logo to open its settings. Use QR verification to confirm a partner’s identity before starting a Blend.
 
 - **Share a schedule.** Choose **Share schedule** in Timetable or in a private chat. Pick the days and study items, preview the card, and send it. The card is a snapshot of your selection.
-- **Start a Blend.** Tap the overlapping-circles icon beside the star in a private chat. Find active Blends and invitations under Conversations and People in PrepChat’s Network. In timetable mode, each person manages their own schedule and can share completion and what’s left.
+- **Request a Blend.** Tap the overlapping-circles icon beside the star in a private chat. Choose a plan and a role, then send the request. In timetable mode, each person manages their own schedule and can share completion and what’s left.
 - **Use a shared checklist.** The owner sets the tasks. Each participating partner marks their own progress.
-- **Watch only.** Choose this role in either mode or type `/spectate` in a private chat. You can see the approved plan and request fresh progress while keeping your own schedule and completion private.
-- **Choose when to update.** Open the PrepChat logo, then **Settings → Blend settings** to manage sharing for each session. Manual updates show a preview. Automatic updates run around the chosen daily time or when a partner requests one. Enable **Keep PrepChat listening** for background updates.
+- **Watch only.** Choose this role in either mode or type `/spectate` in a private chat. You can suggest manual, on-request, or daily updates. Your partner chooses what they share and accepts the request.
+- **See progress.** Type `/prepprogress` in the private chat to see the latest approved progress. Check when it arrived or request a fresh update.
+- **Choose when to update.** Open the PrepChat logo, then **Settings → Blend settings** to manage each session. Choose manual preview, automatic replies to requests, or daily updates with automatic replies. Enable **Keep PrepChat listening** for background updates.
 
 Use the offline sharing section in PrepChat settings to prepare the signed Prepdesk APK or share it over a local hotspot.
 

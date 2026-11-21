@@ -489,8 +489,6 @@
   <string name="verify_camera_retry">Try again</string>
   <string name="prepdesk_chat_notification">PrepChat message</string>
   <string name="prepdesk_blend">Blend</string>
-  <string name="prepdesk_blend_empty">Start a Blend from a private conversation.</string>
-  <string name="prepdesk_blend_contact">Study partner</string>
   <string name="prepdesk_blend_settings">Blend settings</string>
   <string name="prepdesk_blend_settings_subtitle">Manage progress sharing and watch-only sessions</string>
   <string name="prepdesk_chat_test_body">Private-message alerts can reach this device.</string>

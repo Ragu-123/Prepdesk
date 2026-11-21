@@ -447,9 +447,6 @@ fun MeshPeerListSheet(
                             }
                         }
                     }
-                    item(key = "blend_network_entry") {
-                        com.bitchat.android.blend.BlendNetworkEntry()
-                    }
                 }
 
                 // TopBar (animated)
@@ -1862,11 +1859,13 @@ fun PrivateChatSheet(
                         },
                         onSend = {
                             val text = messageText.text.trim()
-                            if (text.equals("/spectate", ignoreCase = true)) {
+                            val spectate = text.equals("/spectate", ignoreCase = true)
+                            val progress = text.equals("/prepprogress", ignoreCase = true)
+                            if (spectate || progress) {
                                 messageText = androidx.compose.ui.text.input.TextFieldValue("")
                                 viewModel.setConversationDraft(peerID, "")
                                 openBlend(com.bitchat.android.blend.BlendOpen(
-                                    peer = conversationID, start = true, watchOnly = true))
+                                    peer = conversationID, start = spectate, watchOnly = true, progressOnly = progress))
                             } else if (text.isNotEmpty()) {
                                 viewModel.sendMessage(text) { accepted ->
                                     if (accepted) {
