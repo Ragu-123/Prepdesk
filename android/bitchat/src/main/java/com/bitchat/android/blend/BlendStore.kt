@@ -22,6 +22,8 @@ internal data class BlendSession(
     val theirs: List<BlendItem> = emptyList(),
     val receivedAt: Long = 0,
     val remoteRevision: Long = 0,
+    val remotePlanRevision: Long = 0,
+    val localRevision: Long = 0,
     val scheduledDay: String = "",
     val requested: Boolean = false
 ) {
@@ -31,6 +33,7 @@ internal data class BlendSession(
         .put("categories", JSONArray(categories.toList())).put("tasks", BlendProtocol.pack(tasks))
         .put("mine", JSONArray(mineDone.toList())).put("theirs", BlendProtocol.pack(theirs))
         .put("receivedAt", receivedAt).put("remoteRevision", remoteRevision)
+        .put("remotePlanRevision", remotePlanRevision).put("localRevision", localRevision)
         .put("scheduledDay", scheduledDay).put("requested", requested)
 
     companion object {
@@ -42,6 +45,7 @@ internal data class BlendSession(
             categories = row.optJSONArray("categories").strings().toSet(), tasks = BlendProtocol.items(row.optJSONArray("tasks")),
             mineDone = row.optJSONArray("mine").strings().toSet(), theirs = BlendProtocol.items(row.optJSONArray("theirs")),
             receivedAt = row.optLong("receivedAt"), remoteRevision = row.optLong("remoteRevision"),
+            remotePlanRevision = row.optLong("remotePlanRevision"), localRevision = row.optLong("localRevision"),
             scheduledDay = row.optString("scheduledDay"), requested = row.optBoolean("requested")
         )
     }

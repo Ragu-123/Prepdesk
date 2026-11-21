@@ -129,8 +129,10 @@ internal class BlendController private constructor(private val app: Context) {
         val current = current(session.id)
         require(current.owner && current.active && !current.stopped && current.mode == BlendMode.CHECKLIST)
         require(tasks.size <= BlendProtocol.MaxItems)
-        queue(current.peer, BlendFrame(BlendEvent.PLAN, current.id, JSONObject().put("items", BlendProtocol.pack(tasks))))
-        put(current.copy(tasks = tasks))
+        val revision = current.localRevision + 1
+        queue(current.peer, BlendFrame(BlendEvent.PLAN, current.id, JSONObject()
+            .put("items", BlendProtocol.pack(tasks)).put("revision", revision)))
+        put(current.copy(tasks = tasks, localRevision = revision))
     }
 
     fun toggleTask(session: BlendSession, id: String) = action {
@@ -153,19 +155,22 @@ internal class BlendController private constructor(private val app: Context) {
         require(session.active && !session.stopped && session.role == BlendRole.PARTICIPATE)
         val items = approvedItems ?: progressItems(session)
         require(items.size <= BlendProtocol.MaxItems) { "Choose fewer categories or checklist items to share." }
+        val revision = session.localRevision + 1
         queue(session.peer, BlendFrame(BlendEvent.PROGRESS, session.id, JSONObject()
-            .put("items", BlendProtocol.pack(items)).put("revision", System.currentTimeMillis())))
-        put(session.copy(scheduledDay = LocalDate.now().toString(), requested = false))
+            .put("items", BlendProtocol.pack(items)).put("revision", revision)))
+        put(session.copy(requested = false, localRevision = revision))
     }
 
     private fun scheduleUpdates() {
         val day = LocalDate.now().toString()
+        val now = LocalTime.now()
         val due = sessions.value.filter {
             it.active && !it.stopped && it.role == BlendRole.PARTICIPATE && it.automaticAt != null &&
-                (it.requested || it.scheduledDay != day && LocalTime.now() >= LocalTime.parse(it.automaticAt))
+                (it.requested || it.scheduledDay != day && now >= LocalTime.parse(it.automaticAt))
         }
         for (session in due) guarded {
             sendSnapshot(session)
+            if (now >= LocalTime.parse(session.automaticAt)) put(current(session.id).copy(scheduledDay = day))
             persist()
         }
     }
@@ -207,7 +212,9 @@ internal class BlendController private constructor(private val app: Context) {
                     put(session.copy(active = true, peerRole = role))
             }
             BlendEvent.PLAN -> if (session.active && !session.owner && session.mode == BlendMode.CHECKLIST) {
-                put(session.copy(tasks = BlendProtocol.items(frame.data.optJSONArray("items"))))
+                val revision = frame.data.optLong("revision")
+                if (revision > session.remotePlanRevision) put(session.copy(
+                    tasks = BlendProtocol.items(frame.data.optJSONArray("items")), remotePlanRevision = revision))
             }
             BlendEvent.PROGRESS -> if (session.active && session.peerRole == BlendRole.PARTICIPATE) {
                 val revision = frame.data.optLong("revision")
