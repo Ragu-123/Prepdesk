@@ -591,6 +591,31 @@ fun AboutSheet(
                                         color = colorScheme.outlineVariant
                                     )
 
+                                    val openBlendSettings = com.bitchat.android.blend.LocalBlendNavigation.current
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().clickable {
+                                            onDismiss()
+                                            openBlendSettings(com.bitchat.android.blend.BlendOpen(settings = true))
+                                        }.padding(horizontal = 16.dp, vertical = 13.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        com.bitchat.android.blend.BlendIcon(Modifier.size(22.dp))
+                                        Spacer(Modifier.width(16.dp))
+                                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                            Text(stringResource(R.string.prepdesk_blend_settings),
+                                                fontFamily = BitchatFontFamily, fontWeight = FontWeight.Medium,
+                                                style = MaterialTheme.typography.bodyMedium)
+                                            Text(stringResource(R.string.prepdesk_blend_settings_subtitle),
+                                                fontFamily = BitchatFontFamily, color = colorScheme.onSurfaceVariant,
+                                                style = MaterialTheme.typography.bodySmall)
+                                        }
+                                    }
+                                    HorizontalDivider(
+                                        modifier = Modifier.padding(start = 54.dp),
+                                        thickness = 1.dp,
+                                        color = colorScheme.outlineVariant
+                                    )
+
                                     // Tor Toggle
                                     SettingsToggleRow(
                                         icon = Icons.Filled.Security,

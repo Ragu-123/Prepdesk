@@ -5,7 +5,6 @@ import android.app.TimePickerDialog
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.content.Intent
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -21,6 +20,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bitchat.android.nostr.NostrRelayManager
+import com.bitchat.android.core.ui.component.sheet.BitchatBottomSheet
+import com.bitchat.android.core.ui.component.sheet.BitchatSheetTitle
+import com.bitchat.android.core.ui.component.sheet.BitchatSheetTopBar
 import com.bitchat.android.services.AppStateStore
 import com.bitchat.android.services.ContactDirectory
 import com.bitchat.android.ui.ChatViewModel
@@ -33,7 +35,9 @@ import java.util.Date
 import java.util.UUID
 
 internal data class BlendOpen(
-    val peer: String? = null, val shareSchedule: Boolean = false, val frame: BlendFrame? = null
+    val peer: String? = null, val shareSchedule: Boolean = false, val frame: BlendFrame? = null,
+    val start: Boolean = false, val watchOnly: Boolean = false, val settings: Boolean = false,
+    val sessionId: String? = null
 )
 
 internal val LocalBlendNavigation = staticCompositionLocalOf<(BlendOpen) -> Unit> { {} }
@@ -41,7 +45,7 @@ private enum class PageAction { NONE, SHARE, SETUP, SETTINGS, CHECK_IN, TASK, PR
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun BlendPage(
+internal fun BlendPanel(
     entry: BlendOpen,
     controller: BlendController,
     viewModel: ChatViewModel,
@@ -55,8 +59,15 @@ internal fun BlendPage(
     val relay by NostrRelayManager.shared.isConnected.collectAsStateWithLifecycle()
     val issue by controller.issue.collectAsStateWithLifecycle()
     var peer by remember(entry) { mutableStateOf(entry.peer) }
-    var opened by remember(entry) { mutableStateOf(entry.frame?.blend) }
-    var tab by remember { mutableIntStateOf(0) }
+    val eligible = sessions.asReversed().filter {
+        !it.stopped && entry.peer != null &&
+            ContactDirectory.canonicalConversationId(it.peer) == ContactDirectory.canonicalConversationId(entry.peer) &&
+            (!entry.watchOnly || it.role == BlendRole.SPECTATOR || it.peerRole == BlendRole.PARTICIPATE)
+    }
+    val existing = eligible.firstOrNull {
+        it.active && (!entry.watchOnly || it.peerRole == BlendRole.PARTICIPATE)
+    } ?: eligible.firstOrNull()
+    var opened by remember(entry) { mutableStateOf(entry.sessionId ?: entry.frame?.blend ?: existing?.id.takeIf { entry.start }) }
     var action by remember(entry) { mutableStateOf(if (entry.shareSchedule) PageAction.SHARE else PageAction.NONE) }
     var taskToEdit by remember { mutableStateOf<BlendItem?>(null) }
     var showConnection by remember { mutableStateOf(false) }
@@ -66,28 +77,33 @@ internal fun BlendPage(
     val name: (String) -> String = { ContactDirectory.resolve(it).displayName ?: viewModel.resolvePeerDisplayNameForFingerprint(it) }
     val peerVerified: (String) -> Boolean = { viewModel.isPeerVerified(it, verified) ||
         ContactDirectory.resolve(it).noisePublicKey?.let { key -> viewModel.isNoisePublicKeyVerified(key, verified) } == true }
+    LaunchedEffect(entry) {
+        val target = entry.peer
+        if (entry.start && opened == null && target != null && peerVerified(target)) action = PageAction.SETUP
+    }
     val exit: () -> Unit = {
-        if (opened != null && entry.frame == null) opened = null
+        if (opened != null && entry.frame == null && entry.peer == null) {
+            opened = null
+            peer = null
+        }
         else if (peer != null && entry.peer == null) peer = null
         else onExit()
     }
-    BackHandler(onBack = exit)
-
-    Column(Modifier.fillMaxSize().padding(bottom = 8.dp)) {
-        TopAppBar(
-            title = { Text(selected?.mode?.label ?: if (entry.frame?.event == BlendEvent.SCHEDULE) "Shared schedule" else "Blend") },
-            navigationIcon = {
-                IconButton(onClick = exit) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
-            }
+    BitchatBottomSheet(onDismissRequest = onExit) {
+        BitchatSheetTopBar(
+            onClose = onExit,
+            title = { BitchatSheetTitle(when {
+                entry.settings -> "Blend settings"
+                selected != null -> selected.mode.label
+                entry.frame?.event == BlendEvent.SCHEDULE -> "Shared schedule"
+                else -> "Blend"
+            }) },
+            navigationIcon = if (entry.peer == null && (selected != null || peer != null)) {
+                { IconButton(onClick = exit) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } }
+            } else null
         )
-        if (peer == null && selected == null && action == PageAction.NONE) {
-            TabRow(selectedTabIndex = tab) {
-                Tab(tab == 0, { tab = 0 }, text = { Text("Today") })
-                Tab(tab == 1, { tab = 1 }, text = { Text("Partners") })
-            }
-        }
         Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+            Modifier.fillMaxWidth().fillMaxHeight(0.9f).verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             if (issue != null) Text(issue.orEmpty(), color = MaterialTheme.colorScheme.error)
@@ -185,9 +201,8 @@ internal fun BlendPage(
                         SessionCard(session, name(person)) { opened = session.id }
                     }
                 }
-                peer == null && (tab == 1 || action == PageAction.SHARE) -> {
-                    Text(if (action == PageAction.SHARE) "Choose a recipient" else "Study partners",
-                        style = MaterialTheme.typography.titleLarge)
+                peer == null && action == PageAction.SHARE -> {
+                    Text("Choose a recipient", style = MaterialTheme.typography.titleLarge)
                     if (people.isEmpty()) Text("Start a private conversation to add a study partner.")
                     people.sortedBy { !peerVerified(it) }.forEach { personId ->
                         OutlinedCard(onClick = { peer = personId }, modifier = Modifier.fillMaxWidth()) {
@@ -198,18 +213,19 @@ internal fun BlendPage(
                             )
                         }
                     }
-                    TextButton(onClick = { onExit(); viewModel.showVerificationSheet() }) { Text("Verify a partner") }
                 }
                 else -> {
+                    if (entry.settings) Text("Sharing and participation", style = MaterialTheme.typography.titleMedium)
                     if (sessions.none { !it.stopped }) {
-                        Text("Study together", style = MaterialTheme.typography.headlineSmall)
-                        Text("Compare timetables, work through a checklist, or follow a partner’s study day.")
-                        Button(onClick = { tab = 1 }) { Text("Find a study partner") }
+                        Text("No Blends yet", style = MaterialTheme.typography.titleMedium)
+                        Text("Start a Blend from a private conversation.")
                     }
                     sessions.filterNot { it.stopped }.reversed().forEach { session ->
                         SessionCard(session, name(session.peer)) {
                             peer = session.peer
                             opened = session.id
+                            if (entry.settings && session.active && session.role == BlendRole.PARTICIPATE)
+                                action = PageAction.SETTINGS
                         }
                     }
                 }
@@ -248,7 +264,7 @@ internal fun BlendPage(
     when (action) {
         PageAction.SETUP, PageAction.SETTINGS -> if (peer != null) {
             val editing = action == PageAction.SETTINGS
-            BlendSetup(selected, editing, onDismiss = { action = PageAction.NONE }) { mode, role, time, categories ->
+            BlendSetup(selected, editing, entry.watchOnly, onDismiss = { action = PageAction.NONE }) { mode, role, time, categories ->
                 when {
                     editing && selected != null -> controller.updateSettings(selected, time, categories)
                     selected != null -> controller.accept(selected, role, time, categories)
@@ -346,11 +362,22 @@ private fun StudyGroups(items: List<BlendItem>) {
     BlendProtocol.categories.forEach { category ->
         val rows = items.filter { it.category == category }
         if (rows.isNotEmpty()) {
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Text(category, style = MaterialTheme.typography.titleSmall)
             rows.sortedWith(compareBy<BlendItem> { it.day }.thenBy { it.done }).forEach { item ->
-                Text(item.title)
-                Text("${item.day} · ${if (item.done) "Done" else "Left"}", style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(item.title, style = MaterialTheme.typography.bodyMedium)
+                        Text(item.day, style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Text(if (item.done) "Done" else "Left", style = MaterialTheme.typography.labelMedium,
+                        color = if (item.done) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         }
     }
@@ -359,12 +386,18 @@ private fun StudyGroups(items: List<BlendItem>) {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun BlendSetup(
-    session: BlendSession?, editing: Boolean, onDismiss: () -> Unit,
+    session: BlendSession?, editing: Boolean, watchOnly: Boolean, onDismiss: () -> Unit,
     onSave: (BlendMode, BlendRole, String?, Set<String>) -> Unit
 ) {
     val context = LocalContext.current
     var mode by remember { mutableStateOf(session?.mode ?: BlendMode.TIMETABLE) }
-    var role by remember { mutableStateOf(if (editing) session?.role ?: BlendRole.PARTICIPATE else BlendRole.PARTICIPATE) }
+    var role by remember {
+        mutableStateOf(when {
+            editing -> session?.role ?: BlendRole.PARTICIPATE
+            watchOnly && session?.peerRole != BlendRole.SPECTATOR -> BlendRole.SPECTATOR
+            else -> BlendRole.PARTICIPATE
+        })
+    }
     var automatic by remember { mutableStateOf(session?.automaticAt != null) }
     var time by remember { mutableStateOf(LocalTime.parse(session?.automaticAt ?: "19:00")) }
     var categories by remember { mutableStateOf(session?.categories ?: BlendProtocol.categories.toSet()) }

@@ -42,10 +42,10 @@ class UniversalApkManager(
 
     companion object {
         private const val TAG = "UniversalApk"
-        private const val CACHE_DIR_NAME = "universal_apk"
+        private const val CACHE_DIR_NAME = "prepdesk_apk"
         private const val METADATA_FILE_NAME = "universal_apk_info.json"
         private const val PROGRESS_FILE_NAME = "download_progress.json"
-        private const val APK_FILE_PREFIX = "bitchat-universal-"
+        private const val APK_FILE_PREFIX = "prepdesk-"
         private const val TEMP_FILE_NAME = "download_temp.apk"
         private const val ROUTE_READY_TIMEOUT_MILLIS = 60_000L
 
@@ -381,7 +381,7 @@ class UniversalApkManager(
             // Always start from the configured source endpoint. If a release changed,
             // If-Range makes the server return 200 and we overwrite the partial.
             .url(endpointUrl)
-            .addHeader("User-Agent", "BitChat-Android")
+            .addHeader("User-Agent", "Prepdesk-Android")
             .apply {
                 if (existingBytes > 0L) {
                     addHeader("Range", "bytes=$existingBytes-")
@@ -627,7 +627,7 @@ class UniversalApkManager(
         if (!verifyApkSignature(tempFile)) {
             clearPartialDownload()
             throw ApkDownloadException(
-                message = "APK from ${source.id} is not signed by a trusted BitChat release key.",
+                message = "APK from ${source.id} is not signed by a trusted Prepdesk release key.",
                 reason = ApkDownloadFailureReason.UntrustedKey,
                 messageArgs = listOf(source.displayName),
                 retryable = false,
@@ -806,6 +806,7 @@ class UniversalApkManager(
                     Log.e(TAG, "Could not parse APK for signature verification")
                     return false
                 }
+            if (packageInfo.packageName != context.packageName) return false
             val apkCerts = signatureDigests(packageInfo)
             if (apkCerts.isEmpty()) {
                 Log.e(TAG, "No signatures found in downloaded APK")

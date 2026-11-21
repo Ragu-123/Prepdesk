@@ -217,11 +217,11 @@ Wait for the workflow to succeed for the exact pull request commit before mergin
 
 ### Step 4: Tag the Merged Release
 
-Set `$releaseTag` to the agreed version tag and `$mergedCommit` to the pull request's merge commit. Then run:
+Set `$releaseTag` to the agreed version tag, `$mergedCommit` to the merge commit, and `$testedRunId` to the successful pre-prod build ID. The tag workflow verifies that the tagged tree matches the build, then publishes the checked artifacts from that run.
 
 ```powershell
 git fetch gh-origin
-git tag -a $releaseTag $mergedCommit -m "Prepdesk $releaseTag"
+git tag -a $releaseTag $mergedCommit -m "Prepdesk $releaseTag" -m "Build-Run: $testedRunId"
 git push gh-origin "refs/tags/$releaseTag"
 ```
 

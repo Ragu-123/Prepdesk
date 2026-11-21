@@ -76,6 +76,9 @@ internal class BlendController private constructor(private val app: Context) {
     }
 
     fun invite(peer: String, mode: BlendMode, role: BlendRole, at: String?, categories: Set<String>) = action {
+        require(sessions.value.none {
+            !it.stopped && it.mode == mode && it.role == role && canonical(it.peer) == canonical(peer)
+        }) { "You already have a Blend with this role and plan." }
         val id = id()
         val session = BlendSession(id, canonical(peer), mode, true, role = role,
             automaticAt = at.takeIf { role == BlendRole.PARTICIPATE }, categories = categories)
@@ -98,6 +101,18 @@ internal class BlendController private constructor(private val app: Context) {
     fun updateSettings(session: BlendSession, at: String?, categories: Set<String>) = action {
         val current = current(session.id)
         require(current.active && !current.stopped && current.role == BlendRole.PARTICIPATE)
+        if (current.automaticAt != at || current.categories != categories) {
+            pending.values.removeAll {
+                val frame = BlendProtocol.decode(it.text)
+                if (it.peer != current.peer || frame == null || frame.blend != current.id ||
+                    frame.event != BlendEvent.PROGRESS) false
+                else {
+                    delivery.value = delivery.value + (it.id to "Canceled after sharing settings changed")
+                    lastAttempt.remove(it.id)
+                    true
+                }
+            }
+        }
         put(current.copy(automaticAt = at, categories = categories))
     }
 
@@ -177,6 +192,7 @@ internal class BlendController private constructor(private val app: Context) {
 
     private fun processMessages(chats: Map<String, List<BitchatMessage>>) = guarded {
         var dirty = false
+        val incoming = mutableListOf<Triple<String, String, BlendFrame>>()
         for ((peer, messages) in chats) for (message in messages) {
             val entry = pending[message.id]
             if (entry != null && (message.deliveryStatus is DeliveryStatus.Delivered || message.deliveryStatus is DeliveryStatus.Read)) {
@@ -188,9 +204,25 @@ internal class BlendController private constructor(private val app: Context) {
             if (!message.isPrivate || message.id in received || message.senderPeerID == null ||
                 canonical(message.senderPeerID) != canonical(peer)) continue
             val frame = BlendProtocol.decode(message.content) ?: continue
+            incoming += Triple(canonical(peer), message.id, frame)
+        }
+        // Relays can replay an update before its invitation or acceptance.
+        for ((peer, messageId, frame) in incoming.sortedBy { (_, _, frame) ->
+            when (frame.event) {
+                BlendEvent.INVITE -> 0
+                BlendEvent.ACCEPT -> 1
+                BlendEvent.STOP -> 2
+                else -> 3
+            }
+        }) {
+            val known = sessions.value.firstOrNull { it.id == frame.blend }
+            if (frame.event in setOf(BlendEvent.ACCEPT, BlendEvent.STOP, BlendEvent.PLAN, BlendEvent.PROGRESS, BlendEvent.REQUEST)
+                && known == null) continue
+            if (known != null && !known.active && !known.stopped &&
+                frame.event in setOf(BlendEvent.PLAN, BlendEvent.PROGRESS, BlendEvent.REQUEST)) continue
             dirty = true
-            received += message.id
-            receive(canonical(peer), frame)
+            received += messageId
+            receive(peer, frame)
         }
         if (dirty) persist()
     }

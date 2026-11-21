@@ -12,7 +12,7 @@ android {
     defaultConfig {
         minSdk 26
         buildConfigField 'String', 'VERSION_NAME', '"2.2.0"'
-        buildConfigField 'String', 'GITHUB_RELEASE_CERT_SHA256', '""'
+        buildConfigField 'String', 'GITHUB_RELEASE_CERT_SHA256', '"ec3caf6c03ab9c9f9582d549258fe9fb8239d7a437ade51928e61f31dfeaef18"'
     }
     buildFeatures {
         compose true

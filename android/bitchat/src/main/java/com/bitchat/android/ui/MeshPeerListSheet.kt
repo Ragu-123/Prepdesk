@@ -447,6 +447,9 @@ fun MeshPeerListSheet(
                             }
                         }
                     }
+                    item(key = "blend_network_entry") {
+                        com.bitchat.android.blend.BlendNetworkEntry()
+                    }
                 }
 
                 // TopBar (animated)
@@ -1820,11 +1823,6 @@ fun PrivateChatSheet(
 
                     HorizontalDivider(thickness = 1.dp, color = colorScheme.outlineVariant)
 
-                    androidx.compose.material3.TextButton(
-                        onClick = { openBlend(com.bitchat.android.blend.BlendOpen(peer = conversationID)) },
-                        modifier = Modifier.padding(horizontal = 16.dp)
-                    ) { Text("Study tools") }
-
                     // Messages list
                     var forceScrollToBottom by remember { mutableStateOf(false) }
                     var isScrolledUp by remember { mutableStateOf(false) }
@@ -1863,8 +1861,14 @@ fun PrivateChatSheet(
                             // a stale popup behind for the main composer.
                         },
                         onSend = {
-                            if (messageText.text.trim().isNotEmpty()) {
-                                viewModel.sendMessage(messageText.text.trim()) { accepted ->
+                            val text = messageText.text.trim()
+                            if (text.equals("/spectate", ignoreCase = true)) {
+                                messageText = androidx.compose.ui.text.input.TextFieldValue("")
+                                viewModel.setConversationDraft(peerID, "")
+                                openBlend(com.bitchat.android.blend.BlendOpen(
+                                    peer = conversationID, start = true, watchOnly = true))
+                            } else if (text.isNotEmpty()) {
+                                viewModel.sendMessage(text) { accepted ->
                                     if (accepted) {
                                         messageText =
                                             androidx.compose.ui.text.input.TextFieldValue("")
@@ -1948,6 +1952,13 @@ fun PrivateChatSheet(
                                     },
                                 tint = favoriteStarTint
                             )
+                        }
+
+                        ConversationHeaderAction(
+                            onClick = { openBlend(com.bitchat.android.blend.BlendOpen(peer = conversationID, start = true)) },
+                            contentDescription = stringResource(R.string.prepdesk_blend)
+                        ) {
+                            com.bitchat.android.blend.BlendIcon(Modifier.size(HeaderIconSize))
                         }
 
                         if (isVerified) {

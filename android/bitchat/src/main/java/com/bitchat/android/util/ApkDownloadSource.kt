@@ -10,7 +10,7 @@ import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 
 /**
- * A trusted location that serves the latest signed universal BitChat APK.
+ * A trusted location that serves the latest signed universal Prepdesk APK.
  *
  * Sources are tried in order. A source may list compatibility filenames, which
  * are only used when the preferred asset is absent. Adding a mirror should only
@@ -41,20 +41,16 @@ data class ApkDownloadSource(
 }
 
 internal object DefaultApkDownloadSources {
-    const val GITHUB_ID = "github-releases"
+    const val GITHUB_ID = "prepdesk-github-releases"
+    const val ASSET = "app-release.apk"
+    const val RELEASE_URL = "https://github.com/Ragu-123/nyro-tasks/releases/"
+    const val API_URL = "https://api.github.com/repos/Ragu-123/nyro-tasks/releases/latest"
 
     val all = listOf(
         ApkDownloadSource(
             id = GITHUB_ID,
             displayName = "GitHub Releases",
-            latestApkUrls = listOf(
-                "https://github.com/permissionlesstech/bitchat-android/releases/latest/" +
-                    "download/bitchat-android-universal.apk",
-                // Releases published before the stable asset-name rollout use
-                // this filename. Remove when supported releases all use the primary URL.
-                "https://github.com/permissionlesstech/bitchat-android/releases/latest/" +
-                    "download/app-universal-release.apk"
-            )
+            latestApkUrl = RELEASE_URL + "latest/download/" + ASSET
         )
     )
 }

@@ -26,7 +26,7 @@ internal interface LatestReleaseProvider {
 /** Fetches GitHub release metadata without participating in APK availability. */
 internal class GitHubReleaseClient(
     context: Context,
-    private val apiUrl: String = GITHUB_API_URL,
+    private val apiUrl: String = DefaultApkDownloadSources.API_URL,
     private val nowMillis: () -> Long = System::currentTimeMillis,
     private val routedClient: () -> OkHttpProvider.RoutedClient = OkHttpProvider::routedHttpClient,
     private val awaitRoute: suspend () -> Boolean = {
@@ -36,20 +36,13 @@ internal class GitHubReleaseClient(
 ) : LatestReleaseProvider {
     companion object {
         private const val TAG = "GitHubRelease"
-        private const val GITHUB_API_URL =
-            "https://api.github.com/repos/permissionlesstech/bitchat-android/releases/latest"
         private const val ROUTE_READY_TIMEOUT_MILLIS = 60_000L
         private const val CACHE_TTL_MILLIS = 30 * 60_000L
-        private const val PREFS_NAME = "apk_release_metadata"
+        private const val PREFS_NAME = "prepdesk_release_metadata"
         private const val RATE_LIMIT_SCOPE = "github_release_metadata"
-        private const val USER_AGENT = "BitChat-Android"
+        private const val USER_AGENT = "Prepdesk-Android"
 
-        private val SOURCE = ApkDownloadSource(
-            id = DefaultApkDownloadSources.GITHUB_ID,
-            displayName = "GitHub Releases",
-            latestApkUrl = "https://github.com/permissionlesstech/bitchat-android/releases/latest/" +
-                "download/bitchat-android-universal.apk"
-        )
+        private val SOURCE = DefaultApkDownloadSources.all.single()
 
         internal fun parseRelease(jsonString: String): Release? = runCatching {
             val json = JSONObject(jsonString)
@@ -62,9 +55,8 @@ internal class GitHubReleaseClient(
                 val asset = assets.getJSONObject(index)
                 val name = asset.optString("name")
                 val url = asset.optString("browser_download_url")
-                if (name.contains("universal", ignoreCase = true) &&
-                    name.endsWith(".apk", ignoreCase = true) &&
-                    url.startsWith("https://")
+                if (name == DefaultApkDownloadSources.ASSET &&
+                    url == DefaultApkDownloadSources.RELEASE_URL + "download/" + tagName + "/" + name
                 ) {
                     return Release(
                         versionName = versionName,

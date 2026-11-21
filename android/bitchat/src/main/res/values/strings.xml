@@ -235,13 +235,13 @@
   <string name="cancel_lower">Cancel</string>
 
   <!-- APK Sharing -->
-  <string name="share_bitchat_title">Share BitChat</string>
+  <string name="share_bitchat_title">Share Prepdesk</string>
   <string name="share_bitchat_subtitle">Share installation file for offline distribution</string>
-  <string name="share_apk_title">Share BitChat App</string>
-  <string name="share_apk_explanation">This will share the BitChat installation file(s) so others can install the app without internet access. Perfect for mesh network expansion!</string>
-  <string name="share_apk_receiver_instructions">The receiver will need to:\n• Enable \"Install from unknown sources\" in Android settings\n• Uninstall BitChat first if already installed (signatures differ)</string>
+  <string name="share_apk_title">Share Prepdesk App</string>
+  <string name="share_apk_explanation">This will share the Prepdesk installation file(s) so others can install the app without internet access. Perfect for mesh network expansion!</string>
+  <string name="share_apk_receiver_instructions">The receiver will need to:\n• Enable \"Install from unknown sources\" in Android settings\n• Use an APK signed for the existing installation when updating</string>
   <string name="share_apk_confirm">Share App</string>
-  <string name="share_apk_chooser_title">Share BitChat via…</string>
+  <string name="share_apk_chooser_title">Share Prepdesk via…</string>
   <string name="share_apk_error">Failed to prepare app for sharing. Please try again.</string>
 
   <!-- Universal APK Preparation -->
@@ -301,10 +301,10 @@
   <string name="prepare_apk_error_resume_rejected">%1$s rejected the saved download position. The next attempt will restart the download.</string>
   <string name="prepare_apk_error_incomplete">%1$s download ended before all bytes arrived. It can be resumed.</string>
   <string name="prepare_apk_error_invalid_resume">%1$s returned an invalid resume response. The next attempt will restart the download.</string>
-  <string name="prepare_apk_error_untrusted_key">The APK from %1$s is not signed by a trusted BitChat release key.</string>
+  <string name="prepare_apk_error_untrusted_key">The APK from %1$s is not signed by a trusted Prepdesk release key.</string>
   <string name="prepare_apk_error_not_universal">%1$s returned an architecture-specific APK, not the required universal APK.</string>
   <string name="prepare_apk_error_apk_unreadable">The downloaded APK could not be read.</string>
-  <string name="prepare_apk_error_not_bitchat">The downloaded file is not a BitChat APK.</string>
+  <string name="prepare_apk_error_not_bitchat">The downloaded file is not a Prepdesk APK.</string>
   <string name="prepare_apk_error_no_version">The downloaded APK has no version information.</string>
   <string name="prepare_apk_error_source_failed">%1$s download failed.</string>
   <string name="prepare_apk_error_all_sources">All configured APK sources failed.</string>
@@ -327,11 +327,11 @@
 
   <!-- APK Installation -->
   <string name="install_bitchat_title">Install Received APK</string>
-  <string name="install_bitchat_subtitle">Install BitChat from received files</string>
-  <string name="install_apk_dialog_title">Install BitChat Update</string>
-  <string name="install_apk_dialog_message">Install BitChat from the received APK file(s)? This allows offline app distribution in mesh networks.</string>
+  <string name="install_bitchat_subtitle">Install Prepdesk from received files</string>
+  <string name="install_apk_dialog_title">Install Prepdesk Update</string>
+  <string name="install_apk_dialog_message">Install Prepdesk from the received APK file(s)? This allows offline app distribution in mesh networks.</string>
   <string name="install_apk_permission_title">Permission Required</string>
-  <string name="install_apk_permission_message">BitChat needs permission to install packages for self-distribution. Please enable \"Install unknown apps\" in the next screen.</string>
+  <string name="install_apk_permission_message">Prepdesk needs permission to install packages for self-distribution. Please enable \"Install unknown apps\" in the next screen.</string>
   <string name="install_apk_confirm">Install</string>
   <string name="install_apk_grant_permission">Grant Permission</string>
   <string name="install_apk_select_files">Select APK Files</string>
@@ -488,6 +488,11 @@
   <string name="verify_camera_unavailable">Camera unavailable</string>
   <string name="verify_camera_retry">Try again</string>
   <string name="prepdesk_chat_notification">PrepChat message</string>
+  <string name="prepdesk_blend">Blend</string>
+  <string name="prepdesk_blend_empty">Start a Blend from a private conversation.</string>
+  <string name="prepdesk_blend_contact">Study partner</string>
+  <string name="prepdesk_blend_settings">Blend settings</string>
+  <string name="prepdesk_blend_settings_subtitle">Manage progress sharing and watch-only sessions</string>
   <string name="prepdesk_chat_test_body">Private-message alerts can reach this device.</string>
   <string name="prepdesk_chat_test_action">Send test alert</string>
   <string name="prepdesk_chat_manage_alerts">Android settings</string>

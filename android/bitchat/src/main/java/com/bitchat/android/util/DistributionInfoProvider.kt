@@ -17,9 +17,7 @@ import java.util.zip.ZipFile
 object DistributionInfoProvider {
     private val UNIVERSAL_RELEASE_ABIS = setOf(
         "arm64-v8a",
-        "armeabi-v7a",
-        "x86_64",
-        "x86"
+        "x86_64"
     )
 
     fun inspect(context: Context): DistributionInfo {
@@ -107,12 +105,11 @@ object DistributionInfoProvider {
     }
 
     /**
-     * An APK with no native payload works across ABIs. When native libraries
-     * are present, require every ABI produced by the release workflow.
+     * A Prepdesk universal APK includes both supported 64-bit architectures.
      */
     fun isUniversalApk(apk: File): Boolean {
         val packagedAbis = nativeAbisInApk(apk)
-        return packagedAbis.isEmpty() || packagedAbis.containsAll(UNIVERSAL_RELEASE_ABIS)
+        return packagedAbis.containsAll(UNIVERSAL_RELEASE_ABIS)
     }
 
     /**
@@ -123,7 +120,7 @@ object DistributionInfoProvider {
     fun shareableApkVariant(apk: File): ShareableApkVariant? {
         val packagedAbis = nativeAbisInApk(apk)
         return when {
-            packagedAbis.isEmpty() || packagedAbis.containsAll(UNIVERSAL_RELEASE_ABIS) ->
+            packagedAbis.containsAll(UNIVERSAL_RELEASE_ABIS) ->
                 ShareableApkVariant.UNIVERSAL
             packagedAbis == setOf("arm64-v8a") -> ShareableApkVariant.ARM64
             else -> null
