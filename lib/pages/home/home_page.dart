@@ -3,6 +3,7 @@ import '../../widgets/github_support_prompt.dart';
 import '../../services/study_data_events.dart';
 import '../../widgets/content_transition.dart';
 import '../../services/notification_route.dart';
+import '../../services/prepchat_navigation.dart';
 import '../../widgets/task_navigation_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -1237,27 +1238,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Future<void> _openBitchatPage() async {
-    final theme = Theme.of(context);
-    final colors = theme.colorScheme;
-    try {
-      await const MethodChannel('io.github.thelazyindian.tasks/native').invokeMethod<void>('openBitChat', {
-        'primary': colors.primary.toARGB32(),
-        'primaryContainer': colors.primaryContainer.toARGB32(),
-        'onPrimaryContainer': colors.onPrimaryContainer.toARGB32(),
-        'background': theme.scaffoldBackgroundColor.toARGB32(),
-        'surface': colors.surface.toARGB32(),
-        'onSurface': colors.onSurface.toARGB32(),
-        'onSurfaceVariant': colors.onSurfaceVariant.toARGB32(),
-        'surfaceContainer': colors.surfaceContainer.toARGB32(),
-        'outlineVariant': colors.outlineVariant.toARGB32(),
-      });
-    } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('BitChat is available in the Prepdesk Android app.')),
-      );
-    }
-  }
+  Future<void> _openBitchatPage() => openPrepChat(context, 'openBitChat');
 
   void _openKeepPage() {
     Navigator.push(
@@ -1393,11 +1374,12 @@ class _HomePageState extends State<HomePage> {
                       _pickDate();
                     },
                   ),
-                  // 5. BitChat P2P Mesh
+                  // 5. PrepChat
                   ListTile(
                     leading: Image.asset('assets/images/bitchat_mark.png',
                       width: 22, height: 22, color: accent, filterQuality: FilterQuality.none),
-                    title: const Text('BitChat', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: googleTextPrimary)),
+                    title: const Text('PrepChat', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: googleTextPrimary)),
+                    subtitle: const Text('Private chat, schedules, and Blend', style: TextStyle(fontSize: 11, color: googleTextSecondary)),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     onTap: () {
                       Navigator.pop(context);

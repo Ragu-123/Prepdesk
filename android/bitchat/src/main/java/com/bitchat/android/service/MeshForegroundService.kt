@@ -317,7 +317,7 @@ class MeshForegroundService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= 23) PendingIntent.FLAG_IMMUTABLE else 0)
         )
 
-        val title = getString(R.string.bitchat_app_name)
+        val title = getString(R.string.prepchat_brand)
         val content = getString(R.string.mesh_service_notification_content, activePeers)
 
         return prepdeskChatNotification(this, CHANNEL_ID)

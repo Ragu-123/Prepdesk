@@ -2,6 +2,7 @@ import '../../widgets/study_entry_sheet.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../services/study_data_events.dart';
+import '../../services/prepchat_navigation.dart';
 import '../../widgets/mistake_review_sheet.dart';
 import 'widgets/today_progress_summary.dart';
 import 'widgets/today_section_header.dart';
@@ -227,6 +228,17 @@ class _TodayTabState extends State<TodayTab> {
           selectedSection: _selectedPageIndex,
           onAddSession: widget.onOpenScheduleForm ?? widget.onOpenTimetable,
           onTimetable: widget.onOpenTimetable,
+        ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: TextButton.icon(
+              onPressed: () => openPrepChat(context, 'openBlend'),
+              icon: const Icon(Icons.people_alt_outlined, size: 18),
+              label: const Text('Blend'),
+            ),
+          ),
         ),
         ])),
         SliverPersistentHeader(pinned: true, delegate: TodaySectionHeader(

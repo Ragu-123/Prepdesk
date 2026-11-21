@@ -116,13 +116,17 @@ class MessageRouter private constructor(
         }
     }
 
-    fun sendPrivate(content: String, toPeerID: String, recipientNickname: String, messageID: String): RouteResult {
+    fun sendPrivate(
+        content: String, toPeerID: String, recipientNickname: String, messageID: String,
+        queueInMemory: Boolean = true
+    ): RouteResult {
         val resolution = ContactDirectory.resolve(toPeerID)
         val conversationID = resolution.conversationID
         val meshTarget = resolution.meshPeerID ?: toPeerID.takeIf { ContactIdentityResolver.isMeshPeerId(it) }
         val nostrTarget = resolution.noiseKeyHex ?: toPeerID
 
         if (com.bitchat.android.nostr.GeohashAliasRegistry.contains(toPeerID)) {
+            if (!queueInMemory && !com.bitchat.android.nostr.NostrRelayManager.shared.isConnected.value) return RouteResult.QUEUED
             Log.d(TAG, "Routing PM via Nostr (geohash) to alias ${toPeerID.take(12)}… id=${messageID.take(8)}…")
             val recipientHex = com.bitchat.android.nostr.GeohashAliasRegistry.get(toPeerID)
             if (recipientHex != null) {
@@ -138,13 +142,14 @@ class MessageRouter private constructor(
             Log.d(TAG, "Routing PM via mesh to ${meshTarget} msg_id=${messageID.take(8)}…")
             mesh.sendPrivateMessage(content, meshTarget, recipientNickname, messageID)
             return RouteResult.MESH
-        } else if (canSendViaNostr(nostrTarget)) {
+        } else if (canSendViaNostr(nostrTarget) &&
+            (queueInMemory || com.bitchat.android.nostr.NostrRelayManager.shared.isConnected.value)) {
             Log.d(TAG, "Routing PM via Nostr to ${conversationID.take(32)}… msg_id=${messageID.take(8)}…")
             nostr.sendPrivateMessage(content, nostrTarget, recipientNickname, messageID)
             return RouteResult.NOSTR
         } else {
             Log.d(TAG, "Queued PM for ${conversationID} (no mesh, no Nostr mapping) msg_id=${messageID.take(8)}…")
-            enqueue(conversationID, QueuedMessage(content, recipientNickname, messageID, clock()))
+            if (queueInMemory) enqueue(conversationID, QueuedMessage(content, recipientNickname, messageID, clock()))
             Log.d(TAG, "Initiating noise handshake after queueing PM for ${conversationID.take(16)}…")
             if (hasMesh) meshTarget?.let { kickHandshake(conversationID, it, immediate = true) }
             return RouteResult.QUEUED

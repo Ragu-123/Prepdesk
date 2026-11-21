@@ -305,7 +305,7 @@ private fun MyQrTabContent(
 
         // Helper text
         Text(
-            text = stringResource(R.string.bitchat_app_name).lowercase(),
+            text = stringResource(R.string.prepchat_brand).lowercase(),
             style = MaterialTheme.typography.bodyMedium,
             fontFamily = BitchatFontFamily,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),

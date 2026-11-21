@@ -81,5 +81,6 @@ internal object BitchatRuntime {
         try { com.bitchat.android.service.MeshServicePreferences.init(application) } catch (_: Exception) { }
 
         initialized = true
+        com.bitchat.android.blend.BlendController.get(application)
     }
 }

@@ -1,8 +1,7 @@
-# Prepdesk v1.1.24
+# Prepdesk v1.1.25
 
-- BitChat waits for Tor to bootstrap before opening relay connections. Settings now distinguishes Tor startup from a live relay connection and offers a retry.
-- The verification scanner initializes in the chat process and shows a retry button if the camera is unavailable.
-- Tap the BitChat logo to open settings. The extra gear has been removed.
-- Private messages that arrive while chat is in the background stay unread. BitChat applies the Prepdesk accent to Android notification cards and includes an alert test under Keep BitChat listening.
-- Prepdesk shows when Android blocks or silences the study notification category. Send test checks whether Android posted the test to the shade.
-- Start quiz and Review mistakes use more compact buttons.
+- PrepChat keeps the existing chat logo and opens from the side drawer.
+- Share a previewed schedule from Timetable or the study tools in a private chat.
+- Open Blend from Today to compare timetables or follow a shared checklist. Watch-only partners can request progress without sharing their own study data.
+- Choose manual or scheduled progress updates per Blend. Updates can wait for a nearby connection or an eligible private relay.
+- Use verified partner invitations, private study check-ins, and a connection panel with a retry action.

@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../../services/prepchat_navigation.dart';
 import '../../services/study_data_events.dart';
 import '../../widgets/study_entry_sheet.dart';
 import 'package:flutter/material.dart';
@@ -146,6 +147,14 @@ class _TimetableTabState extends State<TimetableTab> {
             ),
             child: Column(
               children: [
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: () => openPrepChat(context, 'shareScheduleInPrepChat'),
+                    icon: const Icon(Icons.ios_share_rounded, size: 16),
+                    label: const Text('Share schedule'),
+                  ),
+                ),
                 Row(
                   children: [
                     // Subject Dropdown Selector

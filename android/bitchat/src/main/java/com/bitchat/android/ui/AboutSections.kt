@@ -195,7 +195,7 @@ internal fun AboutHero(
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = stringResource(R.string.bitchat_app_name),
+            text = stringResource(R.string.prepchat_brand),
             fontFamily = BitchatFontFamily,
             fontWeight = FontWeight.Bold,
             fontSize = 40.sp,

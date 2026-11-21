@@ -39,7 +39,7 @@ These screenshots show an earlier build of Prepdesk. Private details are obscure
 | **Mistake notebook** | Record the question, your answer, the correction, why you missed it, and the takeaway. Mark mistakes resolved as you improve. |
 | **Keep notes** | Write notes and checklists, add tags and reminders, and protect selected notes with a PIN or an explicit biometric unlock. |
 | **Reminders** | Set single or recurring reminders, add checkpoints, and choose notification banners or ringing alarms with snooze controls. |
-| **BitChat** | Open the native BitChat Android experience from Prepdesk for nearby mesh, encrypted private conversations, relay channels, media, and conversation management. |
+| **PrepChat** | Chat nearby or through private relays, share a schedule, and follow a study partner’s day in Blend. |
 | **Desktop Companion** | Pair a browser on the same network to read and edit regular notes and log mistakes. Protected notes stay on the phone. |
 | **Appearance and backup** | Choose adaptive accents or a fixed theme. Back up and restore the database through a configured Hugging Face Hub account. |
 
