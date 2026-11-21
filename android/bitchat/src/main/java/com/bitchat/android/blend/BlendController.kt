@@ -275,6 +275,15 @@ internal class BlendController private constructor(private val app: Context) {
 
     fun retry() = action { lastAttempt.clear() }
 
+    fun panicClear(): Boolean {
+        pending.clear()
+        lastAttempt.clear()
+        received.clear()
+        sessions.value = emptyList()
+        delivery.value = emptyMap()
+        return runCatching { store.clear() }.isSuccess
+    }
+
     private fun action(work: suspend () -> Unit) {
         scope.launch {
             guarded {

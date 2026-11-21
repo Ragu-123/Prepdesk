@@ -39,9 +39,11 @@ internal data class BlendFrame(
 
 internal object BlendProtocol {
     private const val Marker = "\nprepdesk-blend/1 "
-    private const val MaxBytes = 3_500
+    internal const val MaxBytes = 3_500
     const val MaxItems = 24
     val categories = listOf("Schedule", "Revisits", "Quizzes")
+
+    fun hasMarker(text: String): Boolean = Marker in text
 
     fun encode(frame: BlendFrame): String {
         val bytes = JSONObject().put("event", frame.event.name).put("blend", frame.blend)
@@ -53,7 +55,7 @@ internal object BlendProtocol {
     }
 
     fun decode(text: String): BlendFrame? {
-        if (text.length > MaxBytes || Marker !in text) return null
+        if (text.length > MaxBytes || !hasMarker(text)) return null
         return runCatching {
             val json = JSONObject(String(Base64.decode(text.substringAfter(Marker), Base64.URL_SAFE), Charsets.UTF_8))
             val id = json.getString("blend")

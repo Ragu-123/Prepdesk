@@ -1491,6 +1491,7 @@ class ChatViewModel(
         // Every stage that wipes data at rest reports here. The success message is a
         // security assurance, so it requires all of them, not just the conversation database.
         var wipeComplete = true
+        if (!com.bitchat.android.blend.BlendController.get(getApplication()).panicClear()) wipeComplete = false
 
         // Clear seen message store and MessageRouter outbox
         try {

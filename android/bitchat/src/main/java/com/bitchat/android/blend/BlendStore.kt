@@ -64,4 +64,9 @@ internal class BlendStore(context: Context) {
         val bytes = cipher.encrypt(value.toString().toByteArray(), aad)
         check(preferences.edit().putString("state", Base64.encodeToString(bytes, Base64.NO_WRAP)).commit())
     }
+
+    fun clear() {
+        cipher.destroyKey()
+        check(preferences.edit().clear().commit())
+    }
 }

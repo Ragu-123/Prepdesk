@@ -1,7 +1,9 @@
 package com.bitchat.android.model
 
 import android.os.Parcelable
+import com.bitchat.android.blend.BlendProtocol
 import kotlinx.parcelize.Parcelize
+import java.io.ByteArrayOutputStream
 
 /**
  * Noise encrypted payload types and handling - 100% compatible with iOS SimplifiedBluetoothService
@@ -122,7 +124,8 @@ data class PrivateMessagePacket(
      */
     private enum class TLVType(val value: UByte) {
         MESSAGE_ID(0x00u),
-        CONTENT(0x01u);
+        CONTENT(0x01u),
+        STUDY_CONTINUATION(0x02u);
 
         companion object {
             fun fromValue(value: UByte): TLVType? {
@@ -139,23 +142,24 @@ data class PrivateMessagePacket(
         val messageIDData = messageID.toByteArray(Charsets.UTF_8)
         val contentData = content.toByteArray(Charsets.UTF_8)
 
-        // Check size limits (TLV length field is 1 byte = max 255)
-        if (messageIDData.size > 255 || contentData.size > 255) {
+        if (messageIDData.size > 255 ||
+            (contentData.size > 255 && (!BlendProtocol.hasMarker(content) || contentData.size > BlendProtocol.MaxBytes))) {
             return null
         }
 
-        val result = mutableListOf<Byte>()
-
-        // TLV for messageID
-        result.add(TLVType.MESSAGE_ID.value.toByte())
-        result.add(messageIDData.size.toByte())
-        result.addAll(messageIDData.toList())
-
-        // TLV for content
-        result.add(TLVType.CONTENT.value.toByte())
-        result.add(contentData.size.toByte())
-        result.addAll(contentData.toList())
-
+        val result = ByteArrayOutputStream(messageIDData.size + contentData.size + 8)
+        result.write(TLVType.MESSAGE_ID.value.toInt())
+        result.write(messageIDData.size)
+        result.write(messageIDData)
+        var offset = 0
+        do {
+            val length = minOf(255, contentData.size - offset)
+            val type = if (offset == 0) TLVType.CONTENT else TLVType.STUDY_CONTINUATION
+            result.write(type.value.toInt())
+            result.write(length)
+            result.write(contentData, offset, length)
+            offset += length
+        } while (offset < contentData.size)
         return result.toByteArray()
     }
 
@@ -166,7 +170,8 @@ data class PrivateMessagePacket(
         fun decode(data: ByteArray): PrivateMessagePacket? {
             var offset = 0
             var messageID: String? = null
-            var content: String? = null
+            var content: ByteArrayOutputStream? = null
+            var extended = false
 
             while (offset + 2 <= data.size) {
                 // Read TLV type
@@ -190,13 +195,22 @@ data class PrivateMessagePacket(
                         messageID = String(value, Charsets.UTF_8)
                     }
                     TLVType.CONTENT -> {
-                        content = String(value, Charsets.UTF_8)
+                        if (content != null) return null
+                        content = ByteArrayOutputStream().apply { write(value) }
+                    }
+                    TLVType.STUDY_CONTINUATION -> {
+                        val buffer = content ?: return null
+                        if (length == 0 || buffer.size() + length > BlendProtocol.MaxBytes) return null
+                        extended = true
+                        buffer.write(value)
                     }
                 }
             }
 
-            return if (messageID != null && content != null) {
-                PrivateMessagePacket(messageID, content)
+            val decoded = content?.toByteArray()?.toString(Charsets.UTF_8)
+            return if (offset == data.size && messageID != null && decoded != null &&
+                (!extended || BlendProtocol.hasMarker(decoded))) {
+                PrivateMessagePacket(messageID, decoded)
             } else {
                 null
             }

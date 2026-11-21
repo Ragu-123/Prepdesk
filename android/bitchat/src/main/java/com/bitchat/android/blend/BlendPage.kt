@@ -106,7 +106,14 @@ internal fun BlendPage(
                     Text(if (selected.stopped) "Blend ended" else if (selected.active) selected.role.label else "Invitation pending")
                     if (!selected.active && !selected.stopped && !selected.owner) {
                         Text("${partner} wants to ${selected.peerRole.label.lowercase()}. Choose what you share before accepting.")
-                        Button(onClick = { action = PageAction.SETUP }) { Text("Review invitation") }
+                        Button(onClick = {
+                            if (peerVerified(selected.peer)) action = PageAction.SETUP else {
+                                onExit()
+                                viewModel.showVerificationSheet()
+                            }
+                        }) { Text(if (peerVerified(selected.peer)) "Review invitation" else "Verify partner by QR") }
+                    } else if (!selected.active && !selected.stopped && selected.owner) {
+                        Text("Your partner needs an updated PrepChat to accept this invitation.")
                     }
                     if (selected.active) {
                         if (selected.role == BlendRole.PARTICIPATE) {
@@ -402,6 +409,8 @@ private fun BlendSetup(
             }
             if (automatic) {
                 Text("Send daily and when your partner requests an update.")
+                Text("For updates while you’re away, enable Keep PrepChat listening.",
+                    style = MaterialTheme.typography.bodySmall)
                 TextButton(onClick = {
                     TimePickerDialog(context, { _, hour, minute -> time = LocalTime.of(hour, minute) },
                         time.hour, time.minute, android.text.format.DateFormat.is24HourFormat(context)).show()
