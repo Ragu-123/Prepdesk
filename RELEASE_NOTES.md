@@ -1,4 +1,4 @@
-# Prepdesk v1.1.25
+# Prepdesk v1.2.0
 
 - PrepChat keeps the existing chat logo and opens from the side drawer.
 - Share a previewed schedule from Timetable or the study tools in a private chat.
