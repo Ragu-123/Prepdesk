@@ -1848,20 +1848,29 @@ fun PrivateChatSheet(
                         )
                     }
 
+                    val privateCommands = listOf(
+                        CommandSuggestion("/blend", emptyList(), null, "open Blend with this partner"),
+                        CommandSuggestion("/spectate", emptyList(), null, "request watch-only access"),
+                        CommandSuggestion("/prepprogress", emptyList(), null, "view your partner?s updates"),
+                        CommandSuggestion("/clear", emptyList(), null, "clear this conversation")
+                    )
+                    val commandPrefix = messageText.text.lowercase()
+                    val suggestions = if (commandPrefix.startsWith("/")) {
+                        privateCommands.filter { it.command.startsWith(commandPrefix) }
+                    } else emptyList()
+
                     ChatInputSection(
                         messageText = messageText,
                         onMessageTextChange = { newText ->
                             messageText = newText
                             viewModel.setConversationDraft(peerID, newText.text)
-                            // Do not update the shared suggestion state here: this sheet
-                            // renders its own popups as hidden, so an update only leaves
-                            // a stale popup behind for the main composer.
                         },
                         onSend = {
                             val text = messageText.text.trim()
                             val spectate = text.equals("/spectate", ignoreCase = true)
                             val progress = text.equals("/prepprogress", ignoreCase = true)
-                            if (spectate || progress) {
+                            val blend = text.equals("/blend", ignoreCase = true)
+                            if (blend || spectate || progress) {
                                 messageText = androidx.compose.ui.text.input.TextFieldValue("")
                                 viewModel.setConversationDraft(peerID, "")
                                 openBlend(com.bitchat.android.blend.BlendOpen(
@@ -1887,11 +1896,16 @@ fun PrivateChatSheet(
                             viewModel.sendFileNote(peer, channel, path)
                         },
                         recorderFactory = viewModel::createVoiceRecorder,
-                        showCommandSuggestions = false,
-                        commandSuggestions = emptyList(),
+                        showCommandSuggestions = suggestions.isNotEmpty(),
+                        commandSuggestions = suggestions,
                         showMentionSuggestions = false,
                         mentionSuggestions = emptyList(),
-                        onCommandSuggestionClick = { },
+                        onCommandSuggestionClick = { suggestion ->
+                            val command = "${suggestion.command} "
+                            messageText = androidx.compose.ui.text.input.TextFieldValue(
+                                command, androidx.compose.ui.text.TextRange(command.length))
+                            viewModel.setConversationDraft(peerID, command)
+                        },
                         onMentionSuggestionClick = { },
                         selectedPrivatePeer = peerID,
                         currentChannel = null,

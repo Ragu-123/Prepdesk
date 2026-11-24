@@ -118,7 +118,7 @@ class MessageRouter private constructor(
 
     fun sendPrivate(
         content: String, toPeerID: String, recipientNickname: String, messageID: String,
-        queueInMemory: Boolean = true
+        queueInMemory: Boolean = true, preferRelay: Boolean = false
     ): RouteResult {
         val resolution = ContactDirectory.resolve(toPeerID)
         val conversationID = resolution.conversationID
@@ -135,6 +135,12 @@ class MessageRouter private constructor(
                 return RouteResult.NOSTR
             }
             return RouteResult.DROPPED
+        }
+
+        if (preferRelay && canSendViaNostr(nostrTarget) &&
+            com.bitchat.android.nostr.NostrRelayManager.shared.isConnected.value) {
+            nostr.sendPrivateMessage(content, nostrTarget, recipientNickname, messageID)
+            return RouteResult.NOSTR
         }
 
         val hasMesh = meshTarget?.let { isConnected(mesh, it) } == true

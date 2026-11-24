@@ -18,11 +18,14 @@ import com.bitchat.android.services.AppStateStore
 
 @Composable
 internal fun BlendMessageCard(frame: BlendFrame, message: BitchatMessage, modifier: Modifier = Modifier) {
+    if (frame.event == BlendEvent.TRANSFER_ACK ||
+        (frame.data.has("parts") && frame.data.optInt("part") != 0)) return
     val open = LocalBlendNavigation.current
     val controller = BlendController.get(LocalContext.current)
     val delivery by controller.delivery.collectAsStateWithLifecycle()
     val selectedPeer by AppStateStore.selectedPrivateChatPeer.collectAsStateWithLifecycle()
-    val items = BlendProtocol.items(frame.data.optJSONArray("items"))
+    val multipart = frame.data.has("parts")
+    val items = if (multipart) emptyList() else BlendProtocol.items(frame.data.optJSONArray("items"))
     OutlinedCard(
         onClick = { open(BlendOpen(peer = selectedPeer ?: message.senderPeerID, frame = frame)) },
         modifier = modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)
