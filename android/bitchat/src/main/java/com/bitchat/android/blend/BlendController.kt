@@ -37,6 +37,8 @@ internal class BlendController private constructor(private val app: Context) {
     private val pending = linkedMapOf<String, Pending>()
     private val lastAttempt = mutableMapOf<String, Long>()
     private val received = linkedSetOf<String>()
+    private val transfers = linkedMapOf<String, JSONObject>()
+    val sharedSchedules = MutableStateFlow<Map<String, List<BlendItem>>>(emptyMap())
     val sessions = MutableStateFlow<List<BlendSession>>(emptyList())
     val delivery = MutableStateFlow<Map<String, String>>(emptyMap())
     val issue = MutableStateFlow<String?>(if (saved.isFailure) "Blend storage is unavailable." else null)
@@ -48,6 +50,10 @@ internal class BlendController private constructor(private val app: Context) {
         state.optJSONArray("outbox").objects().forEach {
             val entry = Pending(it.getString("id"), it.getString("peer"), it.getString("text"))
             pending[entry.id] = entry
+        }
+        state.optJSONArray("transfers").objects().forEach { transfers[it.getString("key")] = it }
+        sharedSchedules.value = state.optJSONArray("schedules").objects().associate {
+            it.getString("key") to BlendProtocol.items(it.optJSONArray("items"), BlendProtocol.MaxSnapshotItems)
         }
         received.addAll(state.optJSONArray("received").strings())
         scope.launch { AppStateStore.privateMessages.collect { processMessages(it) } }
@@ -72,7 +78,9 @@ internal class BlendController private constructor(private val app: Context) {
         val uri = Uri.parse("content://${app.packageName}.blend.study")
         val data = app.contentResolver.call(uri, "studyDay", day.toString(), null)?.getString("items")
             ?: throw IllegalStateException("Open Prepdesk to load your timetable.")
-        return BlendProtocol.items(JSONArray(data), limit = 2_000)
+        val rows = JSONArray(data)
+        require(rows.length() <= BlendProtocol.MaxSnapshotItems) { "This timetable exceeds 2,000 items." }
+        return BlendProtocol.items(rows, limit = BlendProtocol.MaxSnapshotItems)
     }
 
     fun invite(peer: String, mode: BlendMode, role: BlendRole, updates: BlendUpdateMode, at: String?, categories: Set<String>) = action {
@@ -123,8 +131,11 @@ internal class BlendController private constructor(private val app: Context) {
     }
 
     fun shareSchedule(peer: String, items: List<BlendItem>) = action {
-        require(items.isNotEmpty() && items.size <= BlendProtocol.MaxItems)
-        queue(canonical(peer), BlendFrame(BlendEvent.SCHEDULE, id(), JSONObject().put("items", BlendProtocol.pack(items))))
+        require(items.isNotEmpty())
+        val transfer = id()
+        queueSnapshot(canonical(peer), BlendFrame(BlendEvent.SCHEDULE, transfer,
+            JSONObject().put("items", BlendProtocol.pack(items))), items, transfer)
+        saveSchedule(canonical(peer), transfer, items)
     }
 
     fun checkIn(peer: String, label: String) = action {
@@ -174,11 +185,12 @@ internal class BlendController private constructor(private val app: Context) {
 
     private fun sendSnapshot(session: BlendSession, approvedItems: List<BlendItem>? = null) {
         require(session.active && !session.stopped && session.role == BlendRole.PARTICIPATE)
-        val items = approvedItems ?: progressItems(session)
-        require(items.size <= BlendProtocol.MaxItems) { "Choose fewer categories or checklist items to share." }
+        val items = approvedItems?.filter {
+            session.mode == BlendMode.CHECKLIST || it.category in session.categories
+        } ?: progressItems(session)
         val revision = session.localRevision + 1
-        queue(session.peer, BlendFrame(BlendEvent.PROGRESS, session.id, JSONObject()
-            .put("items", BlendProtocol.pack(items)).put("revision", revision)))
+        queueSnapshot(session.peer, BlendFrame(BlendEvent.PROGRESS, session.id, JSONObject()
+            .put("items", BlendProtocol.pack(items)).put("revision", revision)), items, id())
         put(session.copy(requested = false, localRevision = revision))
     }
 
@@ -205,6 +217,7 @@ internal class BlendController private constructor(private val app: Context) {
         for ((peer, messages) in chats) for (message in messages) {
             val entry = pending[message.id]
             if (entry != null && (message.deliveryStatus is DeliveryStatus.Delivered || message.deliveryStatus is DeliveryStatus.Read)) {
+                if (BlendProtocol.decode(entry.text)?.data?.has("parts") == true) continue
                 pending.remove(message.id)
                 lastAttempt.remove(message.id)
                 delivery.value = delivery.value + (message.id to "Delivered")
@@ -231,13 +244,27 @@ internal class BlendController private constructor(private val app: Context) {
                 frame.event in setOf(BlendEvent.PLAN, BlendEvent.PROGRESS, BlendEvent.REQUEST)) continue
             dirty = true
             received += messageId
-            receive(peer, frame)
+            if (frame.data.has("parts")) receivePart(peer, frame) else receive(peer, frame)
         }
         if (dirty) persist()
     }
 
     private fun receive(peer: String, frame: BlendFrame) {
         if (isBlocked(peer)) return
+        if (frame.event == BlendEvent.TRANSFER_ACK) {
+            val transfer = frame.data.optString("transfer")
+            pending.values.removeAll {
+                val sent = BlendProtocol.decode(it.text)
+                val matches = canonical(it.peer) == peer && sent != null && sent.blend == frame.blend &&
+                    sent.data.has("parts") && sent.data.optString("transfer") == transfer
+                if (matches) {
+                    lastAttempt.remove(it.id)
+                    delivery.value = delivery.value + (it.id to "Delivered")
+                }
+                matches
+            }
+            return
+        }
         val session = sessions.value.firstOrNull { it.id == frame.blend }
         if (frame.event == BlendEvent.INVITE && session == null) {
             val mode = runCatching { BlendMode.valueOf(frame.data.getString("mode")) }.getOrNull() ?: return
@@ -262,7 +289,7 @@ internal class BlendController private constructor(private val app: Context) {
             BlendEvent.PROGRESS -> if (session.active && session.peerRole == BlendRole.PARTICIPATE) {
                 val revision = frame.data.optLong("revision")
                 if (revision > session.remoteRevision) put(session.copy(
-                    theirs = BlendProtocol.items(frame.data.optJSONArray("items")),
+                    theirs = BlendProtocol.items(frame.data.optJSONArray("items"), BlendProtocol.MaxSnapshotItems),
                     receivedAt = System.currentTimeMillis(), remoteRevision = revision))
             }
             BlendEvent.REQUEST -> if (session.active && session.role == BlendRole.PARTICIPATE) {
@@ -282,13 +309,84 @@ internal class BlendController private constructor(private val app: Context) {
         }
     }
 
+    private fun scheduleKey(peer: String, blend: String) = "$peer:$blend"
+
+    private fun saveSchedule(peer: String, blend: String, items: List<BlendItem>) {
+        sharedSchedules.value = (sharedSchedules.value + (scheduleKey(peer, blend) to items))
+            .entries.toList().takeLast(20).associate { it.toPair() }
+    }
+
+    private fun receivePart(peer: String, frame: BlendFrame) {
+        if (isBlocked(peer)) return
+        val session = sessions.value.firstOrNull { it.id == frame.blend }
+        val revision = frame.data.optLong("revision")
+        when (frame.event) {
+            BlendEvent.PROGRESS -> if (session == null || canonical(session.peer) != peer ||
+                !session.active || session.stopped || session.peerRole != BlendRole.PARTICIPATE ||
+                revision <= session.remoteRevision) return
+            BlendEvent.SCHEDULE -> Unit
+            else -> return
+        }
+        val transfer = frame.data.optString("transfer")
+        val count = frame.data.optInt("parts")
+        val index = frame.data.optInt("part", -1)
+        if (transfer.length != 36 || transfer.any { !it.isLetterOrDigit() && it != '-' } ||
+            count !in 1..BlendProtocol.MaxParts || index !in 0 until count) return
+        val array = frame.data.optJSONArray("items") ?: return
+        val items = BlendProtocol.items(array)
+        if (items.isEmpty() || items.size != array.length()) return
+        val now = System.currentTimeMillis()
+        transfers.values.removeAll { now - it.optLong("created") > 7 * 24 * 60 * 60 * 1000L }
+        val key = "$peer:${frame.event}:${frame.blend}:$transfer"
+        val assembly = transfers[key] ?: JSONObject().put("key", key).put("created", now)
+            .put("revision", revision).put("count", count).put("chunks", JSONObject()).also {
+                if (transfers.size >= 12) transfers.remove(transfers.keys.first())
+                transfers[key] = it
+            }
+        if (assembly.optInt("count") != count || assembly.optLong("revision") != revision) return
+        val chunks = assembly.getJSONObject("chunks")
+        if (!chunks.has(index.toString())) chunks.put(index.toString(), array)
+        if (chunks.length() != count) return
+        val complete = (0 until count).flatMap { BlendProtocol.items(chunks.optJSONArray(it.toString())) }
+        transfers.remove(key)
+        if (complete.size > BlendProtocol.MaxSnapshotItems ||
+            complete.distinctBy { it.day to it.id }.size != complete.size) return
+        queue(peer, BlendFrame(BlendEvent.TRANSFER_ACK, frame.blend, JSONObject().put("transfer", transfer)))
+        if (frame.event == BlendEvent.SCHEDULE) saveSchedule(peer, frame.blend, complete)
+        else receive(peer, frame.copy(data = JSONObject().put("revision", revision)
+            .put("items", BlendProtocol.pack(complete))))
+    }
+
+    private fun queueSnapshot(peer: String, frame: BlendFrame, items: List<BlendItem>, transfer: String) {
+        val parts = BlendProtocol.parts(frame, items, transfer)
+        if (parts.first().data.has("parts").not()) {
+            queue(peer, frame)
+            return
+        }
+        require(!isBlocked(peer)) { "This contact is blocked." }
+        val entries = parts.map { Pending(id(), peer, BlendProtocol.encode(it)) }
+        val superseded = pending.values.filter {
+            val prior = BlendProtocol.decode(it.text)
+            frame.event == BlendEvent.PROGRESS && canonical(it.peer) == canonical(peer) &&
+                prior != null && prior.event == frame.event && prior.blend == frame.blend
+        }
+        require(pending.size - superseded.size + entries.size <= 2_048) { "Retry pending updates first." }
+        superseded.forEach {
+            pending.remove(it.id)
+            lastAttempt.remove(it.id)
+            delivery.value = delivery.value + (it.id to "Replaced by a newer update")
+        }
+        entries.forEach { pending[it.id] = it }
+        delivery.value = delivery.value + (entries.first().id to "Waiting for a connection")
+    }
+
     private fun remoteRole(frame: BlendFrame) = runCatching {
         BlendRole.valueOf(frame.data.getString("role"))
     }.getOrNull()
 
     private fun queue(peer: String, frame: BlendFrame) {
         require(!isBlocked(peer)) { "This contact is blocked." }
-        require(pending.size < 100) { "Finish or retry your pending updates first." }
+        require(pending.size < 2_100) { "Finish or retry your pending updates first." }
         val entry = Pending(id(), peer, BlendProtocol.encode(frame))
         if (frame.event == BlendEvent.PROGRESS || frame.event == BlendEvent.REQUEST) {
             pending.values.removeAll {
@@ -309,7 +407,7 @@ internal class BlendController private constructor(private val app: Context) {
             if (entry.id !in pending || isBlocked(entry.peer)) continue
             val now = System.currentTimeMillis()
             if (now - (lastAttempt[entry.id] ?: 0) < 60_000L) continue
-            lastAttempt[entry.id] = now
+            val previousAttempt = lastAttempt.put(entry.id, now)
             val existing = AppStateStore.privateMessages.value[canonical(entry.peer)].orEmpty().any { it.id == entry.id }
             if (!existing && !AppStateStore.addPrivateMessageDurably(entry.peer, BitchatMessage(
                     id = entry.id, content = entry.text, sender = AppStateStore.nickname.value,
@@ -317,7 +415,9 @@ internal class BlendController private constructor(private val app: Context) {
                     deliveryStatus = DeliveryStatus.Sending
                 ), forceRead = true)) continue
             val name = ContactDirectory.resolve(entry.peer).displayName.orEmpty()
-            val route = router.sendPrivate(entry.text, entry.peer, name, entry.id, queueInMemory = false)
+            val multipart = BlendProtocol.decode(entry.text)?.data?.has("parts") == true
+            val route = router.sendPrivate(entry.text, entry.peer, name, entry.id, queueInMemory = false,
+                preferRelay = multipart && (previousAttempt == null || delivery.value[entry.id] != "Sent to private relay"))
             delivery.value = delivery.value + (entry.id to when (route) {
                 MessageRouter.RouteResult.MESH -> "Sent nearby"
                 MessageRouter.RouteResult.NOSTR -> "Sent to private relay"
@@ -332,6 +432,8 @@ internal class BlendController private constructor(private val app: Context) {
         pending.clear()
         lastAttempt.clear()
         received.clear()
+        transfers.clear()
+        sharedSchedules.value = emptyMap()
         sessions.value = emptyList()
         delivery.value = emptyMap()
         return runCatching { store.clear() }.isSuccess
@@ -362,6 +464,10 @@ internal class BlendController private constructor(private val app: Context) {
 
     private fun persist() = store.write(JSONObject()
         .put("sessions", JSONArray(sessions.value.map { it.json() }))
+        .put("transfers", JSONArray(transfers.values.toList()))
+        .put("schedules", JSONArray(sharedSchedules.value.map { (key, items) ->
+            JSONObject().put("key", key).put("items", BlendProtocol.pack(items))
+        }))
         .put("outbox", JSONArray(pending.values.map { it.json() }))
         .put("received", JSONArray(received.toList().takeLast(6_000))))
 

@@ -50,7 +50,7 @@ internal data class BlendSession(
             autoReply = row.optBoolean("autoReply", time != null),
             requestedUpdates = BlendUpdateMode.parse(row.optString("requestedUpdates")),
             categories = row.optJSONArray("categories").strings().toSet(), tasks = BlendProtocol.items(row.optJSONArray("tasks")),
-            mineDone = row.optJSONArray("mine").strings().toSet(), theirs = BlendProtocol.items(row.optJSONArray("theirs")),
+            mineDone = row.optJSONArray("mine").strings().toSet(), theirs = BlendProtocol.items(row.optJSONArray("theirs"), BlendProtocol.MaxSnapshotItems),
             receivedAt = row.optLong("receivedAt"), remoteRevision = row.optLong("remoteRevision"),
             remotePlanRevision = row.optLong("remotePlanRevision"), localRevision = row.optLong("localRevision"),
             scheduledDay = row.optString("scheduledDay"), requested = row.optBoolean("requested")

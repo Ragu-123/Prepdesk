@@ -36,6 +36,7 @@ internal enum class BlendEvent(val description: String) {
     PROGRESS("Shared study progress"),
     REQUEST("Requested a progress update"),
     STOP("Ended the Blend"),
+    TRANSFER_ACK("Confirmed a Blend transfer"),
     CHECK_IN("Sent a study check-in")
 }
 
@@ -49,7 +50,31 @@ internal object BlendProtocol {
     private const val Marker = "\nprepdesk-blend/1 "
     internal const val MaxBytes = 3_500
     const val MaxItems = 24
+    const val MaxSnapshotItems = 2_000
+    const val MaxParts = 768
     val categories = listOf("Schedule", "Revisits", "Quizzes")
+
+    fun parts(frame: BlendFrame, items: List<BlendItem>, transfer: String): List<BlendFrame> {
+        require(items.size <= MaxSnapshotItems) { "This timetable exceeds 2,000 items." }
+        if (items.size <= MaxItems && runCatching { encode(frame) }.isSuccess) return listOf(frame)
+        fun part(rows: List<BlendItem>, index: Int, count: Int) = frame.copy(data = JSONObject()
+            .put("transfer", transfer).put("part", index).put("parts", count)
+            .put("revision", frame.data.optLong("revision")).put("items", pack(rows)))
+        val groups = mutableListOf<List<BlendItem>>()
+        var group = emptyList<BlendItem>()
+        for (item in items) {
+            val candidate = group + item
+            if (candidate.size > MaxItems ||
+                runCatching { encode(part(candidate, MaxParts, MaxParts)) }.isFailure) {
+                require(group.isNotEmpty()) { "A study item is too large to send." }
+                groups.add(group)
+                group = listOf(item)
+            } else group = candidate
+        }
+        groups.add(group)
+        require(groups.size in 1..MaxParts)
+        return groups.mapIndexed { index, rows -> part(rows, index, groups.size) }
+    }
 
     fun hasMarker(text: String): Boolean = Marker in text
 
@@ -83,7 +108,7 @@ internal object BlendProtocol {
                 require(category in categories && title.length in 1..100 && id.length in 1..64)
                 BlendItem(id, title, category, LocalDate.parse(row.getString("day")).toString(), row.getBoolean("done"))
             }.getOrNull()
-        }.distinctBy { it.id }
+        }.distinctBy { it.day to it.id }
     }
 
     fun pack(items: List<BlendItem>) = JSONArray().apply { items.forEach { put(it.json()) } }
