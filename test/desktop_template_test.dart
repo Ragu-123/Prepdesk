@@ -6,11 +6,15 @@ import 'package:tasks/services/desktop/desktop_web_template.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   test('Desktop uses bundled icons and fonts and exports an inspectable preview', () async {
-    final html = DesktopWebTemplate.render(localIp: '192.168.1.8', port: 8080, version: '1.0.18');
+    final html = DesktopWebTemplate.render(localIp: '192.168.1.8', port: 8080, version: '1.2.2');
     expect(html, contains('window.NYRO_ICONS'));
     expect(html, contains('/assets/material-icons.otf'));
     expect(html, contains('Prepdesk Desktop Companion'));
     expect(html, contains('/assets/prepdesk.png'));
+    expect(html, contains('id="panel-files"'));
+    expect(html, contains('id="file-dropzone"'));
+    expect(html, contains('id="file-preview-dialog"'));
+    expect(html, contains('id="file-sharing-status"'));
     expect(html, isNot(contains('fonts.googleapis.com')));
     expect(html, isNot(contains('localStorage.setItem')));
     expect(html, contains('aria-labelledby="pair-title"'));

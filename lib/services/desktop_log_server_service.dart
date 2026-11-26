@@ -12,6 +12,8 @@ import 'desktop/desktop_notes_handler.dart';
 import 'desktop/desktop_mistakes_handler.dart';
 import 'desktop/desktop_web_template.dart';
 import 'desktop/desktop_session_events.dart';
+import 'desktop/desktop_session_tracker.dart';
+import 'desktop/desktop_files_handler.dart';
 import 'study_data_events.dart';
 import 'appearance_service.dart';
 
@@ -20,19 +22,25 @@ class DesktopLogServerService {
   DesktopLogServerService._internal() {
     _generateNewPinInternal();
     StudyDataEvents.instance.privacy.listen((revision) {
-      _activeSessions.clear();
+      _sessionTracker.clearAll();
+      _filesHandler.abortAllChunkUploads();
       _sessionEvents.invalidate(revision);
     });
   }
 
   final _sessionEvents = DesktopSessionEvents();
+  final DesktopSessionTracker _sessionTracker = DesktopSessionTracker();
+  late final DesktopFilesHandler _filesHandler = DesktopFilesHandler(
+    sessionTracker: _sessionTracker,
+    onFilesChanged: () => _sessionEvents.broadcastFiles(enabled: fileSharingEnabled),
+  );
+  final ValueNotifier<bool> fileSharingNotifier = ValueNotifier<bool>(false);
   HttpServer? _server;
   String? _localIp;
   int _port = 8080;
 
   // 6-digit Authenticator Wi-Fi Shield PIN
   String _pairingPin = '123456';
-  final Map<String, DateTime> _activeSessions = <String, DateTime>{};
   int _failedAttempts = 0;
   DateTime? _lockoutUntil;
   final Map<String, int> _failedAttemptsByIp = <String, int>{};
@@ -43,6 +51,11 @@ class DesktopLogServerService {
       StreamController<Map<String, dynamic>>.broadcast();
 
   Stream<Map<String, dynamic>> get onMistakeReceived => _mistakeStreamController.stream;
+  ValueNotifier<List<DesktopConnectedDevice>> get devicesNotifier => _sessionTracker.devicesNotifier;
+  ValueNotifier<List<DesktopSharedFile>> get filesNotifier => _filesHandler.filesNotifier;
+  List<DesktopConnectedDevice> get connectedDevices => _sessionTracker.devices;
+  List<DesktopSharedFile> get sharedFiles => _filesHandler.filesNotifier.value;
+  bool get fileSharingEnabled => fileSharingNotifier.value;
 
   bool get isRunning => _server != null;
   String? get serverUrl => isRunning && _localIp != null ? 'http://$_localIp:$_port' : null;
@@ -50,10 +63,49 @@ class DesktopLogServerService {
   int get port => _port;
   String get pairingPin => _pairingPin;
 
+  Future<void> setFileSharingEnabled(bool enabled) async {
+    fileSharingNotifier.value = enabled;
+    await DatabaseService.instance.setFileSharingEnabled(enabled);
+    if (!enabled) {
+      await _filesHandler.abortAllChunkUploads();
+    } else {
+      await _filesHandler.refreshFiles();
+    }
+    await _sessionEvents.broadcastFiles(enabled: enabled);
+  }
+
+  Future<void> refreshSharedFiles() => _filesHandler.refreshFiles();
+
+  Future<DesktopSharedFile> registerPhoneFile(File file, String displayName) {
+    return _filesHandler.registerStoredFile(
+      file: file,
+      displayName: displayName,
+      source: 'phone',
+      uploadedBy: 'This phone',
+    );
+  }
+
+  Future<void> removeSharedFile(String id) => _filesHandler.removeFileById(id);
+
+  Future<void> clearSharedFiles() => _filesHandler.clearAll();
+
+  Future<bool> disconnectDevice(String deviceId) async {
+    final removedToken = _sessionTracker.disconnectDevice(deviceId);
+    if (removedToken == null) return false;
+    await _filesHandler.abortAllChunkUploads(onlySessionToken: removedToken);
+    await _sessionEvents.invalidateSession(
+      removedToken,
+      StudyDataEvents.instance.privacyRevision,
+    );
+    return true;
+  }
+
   String generateNewPin() {
     final pin = _generateNewPinInternal();
     // Revoke all existing sessions so laptop must re-verify
-    _activeSessions.clear();
+    _sessionTracker.clearAll();
+    _filesHandler.abortAllChunkUploads();
+    _sessionEvents.invalidate(StudyDataEvents.instance.privacyRevision);
     _failedAttempts = 0;
     _lockoutUntil = null;
     _failedAttemptsByIp.clear();
@@ -68,16 +120,7 @@ class DesktopLogServerService {
     return _pairingPin;
   }
 
-  static bool _constantTimeEqual(String a, String b) {
-    if (a.length != b.length) return false;
-    int res = 0;
-    for (int i = 0; i < a.length; i++) {
-      res |= a.codeUnitAt(i) ^ b.codeUnitAt(i);
-    }
-    return res == 0;
-  }
-
-  String? verifyPin(String inputPin, {String? clientIp}) {
+  String? verifyPin(String inputPin, {String? clientIp, String? userAgent}) {
     final now = DateTime.now();
 
     // Check IP lockout first if clientIp provided
@@ -96,21 +139,17 @@ class DesktopLogServerService {
     }
 
     final cleanInput = inputPin.trim().replaceAll(RegExp(r'\s+'), '');
-    if (_constantTimeEqual(cleanInput, _pairingPin)) {
+    if (DesktopSessionTracker.constantTimeEqual(cleanInput, _pairingPin)) {
       _failedAttempts = 0;
       _lockoutUntil = null;
       if (clientIp != null) {
         _failedAttemptsByIp.remove(clientIp);
         _lockoutByIp.remove(clientIp);
       }
-      // Generate secure 32-byte (64-character hex) session token
-      final rand = Random.secure();
-      final bytes = List<int>.generate(32, (_) => rand.nextInt(256));
-      final token = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
-      final expiry = now.add(const Duration(hours: 12));
-      _activeSessions[token] = expiry;
-      _pruneExpiredSessions();
-      return token;
+      return _sessionTracker.createSession(
+        ipAddress: clientIp ?? 'Local LAN',
+        userAgent: userAgent,
+      );
     } else {
       _failedAttempts++;
       if (clientIp != null) {
@@ -141,23 +180,7 @@ class DesktopLogServerService {
     }
   }
 
-  void _pruneExpiredSessions() {
-    final now = DateTime.now();
-    _activeSessions.removeWhere((_, expiry) => now.isAfter(expiry));
-  }
-
-  bool isSessionValid(String? token) {
-    if (token == null || token.isEmpty) return false;
-    final trimmed = token.trim();
-    if (!RegExp(r'^[a-fA-F0-9]{32,64}$').hasMatch(trimmed)) return false;
-    final expiry = _activeSessions[trimmed];
-    if (expiry == null) return false;
-    if (DateTime.now().isAfter(expiry)) {
-      _activeSessions.remove(trimmed);
-      return false;
-    }
-    return true;
-  }
+  bool isSessionValid(String? token) => _sessionTracker.isTokenValid(token);
 
   Future<String?> getDeviceIp() async {
     try {
@@ -190,6 +213,11 @@ class DesktopLogServerService {
       return serverUrl;
     }
 
+    try {
+      fileSharingNotifier.value = await DatabaseService.instance.getFileSharingEnabled();
+      await _filesHandler.refreshFiles();
+    } catch (_) {}
+
     _port = port;
     await getDeviceIp();
 
@@ -213,7 +241,8 @@ class DesktopLogServerService {
       await _server?.close(force: true);
     } catch (_) {}
     _server = null;
-    _activeSessions.clear();
+    _sessionTracker.clearAll();
+    await _filesHandler.abortAllChunkUploads();
     await _sessionEvents.invalidate(StudyDataEvents.instance.privacyRevision);
     debugPrint('Desktop Log Server stopped');
   }
@@ -247,8 +276,8 @@ class DesktopLogServerService {
   void _handleRequest(HttpRequest request) async {
     // Add CORS headers for desktop browser flexibility
     request.response.headers.add('Access-Control-Allow-Origin', '*');
-    request.response.headers.add('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
-    request.response.headers.add('Access-Control-Allow-Headers', 'Origin, Content-Type, Accept, Authorization');
+    request.response.headers.add('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    request.response.headers.add('Access-Control-Allow-Headers', 'Origin, Content-Type, Accept, Authorization, X-File-Name, X-File-Size, Range');
     request.response.headers.add('X-Content-Type-Options', 'nosniff');
     request.response.headers.add('X-Frame-Options', 'DENY');
     request.response.headers.set('Cache-Control', 'no-store');
@@ -305,6 +334,7 @@ class DesktopLogServerService {
       request.response.headers.contentType = ContentType.json;
       request.response.write(jsonEncode({'authenticated': isAuthenticated,
         'privacy_revision': StudyDataEvents.instance.privacyRevision,
+        'file_sharing_enabled': fileSharingEnabled,
         'accent': '#${AppearanceService.instance.accent.toARGB32().toRadixString(16).substring(2)}',
       }));
       await request.response.close();
@@ -314,7 +344,8 @@ class DesktopLogServerService {
     // 4. Auth Logout Endpoint (Invalidates Session)
     if ((request.method == 'POST' || request.method == 'GET') && path == '/api/auth/logout') {
       if (token != null) {
-        _activeSessions.remove(token);
+        _sessionTracker.revokeByToken(token);
+        await _filesHandler.abortAllChunkUploads(onlySessionToken: token);
       }
       request.response.headers.contentType = ContentType.json;
       request.response.write(jsonEncode({'success': true, 'message': 'Logged out successfully'}));
@@ -331,10 +362,35 @@ class DesktopLogServerService {
         'ip': _localIp,
         'port': _port,
         'authenticated': isAuthenticated,
+        'file_sharing_enabled': fileSharingEnabled,
       };
       request.response.headers.contentType = ContentType.json;
       request.response.write(jsonEncode(data));
       await request.response.close();
+      return;
+    }
+
+    // 5b. Direct ticket-authenticated file download & media range streaming
+    if (request.method == 'GET' && path.startsWith('/api/files/download/')) {
+      final fileId = path.substring('/api/files/download/'.length).split('/').first;
+      final ticket = request.uri.queryParameters['ticket'];
+      final ticketSession = _sessionTracker.validateDownloadTicket(ticket, fileId);
+      final effectiveSession = isAuthenticated ? token : ticketSession;
+      if (effectiveSession == null) {
+        request.response.statusCode = HttpStatus.unauthorized;
+        request.response.headers.contentType = ContentType.json;
+        request.response.write(jsonEncode({'error': 'Unauthorized'}));
+        await request.response.close();
+        return;
+      }
+      if (!fileSharingEnabled) {
+        request.response.statusCode = HttpStatus.forbidden;
+        request.response.headers.contentType = ContentType.json;
+        request.response.write(jsonEncode({'error': 'File sharing is turned off on your phone.'}));
+        await request.response.close();
+        return;
+      }
+      await _filesHandler.handleDownload(request, fileId, sessionToken: effectiveSession);
       return;
     }
 
@@ -351,8 +407,54 @@ class DesktopLogServerService {
     }
 
     if (request.method == 'GET' && path == '/api/session/events') {
-      await _sessionEvents.attach(request);
+      await _sessionEvents.attach(request, sessionToken: token);
       return;
+    }
+
+    // 5c. Bidirectional Phone <-> PC File Sharing Routes
+    if (path == '/api/files' || path.startsWith('/api/files/')) {
+      if (!fileSharingEnabled) {
+        request.response.statusCode = HttpStatus.forbidden;
+        request.response.headers.contentType = ContentType.json;
+        request.response.write(jsonEncode({
+          'error': 'File sharing is turned off on your phone. Enable it in Desktop Companion settings.',
+        }));
+        await request.response.close();
+        return;
+      }
+      if (request.method == 'GET' && path == '/api/files') {
+        await _filesHandler.handleListFiles(request, token: token);
+        return;
+      }
+      if (request.method == 'POST' && path == '/api/files/upload') {
+        await _filesHandler.handleSingleUpload(request, token: token);
+        return;
+      }
+      if (request.method == 'POST' && path == '/api/files/upload/init') {
+        await _filesHandler.handleChunkInit(request, token: token);
+        return;
+      }
+      if ((request.method == 'PUT' || request.method == 'POST') && path == '/api/files/upload/chunk') {
+        await _filesHandler.handleChunkWrite(request, token: token);
+        return;
+      }
+      if (request.method == 'POST' && path == '/api/files/upload/complete') {
+        await _filesHandler.handleChunkComplete(request, token: token);
+        return;
+      }
+      if (request.method == 'POST' && path == '/api/files/upload/abort') {
+        await _filesHandler.handleChunkAbort(request);
+        return;
+      }
+      if (request.method == 'POST' && path == '/api/files/ticket') {
+        await _filesHandler.handleCreateDownloadTicket(request, token: token);
+        return;
+      }
+      if (request.method == 'DELETE' && path.startsWith('/api/files/')) {
+        final fileId = path.substring('/api/files/'.length).split('/').first;
+        await _filesHandler.handleDeleteFile(request, fileId, token: token);
+        return;
+      }
     }
 
     // 6. Distinct Subjects List
@@ -366,6 +468,7 @@ class DesktopLogServerService {
 
     // 7. Mistakes API
     if (request.method == 'GET' && path == '/api/mistakes') {
+      _sessionTracker.recordActivity(token, 'Viewing Mistakes');
       final subjectFilter = request.uri.queryParameters['subject'];
       final severityFilter = request.uri.queryParameters['severity'];
       final statusFilter = request.uri.queryParameters['status'];
@@ -401,6 +504,7 @@ class DesktopLogServerService {
 
     // 7. Post Mistake Log
     if (request.method == 'POST' && path == '/api/mistakes') {
+      _sessionTracker.recordActivity(token, 'Logged Mistake');
       await _handlePostMistake(request);
       return;
     }
@@ -437,11 +541,13 @@ class DesktopLogServerService {
 
     // 10. Google Keep Notes API (GET, POST)
     if (request.method == 'GET' && path == '/api/notes') {
+      _sessionTracker.recordActivity(token, 'Viewing Keep Notes');
       final notesHandler = DesktopNotesHandler(authHandler: DesktopAuthHandler());
       await notesHandler.handleGetNotes(request);
       return;
     }
     if (request.method == 'POST' && path == '/api/notes') {
+      _sessionTracker.recordActivity(token, 'Created Keep Note');
       final notesHandler = DesktopNotesHandler(authHandler: DesktopAuthHandler());
       await notesHandler.handleCreateNote(request);
       return;
@@ -449,6 +555,7 @@ class DesktopLogServerService {
 
     // 11. Google Keep Notes API (PATCH, PUT, DELETE)
     if ((request.method == 'PATCH' || request.method == 'PUT') && path.startsWith('/api/notes/')) {
+      _sessionTracker.recordActivity(token, 'Updated Keep Note');
       final noteId = path.substring('/api/notes/'.length).split('/').first;
       final notesHandler = DesktopNotesHandler(authHandler: DesktopAuthHandler());
       await notesHandler.handleUpdateNote(request, noteId);
@@ -519,8 +626,9 @@ class DesktopLogServerService {
       final Map<String, dynamic> data = jsonDecode(bodyStr);
       final inputPin = data['pin']?.toString() ?? '';
       final clientIp = request.connectionInfo?.remoteAddress.address;
+      final userAgent = request.headers.value('user-agent');
 
-      final token = verifyPin(inputPin, clientIp: clientIp);
+      final token = verifyPin(inputPin, clientIp: clientIp, userAgent: userAgent);
       if (token != null) {
         request.response.statusCode = HttpStatus.ok;
         request.response.headers.contentType = ContentType.json;
