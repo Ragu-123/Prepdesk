@@ -485,6 +485,14 @@ class DatabaseService {
 
   Future<void> setAutoStartServer(bool enabled) => setConfig('auto_start_server', enabled ? '1' : '0');
 
+  Future<bool> getFileSharingEnabled() async {
+    final val = await getConfig('desktop_file_sharing_enabled');
+    return val == '1'; // default false
+  }
+
+  Future<void> setFileSharingEnabled(bool enabled) =>
+      setConfig('desktop_file_sharing_enabled', enabled ? '1' : '0');
+
   Future<bool> hasAnyScheduledLectures() async {
     final db = await database;
     final res = await db.rawQuery('SELECT COUNT(*) as cnt FROM lectures');

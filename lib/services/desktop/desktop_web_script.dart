@@ -2,7 +2,7 @@ class DesktopWebScript {
   static const value = r'''
 'use strict';
 const $ = id => document.getElementById(id);
-const state = { notes: [], mistakes: [], noteFilter: 'all', editingNote: null, token: sessionStorage.getItem('nyro_token') || localStorage.getItem('nyro_token') || '', authenticated: false };
+const state = { notes: [], mistakes: [], files: [], fileSharingEnabled: false, noteFilter: 'all', fileFilter: 'all', editingNote: null, token: sessionStorage.getItem('nyro_token') || localStorage.getItem('nyro_token') || '', authenticated: false, activeUploadXhrs: [], activeUploadIds: [], uploading: false };
 localStorage.removeItem('nyro_token');
 if (state.token) sessionStorage.setItem('nyro_token', state.token);
 const truth = value => value === true || value === 1;
@@ -26,6 +26,13 @@ function applyAppearance(accent) {
   style.setProperty('--tonal', 'color-mix(in srgb, ' + accent + ' 15%, white)');
   style.setProperty('--canvas', 'color-mix(in srgb, ' + accent + ' 3%, white)');
 }
+function applyFileSharingState(enabled) {
+  state.fileSharingEnabled = Boolean(enabled);
+  $('files-disabled-banner').hidden = state.fileSharingEnabled;
+  $('file-dropzone').hidden = !state.fileSharingEnabled;
+  $('pick-upload').disabled = !state.fileSharingEnabled;
+  $('file-sharing-status').textContent = state.fileSharingEnabled ? 'Enabled (Phone <-> PC)' : 'Turned off on phone';
+}
 async function api(path, options = {}) {
   const requestToken = state.token;
   const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 15000);
@@ -40,14 +47,16 @@ async function api(path, options = {}) {
   finally { clearTimeout(timer); }
 }
 function lockLocal() {
+  abortActiveUploads();
   if (sessionStream) { sessionStream.abort(); sessionStream = null; }
   privacyRevision = undefined;
-  state.authenticated = false; state.token = ''; state.notes = []; state.mistakes = []; state.editingNote = null;
+  state.authenticated = false; state.token = ''; state.notes = []; state.mistakes = []; state.files = []; state.editingNote = null;
   sessionStorage.removeItem('nyro_token'); $('app').inert = true;
   document.querySelectorAll('dialog[open]').forEach(dialog => dialog.close());
-  $('notes-container').replaceChildren(); $('mistakes-container').replaceChildren();
+  $('notes-container').replaceChildren(); $('mistakes-container').replaceChildren(); $('files-container').replaceChildren();
   $('note-form').reset(); $('mistake-form').reset(); $('pair-pin').value = '';
   $('reader-title').textContent = 'Note'; $('reader-body').replaceChildren();
+  $('preview-body').replaceChildren();
   if (!$('pair-dialog').open) $('pair-dialog').showModal();
   $('pair-pin').focus(); connected(false);
 }
@@ -64,16 +73,32 @@ async function watchPrivacy() {
       const chunk = await reader.read(); if (chunk.done) break;
       buffer += decoder.decode(chunk.value, { stream: true });
       const frames = buffer.split(/\r?\n\r?\n/); buffer = frames.pop();
-      for (const frame of frames) if (frame.includes('event: privacy')) { lockLocal(); return; }
+      for (const frame of frames) {
+        if (frame.includes('event: privacy')) { lockLocal(); return; }
+        if (frame.includes('event: files')) {
+          try {
+            const dataLine = frame.split(/\r?\n/).find(line => line.startsWith('data:'));
+            if (dataLine) {
+              const info = JSON.parse(dataLine.slice(5).trim());
+              applyFileSharingState(info.file_sharing_enabled);
+              if (info.file_sharing_enabled) loadFiles();
+              else { state.files = []; renderFiles(); }
+            }
+          } catch (_) {}
+        }
+      }
     }
   } catch (_) { /* Heartbeat also checks revocation if streaming is interrupted. */ }
 }
-async function loadWorkspace() { $('app').inert = false; $('pair-dialog').close(); state.authenticated = true; watchPrivacy(); $('workspace-error').hidden = true; await Promise.allSettled([loadNotes(), loadMistakes(), loadSubjects()]); }
+async function loadWorkspace() {
+  $('app').inert = false; $('pair-dialog').close(); state.authenticated = true; watchPrivacy(); $('workspace-error').hidden = true;
+  await Promise.allSettled([loadNotes(), loadMistakes(), loadSubjects(), state.fileSharingEnabled ? loadFiles() : Promise.resolve()]);
+}
 async function checkSession() {
   if (!state.token) { lockLocal(); return; }
   try { const data = await api('/api/auth/status'); if (data.authenticated) {
     if (privacyRevision !== undefined && data.privacy_revision !== privacyRevision) { lockLocal(); return; }
-    privacyRevision = data.privacy_revision; applyAppearance(data.accent);
+    privacyRevision = data.privacy_revision; applyAppearance(data.accent); applyFileSharingState(data.file_sharing_enabled);
     if (!state.authenticated) await loadWorkspace();
   } else lockLocal(); }
   catch (_) { lockLocal(); }
@@ -84,7 +109,10 @@ $('pair-form').addEventListener('submit', async event => {
   try {
     const data = await api('/api/auth/verify', { method: 'POST', body: JSON.stringify({ pin: $('pair-pin').value }) });
     if (!data.success || !data.token) throw new Error(data.error || 'That code was not accepted. Check the code on your phone.');
-    state.token = data.token; sessionStorage.setItem('nyro_token', state.token); $('pair-pin').value = ''; await loadWorkspace();
+    state.token = data.token; sessionStorage.setItem('nyro_token', state.token); $('pair-pin').value = '';
+    const status = await api('/api/auth/status').catch(() => ({}));
+    applyAppearance(status.accent); applyFileSharingState(status.file_sharing_enabled);
+    await loadWorkspace();
   } catch (error) { $('pair-error').textContent = error.message; }
   finally { button.disabled = false; }
 });
@@ -95,8 +123,14 @@ document.querySelectorAll('[data-tab]').forEach(button => button.addEventListene
   document.querySelectorAll('.panel').forEach(panel => panel.hidden = panel.id !== 'panel-' + target);
   document.querySelectorAll('[data-tab]').forEach(item => item === button ? item.setAttribute('aria-current', 'page') : item.removeAttribute('aria-current'));
   if (target === 'status') checkSession();
+  if (target === 'files' && state.fileSharingEnabled) loadFiles();
 }));
-document.querySelectorAll('[data-close]').forEach(button => button.addEventListener('click', () => $(button.dataset.close).close()));
+document.querySelectorAll('[data-close]').forEach(button => button.addEventListener('click', () => {
+  const targetId = button.dataset.close;
+  if (targetId === 'file-preview-dialog') $('preview-body').replaceChildren();
+  $(targetId).close();
+}));
+$('preview-close').addEventListener('click', () => $('preview-body').replaceChildren());
 function empty(container, heading, description, symbol, onCreate) {
   const item = node('div', 'empty'); item.append(icon(symbol), node('h2', '', heading), node('p', '', description));
   if (onCreate) item.append(action('Create one', 'add', onCreate, 'btn btn-tonal'));
@@ -223,10 +257,173 @@ $('mistake-form').addEventListener('submit', async event => {
 });
 $('new-mistake').addEventListener('click', openMistake); $('refresh-mistakes').addEventListener('click', loadMistakes); $('refresh-status').addEventListener('click', checkSession);
 ['mistake-search', 'subject-filter', 'status-filter'].forEach(id => $(id).addEventListener(id === 'mistake-search' ? 'input' : 'change', renderMistakes));
+
+// --- Bidirectional Ultra-Fast File Sharing ---
+function fileKindIcon(file) {
+  const mime = String(file.mime_type || '').toLowerCase();
+  const ext = String(file.extension || '').toLowerCase();
+  if (ext === 'pdf' || mime.includes('pdf')) return 'pdf';
+  if (mime.startsWith('video/') || ['mp4', 'mkv', 'webm', 'mov', 'avi'].includes(ext)) return 'video';
+  if (mime.startsWith('audio/') || ['mp3', 'wav', 'm4a', 'flac', 'ogg', 'aac'].includes(ext)) return 'audio';
+  if (mime.startsWith('image/') || ['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(ext)) return 'image';
+  return 'file';
+}
+function isPreviewable(file) {
+  const kind = fileKindIcon(file);
+  return ['pdf', 'video', 'audio', 'image'].includes(kind);
+}
+async function loadFiles() {
+  if (!state.fileSharingEnabled) { state.files = []; renderFiles(); return; }
+  try { const data = await api('/api/files'); state.files = data.files || []; renderFiles(); }
+  catch (error) { if (String(error.message || '').includes('turned off')) applyFileSharingState(false); else report(error); }
+}
+function renderFiles() {
+  const query = $('file-search').value.toLowerCase().trim();
+  const files = state.files.filter(f => {
+    if (state.fileFilter === 'phone' && f.source !== 'phone') return false;
+    if (state.fileFilter === 'pc' && f.source !== 'pc') return false;
+    if (state.fileFilter === 'media' && !isPreviewable(f)) return false;
+    return [f.name, f.extension, f.mime_type, f.uploaded_by].some(v => text(v).toLowerCase().includes(query));
+  });
+  $('file-count').textContent = state.files.length;
+  $('file-summary').textContent = !state.fileSharingEnabled ? 'File sharing disabled on phone' : (files.length + (files.length === 1 ? ' file' : ' files') + ' ready to open or download');
+  const container = $('files-container'); container.replaceChildren();
+  if (!state.fileSharingEnabled) return;
+  if (!files.length) { empty(container, query ? 'No matching files' : 'Share any file with your phone', query ? 'Try another filename or clear the filter.' : 'Drop PDF, MP4, MKV, MP3, WAV or any file above, or share from your phone settings.', 'folder', null); return; }
+  files.forEach(file => {
+    const row = node('article', 'file-row');
+    const iconBox = node('div', 'file-icon'); iconBox.append(icon(fileKindIcon(file)));
+    const info = node('div', 'file-info');
+    info.append(node('div', 'file-title', file.name));
+    const meta = node('div', 'file-meta');
+    meta.append(node('span', 'pill', (file.extension || 'FILE').toUpperCase()), node('span', '', file.size_display || ''), node('span', 'pill', file.source === 'phone' ? 'From phone' : 'Sent from PC'));
+    if (file.created_at) meta.append(node('span', '', new Date(file.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })));
+    info.append(meta);
+    const acts = node('div', 'file-actions');
+    if (isPreviewable(file)) acts.append(action('Preview', 'play', () => openFilePreview(file), 'btn btn-tonal'));
+    acts.append(action('Download', 'download', () => downloadSharedFile(file), 'btn'), action('Delete', 'delete', () => deleteRecord('file', file.id)));
+    row.append(iconBox, info, acts);
+    container.append(row);
+  });
+}
+async function downloadSharedFile(file) {
+  try {
+    const res = await api('/api/files/ticket', { method: 'POST', body: JSON.stringify({ id: file.id }) });
+    const a = document.createElement('a');
+    a.href = '/api/files/download/' + encodeURIComponent(file.id) + '?ticket=' + encodeURIComponent(res.ticket);
+    a.download = file.name;
+    document.body.append(a); a.click(); a.remove();
+  } catch (error) { report(error); }
+}
+async function openFilePreview(file) {
+  try {
+    const res = await api('/api/files/ticket', { method: 'POST', body: JSON.stringify({ id: file.id }) });
+    const url = '/api/files/download/' + encodeURIComponent(file.id) + '?ticket=' + encodeURIComponent(res.ticket) + '&preview=1';
+    $('preview-title').textContent = file.name;
+    $('preview-download').href = '/api/files/download/' + encodeURIComponent(file.id) + '?ticket=' + encodeURIComponent(res.ticket);
+    $('preview-download').download = file.name;
+    const body = $('preview-body'); body.replaceChildren();
+    const kind = fileKindIcon(file);
+    if (kind === 'video') { const v = document.createElement('video'); v.controls = true; v.autoplay = true; v.playsInline = true; v.src = url; body.append(v); }
+    else if (kind === 'audio') { const a = document.createElement('audio'); a.controls = true; a.autoplay = true; a.src = url; body.append(a); }
+    else if (kind === 'image') { const i = document.createElement('img'); i.src = url; i.alt = file.name; body.append(i); }
+    else { const frame = document.createElement('iframe'); frame.src = url; frame.title = file.name; body.append(frame); }
+    $('file-preview-dialog').showModal();
+  } catch (error) { report(error); }
+}
+function updateUploadProgress(name, sentBytes, totalBytes, startedAt) {
+  const pct = totalBytes > 0 ? Math.min(100, Math.round((sentBytes / totalBytes) * 100)) : 0;
+  const elapsedSec = Math.max(0.1, (Date.now() - startedAt) / 1000);
+  const mbps = (sentBytes / (1024 * 1024)) / elapsedSec;
+  $('upload-progress-wrap').hidden = false;
+  $('upload-status-name').textContent = name;
+  $('upload-status-meta').textContent = pct + '% • ' + mbps.toFixed(1) + ' MB/s';
+  $('upload-progress-bar').style.width = pct + '%';
+}
+function abortActiveUploads() {
+  state.activeUploadXhrs.forEach(xhr => { try { xhr.abort(); } catch (_) {} });
+  state.activeUploadXhrs = [];
+  state.activeUploadIds.forEach(id => { api('/api/files/upload/abort', { method: 'POST', body: JSON.stringify({ upload_id: id }) }).catch(() => {}); });
+  state.activeUploadIds = [];
+  state.uploading = false;
+  $('upload-progress-wrap').hidden = true;
+}
+function uploadSingleXhr(url, method, blob, extraHeaders, onBytes) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    state.activeUploadXhrs.push(xhr);
+    let lastLoaded = 0;
+    xhr.open(method, url, true);
+    if (state.token) xhr.setRequestHeader('Authorization', 'Bearer ' + state.token);
+    Object.entries(extraHeaders || {}).forEach(([k, v]) => xhr.setRequestHeader(k, v));
+    xhr.upload.onprogress = evt => { if (evt.lengthComputable) { const delta = Math.max(0, evt.loaded - lastLoaded); lastLoaded = evt.loaded; onBytes(delta); } };
+    xhr.onload = () => {
+      state.activeUploadXhrs = state.activeUploadXhrs.filter(x => x !== xhr);
+      if (xhr.status >= 200 && xhr.status < 300) resolve(JSON.parse(xhr.responseText || '{}'));
+      else { let err = 'Upload failed'; try { err = JSON.parse(xhr.responseText).error || err; } catch (_) {} reject(new Error(err)); }
+    };
+    xhr.onerror = () => { state.activeUploadXhrs = state.activeUploadXhrs.filter(x => x !== xhr); reject(new Error('Network interruption during upload')); };
+    xhr.onabort = () => { state.activeUploadXhrs = state.activeUploadXhrs.filter(x => x !== xhr); reject(new Error('Upload cancelled')); };
+    xhr.send(blob);
+  });
+}
+async function sendFilesToPhone(fileList) {
+  if (!state.fileSharingEnabled) { toast('Enable File Sharing on your phone first.'); return; }
+  const files = Array.from(fileList || []).filter(f => f && f.size >= 0);
+  if (!files.length || state.uploading) return;
+  state.uploading = true;
+  const DIRECT_LIMIT = 8 * 1024 * 1024;
+  const CHUNK_SIZE = 4 * 1024 * 1024;
+  const PARALLEL = 3;
+  try {
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const startedAt = Date.now();
+      let sentBytes = 0;
+      const label = (files.length > 1 ? '(' + (i + 1) + '/' + files.length + ') ' : '') + file.name;
+      updateUploadProgress(label, 0, file.size, startedAt);
+      if (file.size <= DIRECT_LIMIT) {
+        await uploadSingleXhr('/api/files/upload', 'POST', file, { 'X-File-Name': encodeURIComponent(file.name), 'Content-Type': 'application/octet-stream' }, delta => { sentBytes += delta; updateUploadProgress(label, sentBytes, file.size, startedAt); });
+      } else {
+        const init = await api('/api/files/upload/init', { method: 'POST', body: JSON.stringify({ name: file.name, size: file.size }) });
+        const uploadId = init.upload_id;
+        state.activeUploadIds.push(uploadId);
+        const offsets = [];
+        for (let off = 0; off < file.size; off += CHUNK_SIZE) offsets.push(off);
+        let cursor = 0;
+        const worker = async () => {
+          while (cursor < offsets.length) {
+            const off = offsets[cursor++];
+            const slice = file.slice(off, Math.min(file.size, off + CHUNK_SIZE));
+            await uploadSingleXhr('/api/files/upload/chunk?upload_id=' + encodeURIComponent(uploadId) + '&offset=' + off, 'PUT', slice, { 'Content-Type': 'application/octet-stream' }, delta => { sentBytes += delta; updateUploadProgress(label, sentBytes, file.size, startedAt); });
+          }
+        };
+        await Promise.all(Array.from({ length: Math.min(PARALLEL, offsets.length) }, worker));
+        await api('/api/files/upload/complete', { method: 'POST', body: JSON.stringify({ upload_id: uploadId }) });
+        state.activeUploadIds = state.activeUploadIds.filter(id => id !== uploadId);
+      }
+      toast('Sent ' + file.name + ' to phone');
+    }
+    await loadFiles();
+  } catch (error) { if (error.message !== 'Upload cancelled') report(error); }
+  finally { state.uploading = false; $('upload-progress-wrap').hidden = true; $('file-input').value = ''; }
+}
+$('pick-upload').addEventListener('click', () => $('file-input').click());
+$('file-dropzone').addEventListener('click', () => $('file-input').click());
+$('file-dropzone').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('file-input').click(); } });
+$('file-input').addEventListener('change', e => sendFilesToPhone(e.target.files));
+['dragenter', 'dragover'].forEach(ev => $('file-dropzone').addEventListener(ev, e => { e.preventDefault(); $('file-dropzone').classList.add('is-dragging'); }));
+['dragleave', 'drop'].forEach(ev => $('file-dropzone').addEventListener(ev, e => { e.preventDefault(); $('file-dropzone').classList.remove('is-dragging'); }));
+$('file-dropzone').addEventListener('drop', e => sendFilesToPhone(e.dataTransfer && e.dataTransfer.files));
+$('abort-uploads').addEventListener('click', abortActiveUploads);
+$('refresh-files').addEventListener('click', loadFiles);
+$('file-search').addEventListener('input', renderFiles);
+document.querySelectorAll('[data-file-filter]').forEach(button => button.addEventListener('click', () => { state.fileFilter = button.dataset.fileFilter; document.querySelectorAll('[data-file-filter]').forEach(item => item.setAttribute('aria-pressed', String(item === button))); renderFiles(); }));
 function confirmDelete() { return new Promise(resolve => { const dialog = $('confirm-dialog'); dialog.returnValue = 'cancel'; dialog.addEventListener('close', () => resolve(dialog.returnValue === 'delete'), { once: true }); dialog.showModal(); }); }
 async function deleteRecord(type, id) {
   if (!await confirmDelete()) return;
-  try { await api('/api/' + (type === 'note' ? 'notes/' : 'mistakes/') + encodeURIComponent(id), { method: 'DELETE' }); await (type === 'note' ? loadNotes() : loadMistakes()); toast(type === 'note' ? 'Note deleted' : 'Mistake deleted'); }
+  const endpoint = type === 'note' ? 'notes/' : (type === 'file' ? 'files/' : 'mistakes/');
+  try { await api('/api/' + endpoint + encodeURIComponent(id), { method: 'DELETE' }); await (type === 'note' ? loadNotes() : (type === 'file' ? loadFiles() : loadMistakes())); toast(type === 'note' ? 'Note deleted' : (type === 'file' ? 'File removed' : 'Mistake deleted')); }
   catch (error) { report(error); }
 }
 setInterval(() => { if (state.authenticated && !document.hidden) checkSession(); }, 3000);
@@ -237,7 +434,7 @@ document.addEventListener('visibilitychange', async () => {
     $('reader-title').textContent = 'Note'; $('reader-body').replaceChildren(); $('app').inert = true;
   } else if (state.token) {
     await checkSession();
-    if (state.authenticated) { await loadNotes(); $('app').inert = false; }
+    if (state.authenticated) { await Promise.allSettled([loadNotes(), state.fileSharingEnabled ? loadFiles() : Promise.resolve()]); $('app').inert = false; }
   }
 });
 checkSession();

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'appearance_settings_page.dart';
+import 'widgets/desktop_companion_panels.dart';
 import 'widgets/notification_access_panel.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
@@ -36,6 +37,7 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _serverRunning = false;
   String? _serverUrl;
   bool _autoStartServer = false;
+  bool _fileSharingEnabled = false;
 
   // App Updates
   bool _autoCheckUpdates = true;
@@ -116,6 +118,11 @@ class _SettingsPageState extends State<SettingsPage> {
     _serverRunning = DesktopLogServerService.instance.isRunning;
     _serverUrl = DesktopLogServerService.instance.serverUrl;
     _autoStartServer = await DatabaseService.instance.getAutoStartServer();
+    _fileSharingEnabled = await DatabaseService.instance.getFileSharingEnabled();
+    DesktopLogServerService.instance.fileSharingNotifier.value = _fileSharingEnabled;
+    if (_fileSharingEnabled) {
+      await DesktopLogServerService.instance.refreshSharedFiles();
+    }
 
     // Updates
     _autoCheckUpdates = await DatabaseService.instance.getAutoCheckUpdates();
@@ -1148,6 +1155,32 @@ class _SettingsPageState extends State<SettingsPage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Phone & PC File Sharing', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                      Text(
+                        'Transfer PDF, MP4, MKV, MP3, WAV or any file between devices',
+                        style: TextStyle(fontSize: 11, color: googleTextSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+                Switch(
+                  value: _fileSharingEnabled,
+                  activeColor: Theme.of(context).colorScheme.primary,
+                  onChanged: (val) async {
+                    setState(() => _fileSharingEnabled = val);
+                    await DesktopLogServerService.instance.setFileSharingEnabled(val);
+                  },
+                ),
+              ],
+            ),
+            const Divider(height: 20, thickness: 1, color: googleHairline),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
                 const Text('Auto-start server on app launch', style: TextStyle(fontSize: 13)),
                 Switch(
                   value: _autoStartServer,
@@ -1161,6 +1194,12 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ],
         ),
+        const SizedBox(height: 12),
+        DesktopConnectedDevicesCard(
+          serverRunning: _serverRunning,
+          serverUrl: _serverUrl,
+        ),
+        const DesktopSharedFilesCard(),
       ],
     );
   }

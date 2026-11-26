@@ -21,5 +21,30 @@ class DesktopWebStyles {
   mask: url('/assets/prepdesk_mark.png') center / contain no-repeat;
 }
 .pair-mark.brand-mark::before { width: 36px; height: 36px; }
+.dropzone{display:flex;align-items:center;gap:16px;padding:22px 24px;margin-bottom:20px;border:2px dashed var(--line);border-radius:22px;background:var(--surface);cursor:pointer;transition:border-color .18s,background .18s}
+.dropzone:hover,.dropzone.is-dragging{border-color:var(--primary);background:var(--tonal)}
+.dropzone .mi{font-size:32px;color:var(--primary)}
+.dropzone strong{display:block;font-size:15px;margin-bottom:2px}
+.dropzone span{font-size:12px;color:var(--muted)}
+.dropzone[hidden],.upload-progress[hidden]{display:none}
+.upload-progress{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:16px 20px;margin-bottom:20px}
+.upload-progress-head{display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap}
+.upload-progress-head strong{margin-right:auto;overflow-wrap:anywhere}
+.upload-progress-head span{font-size:12px;color:var(--primary);font-weight:700}
+.progress-track{height:8px;border-radius:99px;background:var(--canvas);overflow:hidden}
+.progress-fill{height:100%;background:var(--primary);border-radius:99px;transition:width .12s linear}
+.files-list{display:grid;gap:12px}
+.file-row{display:flex;align-items:center;gap:16px;padding:16px 20px;background:var(--surface);border:1px solid var(--line);border-radius:20px;transition:border-color .18s}
+.file-row:hover{border-color:#9babc2}
+.file-icon{width:46px;height:46px;border-radius:14px;background:var(--tonal);color:var(--primary);display:grid;place-items:center;flex:none}
+.file-info{flex:1;min-width:0}
+.file-title{font-size:15px;font-weight:700;overflow-wrap:anywhere;margin-bottom:4px}
+.file-meta{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:12px;color:var(--muted)}
+.file-actions{display:flex;align-items:center;gap:6px;flex:none}
+#file-preview-dialog{width:min(960px,calc(100vw - 48px));max-height:calc(100dvh - 48px)}
+.file-preview-body{display:grid;place-items:center;min-height:200px}
+.file-preview-body video,.file-preview-body audio,.file-preview-body iframe,.file-preview-body img{max-width:100%;border-radius:14px}
+.file-preview-body iframe{width:100%;height:68vh;border:0}
+@media(max-width:700px){.file-row{flex-wrap:wrap;padding:14px}.file-actions{width:100%;justify-content:flex-end}.dropzone{padding:16px}}
 ''';
 }
