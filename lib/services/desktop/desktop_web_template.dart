@@ -37,7 +37,7 @@ class DesktopWebTemplate {
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="page-type" content="software"><meta name="site-kind" content="software">
 <link rel="icon" type="image/png" href="/assets/prepdesk.png">
-<meta name="theme-color" content="#f7f8fc"><meta name="description" content="Your Prepdesk notes, mistakes and shared files, connected to your phone.">
+<meta name="theme-color" content="#f7f8fc"><meta name="description" content="Your Prepdesk notes, mistakes and PrepShare files, connected to your phone.">
 <title>Prepdesk Desktop Companion</title>
 <style>${DesktopWebStyles.value}</style>
 </head><body>
@@ -48,7 +48,7 @@ class DesktopWebTemplate {
   <nav class="nav" aria-label="Main navigation">
     <button type="button" data-tab="keep" aria-current="page">${icon('note')}<span>Keep notes</span><span id="note-count" class="count">0</span></button>
     <button type="button" data-tab="mistakes">${icon('mistake')}<span>Mistakes</span><span id="mistake-count" class="count">0</span></button>
-    <button type="button" data-tab="files">${icon('folder')}<span>File share</span><span id="file-count" class="count">0</span></button>
+    <button type="button" data-tab="files">${icon('folder')}<span>PrepShare</span><span id="file-count" class="count">0</span></button>
     <button type="button" data-tab="status">${icon('status')}<span>Connection</span></button>
   </nav>
   <div class="sidebar-footer"><strong>Your phone. A bigger workspace.</strong>Keep Prepdesk open on the same Wi-Fi network.<br><br>Prepdesk v$version</div>
@@ -70,24 +70,38 @@ class DesktopWebTemplate {
   <div class="mistakes-list" id="mistakes-container"></div>
 </section>
 <section class="panel" id="panel-files" aria-labelledby="files-title" hidden>
-  <div class="page-head"><div><h1 id="files-title">File share</h1><p>High-speed transfer for PDF, MP4, MKV, MP3, WAV or any file between phone and PC.</p></div><button class="btn btn-primary" id="pick-upload" type="button">${icon('upload')}Send files</button></div>
-  <div id="files-disabled-banner" class="error-bar" role="status" hidden>File sharing is turned off on your phone. Enable Phone &amp; PC File Sharing in Prepdesk Desktop Companion settings.</div>
-  <div id="file-dropzone" class="dropzone" tabindex="0" role="button" aria-label="Drop files here or press enter to choose files">
-    ${icon('upload')}
-    <div><strong>Drop PDF, MP4, MKV, MP3, WAV or any files here</strong><span>Multi-stream Wi-Fi transfer • Up to 4 GB per file • Zero compression loss</span></div>
-    <input id="file-input" type="file" multiple hidden>
+  <div class="page-head"><div><h1 id="files-title">PrepShare</h1><p>High-speed transfer for PDF, MP4, MKV, MP3, WAV or any file between phone and PC.</p></div><button class="btn btn-primary" id="pick-upload" type="button">${icon('upload')}Send files</button></div>
+  <div id="files-disabled-banner" class="error-bar" role="status" hidden>PrepShare is turned off on your phone. Enable PrepShare (Phone &amp; PC File Sharing) in Prepdesk Desktop Companion settings.</div>
+  <div class="toolbar"><label class="search">${icon('search')}<span class="sr-only">Search PrepShare files</span><input id="file-search" type="search" placeholder="Search file names or formats"></label><div id="prepshare-tabs" class="subtabs" role="group" aria-label="PrepShare direction"><button type="button" class="subtab" data-prepshare-tab="receive" aria-pressed="true">${icon('download')}<span>Receive from phone</span><span id="receive-count" class="count">0</span></button><button type="button" class="subtab" data-prepshare-tab="send" aria-pressed="false">${icon('upload')}<span>Send to phone</span><span id="send-count" class="count">0</span></button></div></div>
+  <div id="prepshare-receive-pane">
+    <div class="toolbar"><div class="filters" aria-label="Received file filters"><button class="filter" data-file-filter="all" aria-pressed="true">All</button><button class="filter" data-file-filter="media" aria-pressed="false">Media &amp; PDF</button><button class="filter" data-file-filter="docs" aria-pressed="false">Documents</button><button class="filter" data-file-filter="other" aria-pressed="false">Other</button></div></div>
+    <div class="section-line"><span id="file-summary" aria-live="polite">Loading shared files</span><button class="btn icon-button" type="button" id="refresh-files" aria-label="Refresh files" title="Refresh files">${icon('refresh')}</button></div>
+    <div class="files-list" id="files-container"></div>
   </div>
-  <div id="upload-progress-wrap" class="upload-progress" hidden>
-    <div class="upload-progress-head"><strong id="upload-status-name">Preparing transfer</strong><span id="upload-status-meta">0%</span><button id="abort-uploads" class="btn btn-danger" type="button">Cancel</button></div>
-    <div class="progress-track"><div id="upload-progress-bar" class="progress-fill" style="width:0%"></div></div>
+  <div id="prepshare-send-pane" hidden>
+    <div id="file-dropzone" class="dropzone" tabindex="0" role="button" aria-label="Drop files here or press enter to choose files">
+      ${icon('upload')}
+      <div><strong>Drop PDF, MP4, MKV, MP3, WAV or any files here</strong><span>Multi-stream Wi-Fi transfer - Up to 4 GB per file - Zero compression loss</span></div>
+      <input id="file-input" type="file" multiple hidden>
+    </div>
+    <div class="cat-chips" aria-label="Quick category upload">
+      <button type="button" class="filter" data-send-accept=".pdf,.doc,.docx,.txt,.md,.csv,.ppt,.pptx,.xls,.xlsx,application/pdf">PDF &amp; Docs</button>
+      <button type="button" class="filter" data-send-accept="video/*,.mp4,.mkv,.webm,.mov,.avi">Video (MP4/MKV)</button>
+      <button type="button" class="filter" data-send-accept="audio/*,.mp3,.wav,.m4a,.flac,.aac,.ogg">Audio (MP3/WAV)</button>
+      <button type="button" class="filter" data-send-accept="image/*">Images</button>
+      <button type="button" class="filter" data-send-accept="">Any File</button>
+    </div>
+    <div id="upload-progress-wrap" class="upload-progress" hidden>
+      <div class="upload-progress-head"><strong id="upload-status-name">Preparing transfer</strong><span id="upload-status-meta">0%</span><button id="abort-uploads" class="btn btn-danger" type="button">Cancel</button></div>
+      <div class="progress-track"><div id="upload-progress-bar" class="progress-fill" style="width:0%"></div></div>
+    </div>
+    <div class="section-line"><span id="send-summary" aria-live="polite">Files sent from this PC</span><button class="btn icon-button" type="button" id="refresh-sent-files" aria-label="Refresh sent files" title="Refresh sent files">${icon('refresh')}</button></div>
+    <div class="files-list" id="sent-files-container"></div>
   </div>
-  <div class="toolbar"><label class="search">${icon('search')}<span class="sr-only">Search files</span><input id="file-search" type="search" placeholder="Search file names or formats"></label><div class="filters" aria-label="File filters"><button class="filter" data-file-filter="all" aria-pressed="true">All files</button><button class="filter" data-file-filter="phone" aria-pressed="false">From phone</button><button class="filter" data-file-filter="pc" aria-pressed="false">Sent from PC</button><button class="filter" data-file-filter="media" aria-pressed="false">Media &amp; PDF</button></div></div>
-  <div class="section-line"><span id="file-summary" aria-live="polite">Loading shared files</span><button class="btn icon-button" type="button" id="refresh-files" aria-label="Refresh files" title="Refresh files">${icon('refresh')}</button></div>
-  <div class="files-list" id="files-container"></div>
 </section>
 <section class="panel" id="panel-status" aria-labelledby="status-title" hidden>
   <div class="page-head"><div><h1 id="status-title">Connected to your phone.</h1><p>This workspace reads and saves directly to Prepdesk on your local network.</p></div><button class="btn" id="refresh-status" type="button">${icon('refresh')}Check connection</button></div>
-  <div class="status-grid"><article class="status-card">${icon('connection')}<h2>Local connection</h2><p id="status-description">Checking your phone connection.</p><dl class="status-data"><dt>Phone address</dt><dd>$localIp:$port</dd><dt>App version</dt><dd>$version</dd><dt>Session</dt><dd id="session-status">Checking</dd><dt>File sharing</dt><dd id="file-sharing-status">Checking</dd></dl></article><article class="status-card">${icon('lock')}<h2>Your private workspace</h2><p>Pair using the six-digit code shown in your phone's Desktop Companion settings. Lock this workspace when you step away.</p><p>Protected Keep notes can only be opened and changed on your phone.</p><p>This connection is local HTTP. Use it on a trusted Wi-Fi network.</p></article></div>
+  <div class="status-grid"><article class="status-card">${icon('connection')}<h2>Local connection</h2><p id="status-description">Checking your phone connection.</p><dl class="status-data"><dt>Phone address</dt><dd>$localIp:$port</dd><dt>App version</dt><dd>$version</dd><dt>Session</dt><dd id="session-status">Checking</dd><dt>PrepShare</dt><dd id="file-sharing-status">Checking</dd></dl></article><article class="status-card">${icon('lock')}<h2>Your private workspace</h2><p>Pair using the six-digit code shown in your phone's Desktop Companion settings. Lock this workspace when you step away.</p><p>Protected Keep notes can only be opened and changed on your phone.</p><p>This connection is local HTTP. Use it on a trusted Wi-Fi network.</p></article></div>
 </section>
 </main></div></div>
 <dialog id="pair-dialog" class="pair-dialog" aria-labelledby="pair-title">

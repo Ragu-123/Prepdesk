@@ -16,6 +16,8 @@ class DesktopSharedFile {
   final String mimeType;
   final String source; // 'phone' | 'pc'
   final String uploadedBy;
+  final String targetDeviceId; // 'all' or connected device id
+  final String targetDeviceLabel;
   final int createdAt;
 
   const DesktopSharedFile({
@@ -26,6 +28,8 @@ class DesktopSharedFile {
     required this.mimeType,
     required this.source,
     required this.uploadedBy,
+    this.targetDeviceId = 'all',
+    this.targetDeviceLabel = 'All connected PCs',
     required this.createdAt,
   });
 
@@ -52,6 +56,13 @@ class DesktopSharedFile {
     return '${(sizeBytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
   }
 
+  bool isVisibleToDevice(String? deviceId) {
+    if (source != 'phone' || targetDeviceId == 'all' || targetDeviceId.isEmpty) {
+      return true;
+    }
+    return deviceId != null && deviceId == targetDeviceId;
+  }
+
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -62,6 +73,8 @@ class DesktopSharedFile {
       'extension': extension,
       'source': source,
       'uploaded_by': uploadedBy,
+      'target_device_id': targetDeviceId,
+      'target_device_label': targetDeviceLabel,
       'created_at': createdAt,
     };
   }
@@ -75,6 +88,8 @@ class DesktopSharedFile {
       'mime_type': mimeType,
       'source': source,
       'uploaded_by': uploadedBy,
+      'target_device_id': targetDeviceId,
+      'target_device_label': targetDeviceLabel,
       'created_at': createdAt,
     };
   }
@@ -295,6 +310,9 @@ class DesktopFilesHandler {
         mimeType: meta?['mime_type']?.toString() ?? resolveMimeType(displayName),
         source: meta?['source']?.toString() ?? 'phone',
         uploadedBy: meta?['uploaded_by']?.toString() ?? 'This device',
+        targetDeviceId: meta?['target_device_id']?.toString() ?? 'all',
+        targetDeviceLabel:
+            meta?['target_device_label']?.toString() ?? 'All connected PCs',
         createdAt: (meta?['created_at'] as num?)?.toInt() ??
             stat.modified.millisecondsSinceEpoch,
       ));
@@ -349,6 +367,8 @@ class DesktopFilesHandler {
     required String displayName,
     required String source,
     required String uploadedBy,
+    String targetDeviceId = 'all',
+    String targetDeviceLabel = 'All connected PCs',
   }) async {
     if (!_loaded) await refreshFiles();
     final stat = await file.stat();
@@ -360,6 +380,8 @@ class DesktopFilesHandler {
       mimeType: resolveMimeType(displayName),
       source: source,
       uploadedBy: uploadedBy,
+      targetDeviceId: targetDeviceId,
+      targetDeviceLabel: targetDeviceLabel,
       createdAt: DateTime.now().millisecondsSinceEpoch,
     );
     final updated = [entry, ...filesNotifier.value.where((f) => f.filePath != file.path)];
@@ -380,6 +402,21 @@ class DesktopFilesHandler {
     final updated = filesNotifier.value.where((f) => f.id != id).toList();
     filesNotifier.value = List.unmodifiable(updated);
     await _writeManifest(updated);
+    onFilesChanged?.call();
+  }
+
+  Future<void> clearBySource(String source) async {
+    if (!_loaded) await refreshFiles();
+    final toRemove = filesNotifier.value.where((f) => f.source == source).toList();
+    for (final item in toRemove) {
+      try {
+        final f = File(item.filePath);
+        if (await f.exists()) await f.delete();
+      } catch (_) {}
+    }
+    final remaining = filesNotifier.value.where((f) => f.source != source).toList();
+    filesNotifier.value = List.unmodifiable(remaining);
+    await _writeManifest(remaining);
     onFilesChanged?.call();
   }
 
@@ -418,11 +455,18 @@ class DesktopFilesHandler {
   Future<void> handleListFiles(HttpRequest request, {String? token}) async {
     try {
       if (!_loaded) await refreshFiles();
-      sessionTracker.recordActivity(token, 'Browsing shared files');
+      sessionTracker.recordActivity(token, 'Browsing PrepShare');
+      final caller = sessionTracker.deviceForToken(token);
+      final visible = filesNotifier.value
+          .where((f) => f.isVisibleToDevice(caller?.id))
+          .map((f) => f.toMap())
+          .toList();
       request.response.headers.contentType = ContentType.json;
       request.response.write(jsonEncode({
         'success': true,
-        'files': filesNotifier.value.map((f) => f.toMap()).toList(),
+        'viewer_device_id': caller?.id,
+        'viewer_device_label': caller?.deviceLabel,
+        'files': visible,
       }));
     } catch (e) {
       request.response.statusCode = HttpStatus.internalServerError;
@@ -693,7 +737,9 @@ class DesktopFilesHandler {
       final body = await utf8.decodeStream(request);
       final json = jsonDecode(body) as Map<String, dynamic>;
       final fileId = json['id']?.toString() ?? '';
-      final exists = filesNotifier.value.any((f) => f.id == fileId);
+      final caller = sessionTracker.deviceForToken(token);
+      final exists = filesNotifier.value.any(
+          (f) => f.id == fileId && f.isVisibleToDevice(caller?.id));
       if (!exists || token == null) {
         request.response.statusCode = HttpStatus.notFound;
         request.response.headers.contentType = ContentType.json;
@@ -726,9 +772,10 @@ class DesktopFilesHandler {
     try {
       if (!_loaded) await refreshFiles();
       final target = filesNotifier.value.where((f) => f.id == fileId).firstOrNull;
-      if (target == null) {
-        request.response.statusCode = HttpStatus.notFound;
-        request.response.write('File not found');
+      final caller = sessionTracker.deviceForToken(sessionToken);
+      if (target == null || !target.isVisibleToDevice(caller?.id)) {
+        request.response.statusCode = target == null ? HttpStatus.notFound : HttpStatus.forbidden;
+        request.response.write(target == null ? 'File not found' : 'File targeted to another device');
         await request.response.close();
         return;
       }

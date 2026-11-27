@@ -12,6 +12,10 @@ void main() {
     expect(html, contains('Prepdesk Desktop Companion'));
     expect(html, contains('/assets/prepdesk.png'));
     expect(html, contains('id="panel-files"'));
+    expect(html, contains('PrepShare'));
+    expect(html, contains('id="prepshare-tabs"'));
+    expect(html, contains('id="prepshare-receive-pane"'));
+    expect(html, contains('id="prepshare-send-pane"'));
     expect(html, contains('id="file-dropzone"'));
     expect(html, contains('id="file-preview-dialog"'));
     expect(html, contains('id="file-sharing-status"'));

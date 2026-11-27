@@ -42,6 +42,8 @@ class _SettingsPageState extends State<SettingsPage> {
   // App Updates
   bool _autoCheckUpdates = true;
   bool _isCheckingUpdates = false;
+  String _currentReleaseNotes = '';
+  AppReleaseInfo? _upcomingRelease;
 
   // Alerts
   bool _morningBrief = true;
@@ -88,8 +90,28 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _initSettings() async {
     await _loadAllSettings();
+    _loadUpdatesReleaseNotes();
     if (widget.initialSection != null && mounted) {
       _navigateToSection(widget.initialSection!);
+    }
+  }
+
+  Future<void> _loadUpdatesReleaseNotes() async {
+    try {
+      final localNotes = await rootBundle.loadString('RELEASE_NOTES.md');
+      if (mounted) {
+        setState(() => _currentReleaseNotes = localNotes);
+      }
+    } catch (_) {}
+    if (_autoCheckUpdates && !AppUpdateService.isPlayStore) {
+      try {
+        final release = await AppUpdateService().checkForUpdate();
+        if (mounted &&
+            release != null &&
+            release.isNewerThan(AppUpdateService.currentVersion)) {
+          setState(() => _upcomingRelease = release);
+        }
+      } catch (_) {}
     }
   }
 
@@ -370,6 +392,7 @@ class _SettingsPageState extends State<SettingsPage> {
       setState(() {
         _serverRunning = false;
         _serverUrl = null;
+        _fileSharingEnabled = false;
       });
       TopBanner.show(
         context,
@@ -395,8 +418,10 @@ class _SettingsPageState extends State<SettingsPage> {
       setState(() => _isCheckingUpdates = false);
 
       if (release != null && release.isNewerThan(AppUpdateService.currentVersion)) {
+        setState(() => _upcomingRelease = release);
         _showUpdateDialog(release);
       } else {
+        setState(() => _upcomingRelease = null);
         TopBanner.show(
           context,
           title: 'Up to Date',
@@ -801,19 +826,11 @@ class _SettingsPageState extends State<SettingsPage> {
             onTap: () => _navigateToSection('cloud'),
           ),
 
-          // 5. Database Schema & Mass Import Guide Tile
-          _buildCategoryTile(
-            icon: Icons.storage_rounded,
-            title: 'Database Schema & Mass Import Guide',
-            subtitle: 'SQLite DDL structure & copyable JSON templates',
-            onTap: () => _navigateToSection('schema'),
-          ),
-
-          // 6. About App & Diagnostics Tile
+          // 6. About App & Diagnostics Tile (includes Database Schema & Diagnostics)
           _buildCategoryTile(
             icon: Icons.info_outline_rounded,
             title: 'About & Diagnostics',
-            subtitle: 'DB statistics, curriculum loader & reset',
+            subtitle: 'DB statistics, schema guide, curriculum loader & reset',
             onTap: () => _navigateToSection('about'),
           ),
 
@@ -1051,107 +1068,107 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               const SizedBox(height: 6),
               const Text(
-                'Open this URL in Chrome/Edge on your laptop to log & review mistakes.',
+                'Open this URL in Chrome/Edge on your laptop to log mistakes, edit notes, and transfer files.',
                 style: TextStyle(fontSize: 11, color: googleTextSecondary),
+              ),
+              const Divider(height: 20, thickness: 1, color: googleHairline),
+
+              // 6-digit PIN Card (shown only after server toggle is ON)
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: googleBorder, width: 1),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: const [
+                        Icon(Icons.shield_rounded, size: 16, color: googleGreen),
+                        SizedBox(width: 6),
+                        Text(
+                          'Public Wi-Fi Shield PIN (6-digit)',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: googleTextPrimary),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Required to pair and authenticate from your laptop browser.',
+                      style: TextStyle(fontSize: 11, color: googleTextSecondary),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: googleGreen.withOpacity(0.5), width: 1.2),
+                          ),
+                          child: Text(
+                            DesktopLogServerService.instance.pairingPin,
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 4,
+                              color: googleGreen,
+                              fontFamily: 'monospace',
+                            ),
+                          ),
+                        ),
+                        Row(
+                          children: [
+                            OutlinedButton.icon(
+                              icon: const Icon(Icons.copy_rounded, size: 15),
+                              label: const Text('Copy PIN', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: googleGreen,
+                                side: BorderSide(color: googleGreen.withOpacity(0.5)),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              ),
+                              onPressed: () {
+                                Clipboard.setData(ClipboardData(text: DesktopLogServerService.instance.pairingPin));
+                                TopBanner.show(
+                                  context,
+                                  title: 'PIN Copied',
+                                  message: '6-digit PIN copied to clipboard.',
+                                  icon: Icons.shield_rounded,
+                                  color: googleGreen,
+                                );
+                              },
+                            ),
+                            const SizedBox(width: 8),
+                            IconButton(
+                              icon: Icon(Icons.refresh_rounded, size: 22, color: Theme.of(context).colorScheme.primary),
+                              tooltip: 'Regenerate PIN',
+                              onPressed: () {
+                                setState(() {
+                                  DesktopLogServerService.instance.generateNewPin();
+                                });
+                                TopBanner.show(
+                                  context,
+                                  title: 'New PIN Generated',
+                                  message: 'Existing desktop connections revoked. Enter this new PIN on laptop.',
+                                  icon: Icons.vpn_key_rounded,
+                                  color: Theme.of(context).colorScheme.primary,
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ],
             const Divider(height: 20, thickness: 1, color: googleHairline),
-
-            // Prominently visible 6-digit PIN Card (always visible with Copy and Refresh)
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: googleBorder, width: 1),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: const [
-                      Icon(Icons.shield_rounded, size: 16, color: googleGreen),
-                      SizedBox(width: 6),
-                      Text(
-                        'Public Wi-Fi Shield PIN (6-digit)',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: googleTextPrimary),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Required to authenticate and log mistake questions from your laptop browser.',
-                    style: TextStyle(fontSize: 11, color: googleTextSecondary),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: googleGreen.withOpacity(0.5), width: 1.2),
-                        ),
-                        child: Text(
-                          DesktopLogServerService.instance.pairingPin,
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 4,
-                            color: googleGreen,
-                            fontFamily: 'monospace',
-                          ),
-                        ),
-                      ),
-                      Row(
-                        children: [
-                          OutlinedButton.icon(
-                            icon: const Icon(Icons.copy_rounded, size: 15),
-                            label: const Text('Copy PIN', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: googleGreen,
-                              side: BorderSide(color: googleGreen.withOpacity(0.5)),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            ),
-                            onPressed: () {
-                              Clipboard.setData(ClipboardData(text: DesktopLogServerService.instance.pairingPin));
-                              TopBanner.show(
-                                context,
-                                title: 'PIN Copied',
-                                message: '6-digit PIN copied to clipboard.',
-                                icon: Icons.shield_rounded,
-                                color: googleGreen,
-                              );
-                            },
-                          ),
-                          const SizedBox(width: 8),
-                          IconButton(
-                            icon: Icon(Icons.refresh_rounded, size: 22, color: Theme.of(context).colorScheme.primary),
-                            tooltip: 'Regenerate PIN',
-                            onPressed: () {
-                              setState(() {
-                                DesktopLogServerService.instance.generateNewPin();
-                              });
-                              TopBanner.show(
-                                context,
-                                title: 'New PIN Generated',
-                                message: 'Existing desktop connections revoked. Enter this new PIN on laptop.',
-                                icon: Icons.vpn_key_rounded,
-                                color: Theme.of(context).colorScheme.primary,
-                              );
-                            },
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -1159,21 +1176,23 @@ class _SettingsPageState extends State<SettingsPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Phone & PC File Sharing', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                      Text('PrepShare (Phone & PC File Sharing)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                       Text(
-                        'Transfer PDF, MP4, MKV, MP3, WAV or any file between devices',
+                        'Enable ultra-fast Wi-Fi sharing for PDF, MP4, MKV, MP3, WAV & more',
                         style: TextStyle(fontSize: 11, color: googleTextSecondary),
                       ),
                     ],
                   ),
                 ),
                 Switch(
-                  value: _fileSharingEnabled,
+                  value: _fileSharingEnabled && _serverRunning,
                   activeColor: Theme.of(context).colorScheme.primary,
-                  onChanged: (val) async {
-                    setState(() => _fileSharingEnabled = val);
-                    await DesktopLogServerService.instance.setFileSharingEnabled(val);
-                  },
+                  onChanged: _serverRunning
+                      ? (val) async {
+                          setState(() => _fileSharingEnabled = val);
+                          await DesktopLogServerService.instance.setFileSharingEnabled(val);
+                        }
+                      : null,
                 ),
               ],
             ),
@@ -1194,12 +1213,12 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ],
         ),
+        const PrepShareEntryTile(),
         const SizedBox(height: 12),
         DesktopConnectedDevicesCard(
           serverRunning: _serverRunning,
           serverUrl: _serverUrl,
         ),
-        const DesktopSharedFilesCard(),
       ],
     );
   }
@@ -1448,10 +1467,64 @@ class _SettingsPageState extends State<SettingsPage> {
                   onChanged: (val) async {
                     setState(() => _autoCheckUpdates = val);
                     await DatabaseService.instance.setAutoCheckUpdates(val);
+                    if (val) {
+                      _loadUpdatesReleaseNotes();
+                    }
                   },
                 ),
               ],
             ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        _buildCardContainer(
+          children: [
+            Row(
+              children: [
+                Icon(
+                  _upcomingRelease != null
+                      ? Icons.new_releases_rounded
+                      : Icons.notes_rounded,
+                  size: 20,
+                  color: _upcomingRelease != null
+                      ? googleGreen
+                      : Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _upcomingRelease != null
+                        ? 'Upcoming Update Notes (${_upcomingRelease!.tagName})'
+                        : 'Release Notes (v${AppUpdateService.currentVersion})',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: googleTextPrimary,
+                    ),
+                  ),
+                ),
+                if (_upcomingRelease != null)
+                  FilledButton.tonal(
+                    onPressed: () => _showUpdateDialog(_upcomingRelease!),
+                    child: const Text('Update', style: TextStyle(fontSize: 12)),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            const Divider(height: 1, color: googleHairline),
+            const SizedBox(height: 10),
+            if ((_upcomingRelease?.body ?? _currentReleaseNotes).trim().isEmpty)
+              const Text(
+                'Loading release notes...',
+                style: TextStyle(fontSize: 12, color: googleTextSecondary),
+              )
+            else
+              MarkdownBody(
+                data: _upcomingRelease != null
+                    ? _upcomingRelease!.body
+                    : _currentReleaseNotes,
+                selectable: true,
+              ),
           ],
         ),
       ],
@@ -1639,6 +1712,11 @@ class _SettingsPageState extends State<SettingsPage> {
               trailing: const Icon(Icons.edit_outlined), onTap: _editExamName),
             ListTile(contentPadding: EdgeInsets.zero, leading: const Icon(Icons.star_outline_rounded),
               title: const Text('Star on GitHub'), onTap: () => openExternalUrl(prepdeskRepositoryUrl)),
+            ListTile(contentPadding: EdgeInsets.zero, leading: const Icon(Icons.storage_rounded),
+              title: const Text('Database Schema & Mass Import Guide'),
+              subtitle: const Text('SQLite DDL structure & copyable JSON templates'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => _navigateToSection('schema')),
             ListTile(contentPadding: EdgeInsets.zero, leading: const Icon(Icons.notes_outlined),
               title: const Text('Release notes'),
               subtitle: const Text('Version ${AppUpdateService.currentVersion}'),

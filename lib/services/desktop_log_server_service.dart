@@ -76,16 +76,27 @@ class DesktopLogServerService {
 
   Future<void> refreshSharedFiles() => _filesHandler.refreshFiles();
 
-  Future<DesktopSharedFile> registerPhoneFile(File file, String displayName) {
+  Future<DesktopSharedFile> registerPhoneFile(
+    File file,
+    String displayName, {
+    String targetDeviceId = 'all',
+    String targetDeviceLabel = 'All connected PCs',
+  }) {
     return _filesHandler.registerStoredFile(
       file: file,
       displayName: displayName,
       source: 'phone',
       uploadedBy: 'This phone',
+      targetDeviceId: targetDeviceId,
+      targetDeviceLabel: targetDeviceLabel,
     );
   }
 
   Future<void> removeSharedFile(String id) => _filesHandler.removeFileById(id);
+
+  Future<void> clearReceivedFiles() => _filesHandler.clearBySource('pc');
+
+  Future<void> clearSentFiles() => _filesHandler.clearBySource('phone');
 
   Future<void> clearSharedFiles() => _filesHandler.clearAll();
 
@@ -237,6 +248,7 @@ class DesktopLogServerService {
   }
 
   Future<void> stopServer() async {
+    await setFileSharingEnabled(false);
     try {
       await _server?.close(force: true);
     } catch (_) {}
@@ -331,10 +343,13 @@ class DesktopLogServerService {
 
     // 3. Auth Status Check (Public)
     if (request.method == 'GET' && path == '/api/auth/status') {
+      final caller = _sessionTracker.deviceForToken(token);
       request.response.headers.contentType = ContentType.json;
       request.response.write(jsonEncode({'authenticated': isAuthenticated,
         'privacy_revision': StudyDataEvents.instance.privacyRevision,
         'file_sharing_enabled': fileSharingEnabled,
+        'device_id': caller?.id,
+        'device_label': caller?.deviceLabel,
         'accent': '#${AppearanceService.instance.accent.toARGB32().toRadixString(16).substring(2)}',
       }));
       await request.response.close();

@@ -1,11 +1,10 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../../../services/desktop/desktop_files_handler.dart';
 import '../../../services/desktop/desktop_session_tracker.dart';
 import '../../../services/desktop_log_server_service.dart';
 import '../../../utils/theme.dart';
 import '../../../widgets/top_banner_notification.dart';
+import '../prepshare_page.dart';
 
 class DesktopConnectedDevicesCard extends StatelessWidget {
   final bool serverRunning;
@@ -197,125 +196,8 @@ class DesktopConnectedDevicesCard extends StatelessWidget {
   }
 }
 
-class DesktopSharedFilesCard extends StatefulWidget {
-  const DesktopSharedFilesCard({super.key});
-
-  @override
-  State<DesktopSharedFilesCard> createState() => _DesktopSharedFilesCardState();
-}
-
-class _DesktopSharedFilesCardState extends State<DesktopSharedFilesCard> {
-  static const MethodChannel _nativeChannel =
-      MethodChannel('io.github.thelazyindian.tasks/native');
-
-  bool _isPicking = false;
-
-  static IconData _iconForFile(DesktopSharedFile file) {
-    final ext = file.extension;
-    final mime = file.mimeType.toLowerCase();
-    if (ext == 'pdf' || mime.contains('pdf')) return Icons.picture_as_pdf_outlined;
-    if (mime.startsWith('video/') ||
-        const {'mp4', 'mkv', 'webm', 'mov', 'avi'}.contains(ext)) {
-      return Icons.video_file_outlined;
-    }
-    if (mime.startsWith('audio/') ||
-        const {'mp3', 'wav', 'm4a', 'flac', 'ogg', 'aac'}.contains(ext)) {
-      return Icons.audio_file_outlined;
-    }
-    if (mime.startsWith('image/') ||
-        const {'png', 'jpg', 'jpeg', 'webp', 'gif'}.contains(ext)) {
-      return Icons.image_outlined;
-    }
-    return Icons.insert_drive_file_outlined;
-  }
-
-  Future<void> _pickAndShareFiles() async {
-    if (_isPicking) return;
-    setState(() => _isPicking = true);
-    try {
-      final result =
-          await _nativeChannel.invokeMethod<List<dynamic>>('pickFilesToShare');
-      if (result == null || result.isEmpty) return;
-      int added = 0;
-      for (final item in result) {
-        if (item is Map) {
-          final path = item['path']?.toString();
-          final name = item['name']?.toString() ?? 'shared_file';
-          if (path != null && path.isNotEmpty) {
-            await DesktopLogServerService.instance
-                .registerPhoneFile(File(path), name);
-            added++;
-          }
-        }
-      }
-      if (added > 0 && mounted) {
-        TopBanner.show(
-          context,
-          title: 'Ready for PC',
-          message: '$added ${added == 1 ? 'file' : 'files'} shared to Desktop Companion.',
-          icon: Icons.upload_file_rounded,
-          color: googleGreen,
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        TopBanner.show(
-          context,
-          title: 'File Share Error',
-          message: e.toString(),
-          icon: Icons.error_outline_rounded,
-          color: googleRed,
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isPicking = false);
-    }
-  }
-
-  Future<void> _openFile(DesktopSharedFile file) async {
-    try {
-      await _nativeChannel
-          .invokeMethod('openSharedFile', {'filePath': file.filePath});
-    } catch (e) {
-      if (mounted) {
-        TopBanner.show(
-          context,
-          title: 'Could Not Open File',
-          message: 'No compatible app found for ${file.name}.',
-          icon: Icons.error_outline_rounded,
-          color: googleRed,
-        );
-      }
-    }
-  }
-
-  Future<void> _saveToDownloads(DesktopSharedFile file) async {
-    try {
-      final saved = await _nativeChannel.invokeMethod<String>(
-        'saveSharedFileToDownloads',
-        {'filePath': file.filePath, 'fileName': file.name},
-      );
-      if (mounted) {
-        TopBanner.show(
-          context,
-          title: 'Saved to Downloads',
-          message: saved ?? file.name,
-          icon: Icons.download_done_rounded,
-          color: googleGreen,
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        TopBanner.show(
-          context,
-          title: 'Save Failed',
-          message: e.toString(),
-          icon: Icons.error_outline_rounded,
-          color: googleRed,
-        );
-      }
-    }
-  }
+class PrepShareEntryTile extends StatelessWidget {
+  const PrepShareEntryTile({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -326,7 +208,6 @@ class _DesktopSharedFilesCardState extends State<DesktopSharedFilesCard> {
         return ValueListenableBuilder<List<DesktopSharedFile>>(
           valueListenable: DesktopLogServerService.instance.filesNotifier,
           builder: (context, files, _) {
-            if (!enabled && files.isEmpty) return const SizedBox.shrink();
             return Container(
               margin: const EdgeInsets.only(top: 12),
               decoration: BoxDecoration(
@@ -334,154 +215,84 @@ class _DesktopSharedFilesCardState extends State<DesktopSharedFilesCard> {
                 borderRadius: BorderRadius.circular(24),
                 border: Border.all(color: googleHairline),
               ),
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+              child: Material(
+                type: MaterialType.transparency,
+                child: ListTile(
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                  leading: Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: colors.primaryContainer,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.swap_horiz_rounded,
+                      color: colors.onPrimaryContainer,
+                      size: 22,
+                    ),
+                  ),
+                  title: Row(
                     children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: colors.primaryContainer,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(
-                          Icons.folder_shared_outlined,
-                          color: colors.onPrimaryContainer,
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Shared Files',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: googleTextPrimary,
-                              ),
-                            ),
-                            Text(
-                              '${files.length} ${files.length == 1 ? 'file' : 'files'} • PDF, MP4, MKV, MP3, WAV & any format',
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: googleTextSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (files.isNotEmpty)
-                        TextButton(
-                          onPressed: () =>
-                              DesktopLogServerService.instance.clearSharedFiles(),
-                          style: TextButton.styleFrom(
-                            foregroundColor: googleRed,
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                      const Expanded(
+                        child: Text(
+                          'PrepShare',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: googleTextPrimary,
                           ),
-                          child: const Text('Clear all', style: TextStyle(fontSize: 11)),
                         ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: enabled
+                              ? googleGreen.withValues(alpha: 0.12)
+                              : const Color(0xFFF1F3F4),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          enabled
+                              ? (files.isEmpty
+                                  ? 'READY'
+                                  : '${files.length} FILES')
+                              : 'OFF',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: enabled ? googleGreen : googleTextSecondary,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
-                  if (enabled) ...[
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.tonalIcon(
-                        onPressed: _isPicking ? null : _pickAndShareFiles,
-                        icon: _isPicking
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : const Icon(Icons.upload_file_rounded, size: 18),
-                        label: Text(_isPicking
-                            ? 'Preparing files...'
-                            : 'Send Files from Phone to PC'),
-                      ),
-                    ),
-                  ],
-                  if (files.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    for (int i = 0; i < files.length; i++) ...[
-                      if (i > 0) const Divider(height: 14, color: googleHairline),
-                      _buildFileRow(colors, files[i]),
-                    ],
-                  ] else if (enabled) ...[
-                    const SizedBox(height: 10),
-                    const Text(
-                      'Pick files above to download on PC, or drop any file in your laptop browser under File share.',
-                      style: TextStyle(fontSize: 12, color: googleTextSecondary),
-                    ),
-                  ],
-                ],
+                  subtitle: Text(
+                    enabled
+                        ? 'Send & receive PDF, MP4, MKV, MP3, WAV or any file'
+                        : 'Turn on PrepShare above or tap to configure',
+                    style: const TextStyle(
+                        fontSize: 12, color: googleTextSecondary),
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded,
+                      color: googleTextSecondary, size: 20),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24)),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute<void>(
+                          builder: (_) => const PrepSharePage()),
+                    );
+                  },
+                ),
               ),
             );
           },
         );
       },
-    );
-  }
-
-  Widget _buildFileRow(ColorScheme colors, DesktopSharedFile file) {
-    return Row(
-      children: [
-        Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            color: colors.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(_iconForFile(file), color: colors.primary, size: 18),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                file.name,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: googleTextPrimary,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 2),
-              Text(
-                '${file.formatBadge} • ${file.sizeDisplay} • ${file.source == 'pc' ? 'Received from PC' : 'From Phone'}',
-                style: const TextStyle(fontSize: 11, color: googleTextSecondary),
-              ),
-            ],
-          ),
-        ),
-        IconButton(
-          icon: Icon(Icons.open_in_new_rounded, size: 19, color: colors.primary),
-          tooltip: 'Open file',
-          onPressed: () => _openFile(file),
-        ),
-        if (file.source == 'pc')
-          IconButton(
-            icon: const Icon(Icons.download_rounded, size: 19, color: googleGreen),
-            tooltip: 'Save to Downloads',
-            onPressed: () => _saveToDownloads(file),
-          ),
-        IconButton(
-          icon: const Icon(Icons.delete_outline_rounded, size: 19, color: googleRed),
-          tooltip: 'Remove file',
-          onPressed: () =>
-              DesktopLogServerService.instance.removeSharedFile(file.id),
-        ),
-      ],
     );
   }
 }

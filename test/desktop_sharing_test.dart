@@ -170,5 +170,55 @@ void main() {
       final listJson = jsonDecode(await utf8.decodeStream(listRes)) as Map<String, dynamic>;
       expect((listJson['files'] as List).length, 1);
     });
+
+    test('filters targeted phone shares per device and clears by source', () async {
+      final tokenA = tracker.createSession(
+        ipAddress: '192.168.1.41',
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0) Chrome/131.0.0.0',
+      );
+      final tokenB = tracker.createSession(
+        ipAddress: '192.168.1.42',
+        userAgent: 'Mozilla/5.0 (X11; Linux x86_64) Firefox/132.0',
+      );
+      final deviceA = tracker.deviceForToken(tokenA)!;
+      final deviceB = tracker.deviceForToken(tokenB)!;
+
+      final f1 = File('${tempDir.path}${Platform.pathSeparator}broadcast.pdf');
+      final f2 = File('${tempDir.path}${Platform.pathSeparator}only_a.mp4');
+      final f3 = File('${tempDir.path}${Platform.pathSeparator}from_pc.txt');
+      await f1.writeAsString('pdf');
+      await f2.writeAsString('mp4');
+      await f3.writeAsString('txt');
+
+      final e1 = await handler.registerStoredFile(
+        file: f1,
+        displayName: 'broadcast.pdf',
+        source: 'phone',
+        uploadedBy: 'Prepdesk Phone',
+      );
+      final e2 = await handler.registerStoredFile(
+        file: f2,
+        displayName: 'only_a.mp4',
+        source: 'phone',
+        uploadedBy: 'Prepdesk Phone',
+        targetDeviceId: deviceA.id,
+        targetDeviceLabel: deviceA.deviceLabel,
+      );
+      await handler.registerStoredFile(
+        file: f3,
+        displayName: 'from_pc.txt',
+        source: 'pc',
+        uploadedBy: deviceB.deviceLabel,
+      );
+
+      expect(e1.isVisibleToDevice(deviceA.id), isTrue);
+      expect(e1.isVisibleToDevice(deviceB.id), isTrue);
+      expect(e2.isVisibleToDevice(deviceA.id), isTrue);
+      expect(e2.isVisibleToDevice(deviceB.id), isFalse);
+
+      await handler.clearBySource('phone');
+      expect(handler.filesNotifier.value.length, 1);
+      expect(handler.filesNotifier.value.first.source, 'pc');
+    });
   });
 }
