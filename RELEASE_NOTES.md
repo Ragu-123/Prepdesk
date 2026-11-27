@@ -1,7 +1,8 @@
-# Prepdesk v1.2.3
+# Prepdesk v1.2.4
 
-- Added a **Phone & PC File Sharing** toggle inside **Desktop Companion Studio** settings to send and receive PDF, MP4, MKV, MP3, WAV, or any file directly over Wi-Fi.
-- Added high-speed binary streaming (with parallel chunked uploads for large media and HTTP Range streaming for video, audio, and PDF previews).
-- Added a live **Connected Devices** monitor directly below the Desktop Companion server card showing paired browsers, IP addresses, activity status, and one-tap disconnect.
-- Updated remaining user-facing PrepChat notification, mesh, and permission labels across Android settings and prompts.
-- Release packages verified on `pre-prod` include universal `app-release.apk`, split `prepdesk-arm64-v8a.apk`, `prepdesk-x86_64.apk`, and SHA-256 checksums.
+- Introduced **PrepShare**: A dedicated Google Nearby / Quick Share-inspired file sharing page with dual **Send** and **Received** tabs, per-device targeting, and category quick-filters (PDF & Docs, Video, Audio, Images, Any File).
+- Streamlined Desktop Companion settings: The 6-digit Public Wi-Fi Shield PIN is now cleanly hidden until the Local HTTP Server is started.
+- Auto-coupled server and PrepShare toggles: Stopping the phone HTTP server automatically shuts off PrepShare, while turning on the server leaves PrepShare activation strictly to user discretion.
+- Added live Release Notes view in **Settings -> In-App Updates** with upcoming release preview and one-tap install.
+- Moved Database Schema & Mass Import Guide under **About & Diagnostics**.
+- Desktop Companion web portal updated with full PrepShare parity, dual Send/Receive tabs, and high-speed multi-stream transfer.

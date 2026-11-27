@@ -193,9 +193,20 @@ class MainActivity: FlutterFragmentActivity() {
                         result.error("PICKER_BUSY", "A file picker is already active", null)
                     } else {
                         pendingShareResult = result
+                        val mimeTypes = call.argument<List<String>>("mimeTypes")
+                            ?.map { it.trim() }
+                            ?.filter { it.isNotEmpty() }
+                            ?: emptyList()
                         val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
                             addCategory(Intent.CATEGORY_OPENABLE)
-                            type = "*/*"
+                            if (mimeTypes.size == 1 && mimeTypes[0] != "*/*") {
+                                type = mimeTypes[0]
+                            } else {
+                                type = "*/*"
+                                if (mimeTypes.isNotEmpty() && !(mimeTypes.size == 1 && mimeTypes[0] == "*/*")) {
+                                    putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes.toTypedArray())
+                                }
+                            }
                             putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
                         }
                         @Suppress("DEPRECATION")

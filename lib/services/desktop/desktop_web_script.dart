@@ -2,7 +2,7 @@ class DesktopWebScript {
   static const value = r'''
 'use strict';
 const $ = id => document.getElementById(id);
-const state = { notes: [], mistakes: [], files: [], fileSharingEnabled: false, noteFilter: 'all', fileFilter: 'all', editingNote: null, token: sessionStorage.getItem('nyro_token') || localStorage.getItem('nyro_token') || '', authenticated: false, activeUploadXhrs: [], activeUploadIds: [], uploading: false };
+const state = { notes: [], mistakes: [], files: [], fileSharingEnabled: false, prepshareTab: 'receive', deviceId: '', deviceLabel: '', noteFilter: 'all', fileFilter: 'all', editingNote: null, token: sessionStorage.getItem('nyro_token') || localStorage.getItem('nyro_token') || '', authenticated: false, activeUploadXhrs: [], activeUploadIds: [], uploading: false };
 localStorage.removeItem('nyro_token');
 if (state.token) sessionStorage.setItem('nyro_token', state.token);
 const truth = value => value === true || value === 1;
@@ -29,9 +29,11 @@ function applyAppearance(accent) {
 function applyFileSharingState(enabled) {
   state.fileSharingEnabled = Boolean(enabled);
   $('files-disabled-banner').hidden = state.fileSharingEnabled;
+  $('prepshare-tabs').hidden = !state.fileSharingEnabled;
   $('file-dropzone').hidden = !state.fileSharingEnabled;
   $('pick-upload').disabled = !state.fileSharingEnabled;
   $('file-sharing-status').textContent = state.fileSharingEnabled ? 'Enabled (Phone <-> PC)' : 'Turned off on phone';
+  setPrepshareTab(state.prepshareTab);
 }
 async function api(path, options = {}) {
   const requestToken = state.token;
@@ -50,10 +52,10 @@ function lockLocal() {
   abortActiveUploads();
   if (sessionStream) { sessionStream.abort(); sessionStream = null; }
   privacyRevision = undefined;
-  state.authenticated = false; state.token = ''; state.notes = []; state.mistakes = []; state.files = []; state.editingNote = null;
+  state.authenticated = false; state.token = ''; state.notes = []; state.mistakes = []; state.files = []; state.deviceId = ''; state.deviceLabel = ''; state.editingNote = null;
   sessionStorage.removeItem('nyro_token'); $('app').inert = true;
   document.querySelectorAll('dialog[open]').forEach(dialog => dialog.close());
-  $('notes-container').replaceChildren(); $('mistakes-container').replaceChildren(); $('files-container').replaceChildren();
+  $('notes-container').replaceChildren(); $('mistakes-container').replaceChildren(); $('files-container').replaceChildren(); $('sent-files-container').replaceChildren();
   $('note-form').reset(); $('mistake-form').reset(); $('pair-pin').value = '';
   $('reader-title').textContent = 'Note'; $('reader-body').replaceChildren();
   $('preview-body').replaceChildren();
@@ -98,6 +100,7 @@ async function checkSession() {
   if (!state.token) { lockLocal(); return; }
   try { const data = await api('/api/auth/status'); if (data.authenticated) {
     if (privacyRevision !== undefined && data.privacy_revision !== privacyRevision) { lockLocal(); return; }
+    state.deviceId = data.device_id || ''; state.deviceLabel = data.device_label || '';
     privacyRevision = data.privacy_revision; applyAppearance(data.accent); applyFileSharingState(data.file_sharing_enabled);
     if (!state.authenticated) await loadWorkspace();
   } else lockLocal(); }
@@ -111,6 +114,7 @@ $('pair-form').addEventListener('submit', async event => {
     if (!data.success || !data.token) throw new Error(data.error || 'That code was not accepted. Check the code on your phone.');
     state.token = data.token; sessionStorage.setItem('nyro_token', state.token); $('pair-pin').value = '';
     const status = await api('/api/auth/status').catch(() => ({}));
+    state.deviceId = status.device_id || ''; state.deviceLabel = status.device_label || '';
     applyAppearance(status.accent); applyFileSharingState(status.file_sharing_enabled);
     await loadWorkspace();
   } catch (error) { $('pair-error').textContent = error.message; }
@@ -258,7 +262,7 @@ $('mistake-form').addEventListener('submit', async event => {
 $('new-mistake').addEventListener('click', openMistake); $('refresh-mistakes').addEventListener('click', loadMistakes); $('refresh-status').addEventListener('click', checkSession);
 ['mistake-search', 'subject-filter', 'status-filter'].forEach(id => $(id).addEventListener(id === 'mistake-search' ? 'input' : 'change', renderMistakes));
 
-// --- Bidirectional Ultra-Fast File Sharing ---
+// --- Bidirectional PrepShare File Transfer ---
 function fileKindIcon(file) {
   const mime = String(file.mime_type || '').toLowerCase();
   const ext = String(file.extension || '').toLowerCase();
@@ -272,39 +276,69 @@ function isPreviewable(file) {
   const kind = fileKindIcon(file);
   return ['pdf', 'video', 'audio', 'image'].includes(kind);
 }
+function matchesReceiveCategory(file, filter) {
+  if (filter === 'all') return true;
+  const kind = fileKindIcon(file);
+  if (filter === 'media') return ['pdf', 'video', 'audio', 'image'].includes(kind);
+  const mime = String(file.mime_type || '').toLowerCase();
+  const ext = String(file.extension || '').toLowerCase();
+  const isDoc = ext === 'pdf' || mime.includes('pdf') || mime.startsWith('text/') || ['doc', 'docx', 'txt', 'md', 'csv', 'ppt', 'pptx', 'xls', 'xlsx', 'rtf', 'json'].includes(ext);
+  if (filter === 'docs') return isDoc;
+  return !['pdf', 'video', 'audio', 'image'].includes(kind) && !isDoc;
+}
+function setPrepshareTab(tab) {
+  state.prepshareTab = tab === 'send' ? 'send' : 'receive';
+  document.querySelectorAll('[data-prepshare-tab]').forEach(btn => btn.setAttribute('aria-pressed', String(btn.dataset.prepshareTab === state.prepshareTab)));
+  $('prepshare-receive-pane').hidden = !state.fileSharingEnabled || state.prepshareTab !== 'receive';
+  $('prepshare-send-pane').hidden = !state.fileSharingEnabled || state.prepshareTab !== 'send';
+}
+function buildFileRow(file) {
+  const row = node('article', 'file-row');
+  const iconBox = node('div', 'file-icon'); iconBox.append(icon(fileKindIcon(file)));
+  const info = node('div', 'file-info');
+  info.append(node('div', 'file-title', file.name));
+  const meta = node('div', 'file-meta');
+  meta.append(node('span', 'pill', (file.extension || 'FILE').toUpperCase()), node('span', '', file.size_display || ''));
+  if (file.source === 'phone') {
+    const targetBadge = (file.target_device_id && file.target_device_id !== 'all')
+      ? (state.deviceId && file.target_device_id === state.deviceId ? 'Shared with your PC' : (file.target_device_label || 'Targeted PC'))
+      : 'All PCs';
+    meta.append(node('span', 'pill', targetBadge));
+  } else {
+    meta.append(node('span', 'pill', 'Sent from PC'));
+  }
+  if (file.created_at) meta.append(node('span', '', new Date(file.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })));
+  info.append(meta);
+  const acts = node('div', 'file-actions');
+  if (isPreviewable(file)) acts.append(action('Preview', 'play', () => openFilePreview(file), 'btn btn-tonal'));
+  acts.append(action('Download', 'download', () => downloadSharedFile(file), 'btn'), action('Delete', 'delete', () => deleteRecord('file', file.id)));
+  row.append(iconBox, info, acts);
+  return row;
+}
 async function loadFiles() {
   if (!state.fileSharingEnabled) { state.files = []; renderFiles(); return; }
-  try { const data = await api('/api/files'); state.files = data.files || []; renderFiles(); }
+  try { const data = await api('/api/files'); state.files = data.files || []; if (data.device_id) state.deviceId = data.device_id; renderFiles(); }
   catch (error) { if (String(error.message || '').includes('turned off')) applyFileSharingState(false); else report(error); }
 }
 function renderFiles() {
   const query = $('file-search').value.toLowerCase().trim();
-  const files = state.files.filter(f => {
-    if (state.fileFilter === 'phone' && f.source !== 'phone') return false;
-    if (state.fileFilter === 'pc' && f.source !== 'pc') return false;
-    if (state.fileFilter === 'media' && !isPreviewable(f)) return false;
-    return [f.name, f.extension, f.mime_type, f.uploaded_by].some(v => text(v).toLowerCase().includes(query));
-  });
+  const matchesQuery = f => [f.name, f.extension, f.mime_type, f.uploaded_by, f.target_device_label].some(v => text(v).toLowerCase().includes(query));
+  const receiveAll = state.files.filter(f => f.source === 'phone');
+  const sendAll = state.files.filter(f => f.source === 'pc');
+  const receiveFiltered = receiveAll.filter(f => matchesReceiveCategory(f, state.fileFilter) && matchesQuery(f));
+  const sendFiltered = sendAll.filter(matchesQuery);
   $('file-count').textContent = state.files.length;
-  $('file-summary').textContent = !state.fileSharingEnabled ? 'File sharing disabled on phone' : (files.length + (files.length === 1 ? ' file' : ' files') + ' ready to open or download');
-  const container = $('files-container'); container.replaceChildren();
+  $('receive-count').textContent = receiveAll.length;
+  $('send-count').textContent = sendAll.length;
+  $('file-summary').textContent = !state.fileSharingEnabled ? 'PrepShare disabled on phone' : (receiveFiltered.length + (receiveFiltered.length === 1 ? ' file' : ' files') + ' received from phone');
+  $('send-summary').textContent = !state.fileSharingEnabled ? 'PrepShare disabled on phone' : (sendFiltered.length + (sendFiltered.length === 1 ? ' file' : ' files') + ' sent from PC');
+  const receiveContainer = $('files-container'); receiveContainer.replaceChildren();
+  const sendContainer = $('sent-files-container'); sendContainer.replaceChildren();
   if (!state.fileSharingEnabled) return;
-  if (!files.length) { empty(container, query ? 'No matching files' : 'Share any file with your phone', query ? 'Try another filename or clear the filter.' : 'Drop PDF, MP4, MKV, MP3, WAV or any file above, or share from your phone settings.', 'folder', null); return; }
-  files.forEach(file => {
-    const row = node('article', 'file-row');
-    const iconBox = node('div', 'file-icon'); iconBox.append(icon(fileKindIcon(file)));
-    const info = node('div', 'file-info');
-    info.append(node('div', 'file-title', file.name));
-    const meta = node('div', 'file-meta');
-    meta.append(node('span', 'pill', (file.extension || 'FILE').toUpperCase()), node('span', '', file.size_display || ''), node('span', 'pill', file.source === 'phone' ? 'From phone' : 'Sent from PC'));
-    if (file.created_at) meta.append(node('span', '', new Date(file.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })));
-    info.append(meta);
-    const acts = node('div', 'file-actions');
-    if (isPreviewable(file)) acts.append(action('Preview', 'play', () => openFilePreview(file), 'btn btn-tonal'));
-    acts.append(action('Download', 'download', () => downloadSharedFile(file), 'btn'), action('Delete', 'delete', () => deleteRecord('file', file.id)));
-    row.append(iconBox, info, acts);
-    container.append(row);
-  });
+  if (!receiveFiltered.length) { empty(receiveContainer, query ? 'No matching received files' : 'Waiting for files from your phone', query ? 'Try another filename or category filter.' : 'Share PDF, video, audio or documents from PrepShare on your phone.', 'folder', null); }
+  else { receiveFiltered.forEach(file => receiveContainer.append(buildFileRow(file))); }
+  if (!sendFiltered.length) { empty(sendContainer, query ? 'No matching sent files' : 'Send any file to your phone', query ? 'Try another search query.' : 'Drop PDF, MP4, MKV, MP3, WAV or any file above to send straight to Prepdesk.', 'upload', null); }
+  else { sendFiltered.forEach(file => sendContainer.append(buildFileRow(file))); }
 }
 async function downloadSharedFile(file) {
   try {
@@ -368,9 +402,10 @@ function uploadSingleXhr(url, method, blob, extraHeaders, onBytes) {
   });
 }
 async function sendFilesToPhone(fileList) {
-  if (!state.fileSharingEnabled) { toast('Enable File Sharing on your phone first.'); return; }
+  if (!state.fileSharingEnabled) { toast('Enable PrepShare on your phone first.'); return; }
   const files = Array.from(fileList || []).filter(f => f && f.size >= 0);
   if (!files.length || state.uploading) return;
+  setPrepshareTab('send');
   state.uploading = true;
   const DIRECT_LIMIT = 8 * 1024 * 1024;
   const CHUNK_SIZE = 4 * 1024 * 1024;
@@ -402,21 +437,30 @@ async function sendFilesToPhone(fileList) {
         await api('/api/files/upload/complete', { method: 'POST', body: JSON.stringify({ upload_id: uploadId }) });
         state.activeUploadIds = state.activeUploadIds.filter(id => id !== uploadId);
       }
-      toast('Sent ' + file.name + ' to phone');
+      toast('PrepShare: Sent ' + file.name + ' to phone');
     }
     await loadFiles();
   } catch (error) { if (error.message !== 'Upload cancelled') report(error); }
-  finally { state.uploading = false; $('upload-progress-wrap').hidden = true; $('file-input').value = ''; }
+  finally { state.uploading = false; $('upload-progress-wrap').hidden = true; $('file-input').value = ''; $('file-input').removeAttribute('accept'); }
 }
-$('pick-upload').addEventListener('click', () => $('file-input').click());
-$('file-dropzone').addEventListener('click', () => $('file-input').click());
-$('file-dropzone').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('file-input').click(); } });
+$('pick-upload').addEventListener('click', () => { setPrepshareTab('send'); $('file-input').removeAttribute('accept'); $('file-input').click(); });
+document.querySelectorAll('[data-prepshare-tab]').forEach(button => button.addEventListener('click', () => setPrepshareTab(button.dataset.prepshareTab)));
+document.querySelectorAll('[data-send-accept]').forEach(button => button.addEventListener('click', () => {
+  setPrepshareTab('send');
+  const accept = button.dataset.sendAccept;
+  if (accept) $('file-input').setAttribute('accept', accept);
+  else $('file-input').removeAttribute('accept');
+  $('file-input').click();
+}));
+$('file-dropzone').addEventListener('click', () => { $('file-input').removeAttribute('accept'); $('file-input').click(); });
+$('file-dropzone').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('file-input').removeAttribute('accept'); $('file-input').click(); } });
 $('file-input').addEventListener('change', e => sendFilesToPhone(e.target.files));
 ['dragenter', 'dragover'].forEach(ev => $('file-dropzone').addEventListener(ev, e => { e.preventDefault(); $('file-dropzone').classList.add('is-dragging'); }));
 ['dragleave', 'drop'].forEach(ev => $('file-dropzone').addEventListener(ev, e => { e.preventDefault(); $('file-dropzone').classList.remove('is-dragging'); }));
 $('file-dropzone').addEventListener('drop', e => sendFilesToPhone(e.dataTransfer && e.dataTransfer.files));
 $('abort-uploads').addEventListener('click', abortActiveUploads);
 $('refresh-files').addEventListener('click', loadFiles);
+$('refresh-sent-files').addEventListener('click', loadFiles);
 $('file-search').addEventListener('input', renderFiles);
 document.querySelectorAll('[data-file-filter]').forEach(button => button.addEventListener('click', () => { state.fileFilter = button.dataset.fileFilter; document.querySelectorAll('[data-file-filter]').forEach(item => item.setAttribute('aria-pressed', String(item === button))); renderFiles(); }));
 function confirmDelete() { return new Promise(resolve => { const dialog = $('confirm-dialog'); dialog.returnValue = 'cancel'; dialog.addEventListener('close', () => resolve(dialog.returnValue === 'delete'), { once: true }); dialog.showModal(); }); }
